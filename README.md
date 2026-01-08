@@ -1,36 +1,133 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Episode - 마인드맵 기반 취업준비 서비스
 
-## Getting Started
+Episode는 사용자의 경험을 마인드맵으로 구조화하고, AI 챗봇과 함께 STAR 방식으로 자기소개서를 작성할 수 있도록 도와주는 프론트엔드 전용 프로토타입 서비스입니다.
 
-First, run the development server:
+## 주요 기능
+
+### 1. 마인드맵 캔버스
+- 노드 생성, 수정, 삭제
+- 드래그 앤 드롭으로 노드 위치 이동
+- Ctrl/Cmd + 드래그로 캔버스 이동
+- Alt + 마우스 휠로 줌 인/아웃
+- 하위 노드 추가 및 계층 구조 관리
+
+### 2. AI 챗봇 (STAR 방식)
+- 노드 선택 시 자동으로 STAR 방식 대화 시작
+- 상황(Situation), 과제(Task), 행동(Action), 결과(Result) 순서로 진행
+- 진행 상황 시각화
+- 완성된 내용을 기반으로 STAR 초안 자동 생성
+
+### 3. STAR 에디터
+- AI 챗봇 대화 내용 기반 자동 생성
+- STAR 구성 요소별 편집
+- 글자 수 표시 및 검증
+- 클립보드 복사 기능
+- localStorage에 저장
+
+### 4. 대시보드
+- 모든 자기소개서 목록 조회
+- 검색 및 필터링
+- 카드 뷰 / 테이블 뷰 전환
+- 상세 보기 및 삭제
+
+### 5. 공백 진단
+- 기업별/직무별 문항 선택
+- 답변 어려움 정도 선택
+- 어려운 역량을 추천 인벤토리에 자동 추가
+
+### 6. 공유 기능
+- 노드 공유 링크 생성
+- 공유된 노드 읽기 전용 뷰
+
+## 기술 스택
+
+- **프레임워크**: Next.js 16 (App Router)
+- **언어**: TypeScript
+- **스타일링**: Tailwind CSS
+- **UI 컴포넌트**: shadcn/ui (Radix UI 기반)
+- **아이콘**: Lucide React
+- **애니메이션**: Framer Motion
+- **상태 관리**: React Hooks
+- **데이터 저장**: localStorage
+
+## 시작하기
+
+### 설치
+
+```bash
+npm install
+```
+
+### 개발 서버 실행
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+브라우저에서 [http://localhost:3000](http://localhost:3000)을 열어 확인하세요.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 빌드
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+```
 
-## Learn More
+### 프로덕션 실행
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 사용 방법
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 1. 로그인
+- 카카오 또는 Google 로그인 (목업)
+- 로그인 정보는 localStorage에 저장됩니다
 
-## Deploy on Vercel
+### 2. 배지 선택
+- 관리하고 싶은 경험 유형 선택 (인턴, 학업, 동아리, 프로젝트 등)
+- 여러 개 선택 가능
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 3. 마인드맵 생성
+- 루트 노드가 자동으로 생성됩니다
+- 노드를 더블클릭하여 이름 변경
+- 노드에 마우스 오버 시 "+" 버튼으로 하위 노드 추가
+- 노드를 드래그하여 위치 이동
+- 우클릭으로 컨텍스트 메뉴 열기
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 4. AI 챗봇으로 STAR 작성
+- 노드를 선택하면 오른쪽 사이드바에 AI 챗봇이 나타납니다
+- STAR 방식으로 대화하며 자기소개서 작성
+- 모든 단계 완료 시 STAR 초안 생성 가능
+
+### 5. STAR 에디터로 편집
+- 생성된 STAR 초안을 편집하고 저장
+- 클립보드에 복사하여 사용
+
+### 6. 대시보드에서 관리
+- 저장된 모든 자기소개서 확인
+- 검색 및 필터링으로 원하는 내용 찾기
+- 상세 보기 및 삭제
+
+## 데이터 저장
+
+모든 데이터는 브라우저의 localStorage에 저장됩니다:
+
+- `episode_user`: 사용자 정보
+- `episode_badges`: 선택한 배지
+- `episode_mindmap`: 마인드맵 노드
+- `episode_assets`: STAR 자기소개서
+- `episode_gap_tags`: 공백 진단 태그
+
+## 디자인 시스템
+
+토스/토스증권 스타일의 깔끔하고 모던한 UI/UX를 적용했습니다:
+
+- 그라데이션 배경 및 버튼
+- 부드러운 애니메이션
+- 직관적인 인터랙션
+- 반응형 디자인 (모바일/태블릿/데스크톱)
+
+## 라이선스
+
+MIT
