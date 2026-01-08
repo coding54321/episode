@@ -7,7 +7,7 @@ import { sharedNodeStorage } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Home, ArrowLeft, Share2, Calendar, Eye, FileText, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { Home, ArrowLeft, Share2, Calendar, Eye, FileText, ZoomIn, ZoomOut, Maximize2, X } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 

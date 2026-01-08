@@ -142,7 +142,7 @@ export default function MindMapNode({
     <ContextMenu>
       <ContextMenuTrigger>
         <div
-          ref={drop}
+          ref={drop as any}
           style={{
             position: 'absolute',
             left: x,

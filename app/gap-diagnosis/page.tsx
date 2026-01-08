@@ -117,12 +117,16 @@ export default function GapDiagnosisPage() {
     // 답변 어려운 질문들에서 역량 태그 추출
     const difficultQuestions = questions.filter(q => questionResponses[q.id] === 'difficult');
 
-    const newTags: GapTag[] = difficultQuestions.map(q => ({
-      id: `gap_${Date.now()}_${Math.random()}`,
-      label: extractCompetencyFromQuestion(q.question),
-      source: `${q.company} ${q.position}`,
-      createdAt: Date.now(),
-    }));
+    const newTags: GapTag[] = difficultQuestions.map(q => {
+      const competency = extractCompetencyFromQuestion(q.question);
+      return {
+        id: `gap_${Date.now()}_${Math.random()}`,
+        label: competency,
+        category: competency, // category 필드 추가
+        source: `${q.company} ${q.position}`,
+        createdAt: Date.now(),
+      };
+    });
 
     newTags.forEach(tag => gapTagStorage.add(tag));
     router.push('/mindmap');

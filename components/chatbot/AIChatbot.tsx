@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ChatMessage, STARPhase, STARProgress } from '@/types';
+import { ChatMessage, STARPhase, STARProgress, GapTag } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { X, Send, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { gapTagStorage, GapTag } from '@/lib/storage';
+import { gapTagStorage } from '@/lib/storage';
 import { useDrag } from 'react-dnd';
 
 interface AIChatbotProps {
@@ -57,7 +57,7 @@ function GapTagCard({ tag, onRemove }: { tag: GapTag; onRemove: (id: string) => 
 
   return (
     <div 
-      ref={drag}
+      ref={drag as any}
       className={`p-4 rounded-xl border border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm transition-all cursor-move ${
         isDragging ? 'opacity-50' : ''
       }`}

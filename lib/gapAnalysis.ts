@@ -124,6 +124,7 @@ export function analyzeGaps(userExperiences: string[]): GapTag[] {
     return {
       id: `gap_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       label: competency,
+      category: competency,
       source: relatedQuestion ? `${relatedQuestion.company} ${relatedQuestion.position}` : '역량 분석',
       createdAt: Date.now()
     };
