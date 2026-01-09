@@ -1,13 +1,43 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Brain, MessageSquare, FileText, FolderKanban, Sparkles } from 'lucide-react';
+import { ArrowRight, Brain, FileText, Sparkles, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import FloatingHeader from '@/components/FloatingHeader';
+import { userStorage } from '@/lib/storage';
+import type { User } from '@/types';
 
 export default function LandingPage() {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const currentUser = userStorage.load();
+    setUser(currentUser);
+  }, []);
+
+  const handleFeatureClick = (feature: string) => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    switch (feature) {
+      case 'mindmap':
+        router.push('/mindmaps');
+        break;
+      case 'gap-diagnosis':
+        router.push('/gap-diagnosis');
+        break;
+      case 'archive':
+        router.push('/archive');
+        break;
+    }
+  };
   return (
     <div className="min-h-screen bg-white">
       {/* 플로팅 헤더바 */}
@@ -164,24 +194,24 @@ export default function LandingPage() {
       </section>
 
       {/* 기능 소개 */}
-      <section className="px-5 py-20 bg-gray-50">
-        <div className="max-w-6xl mx-auto">
+      <section className="px-5 py-24 border-t border-gray-100">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-16"
+            className="text-center mb-20"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">
-              Episode로 할 수 있는 것들
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 tracking-tight">
+              간단하게 시작하세요
             </h2>
-            <p className="text-lg text-gray-600">
-              취업 준비를 더 쉽고 체계적으로
+            <p className="text-xl text-gray-500">
+              경험을 구조화하고, 부족한 역량을 찾고, STAR로 정리하세요
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-8">
             {[
               {
                 icon: Brain,
@@ -189,123 +219,52 @@ export default function LandingPage() {
                 description: '경험을 시각적으로 구조화하고 관리하세요',
                 color: 'bg-blue-50',
                 iconColor: 'text-blue-600',
+                key: 'mindmap',
               },
               {
-                icon: MessageSquare,
-                title: 'AI 챗봇',
-                description: 'STAR 방식으로 대화하며 자기소개서를 작성하세요',
-                color: 'bg-purple-50',
-                iconColor: 'text-purple-600',
+                icon: Sparkles,
+                title: '공백 진단',
+                description: '기출 자소서 문항 기반 약점 분석',
+                color: 'bg-orange-50',
+                iconColor: 'text-orange-600',
+                key: 'gap-diagnosis',
               },
               {
                 icon: FileText,
-                title: 'STAR 에디터',
-                description: '완성된 자기소개서를 편집하고 저장하세요',
+                title: '에피소드 아카이브',
+                description: 'STAR 기법으로 경험 정리',
                 color: 'bg-green-50',
                 iconColor: 'text-green-600',
-              },
-              {
-                icon: FolderKanban,
-                title: '프로젝트 관리',
-                description: '여러 마인드맵을 프로젝트로 관리하세요',
-                color: 'bg-orange-50',
-                iconColor: 'text-orange-600',
+                key: 'archive',
               },
             ].map((feature, index) => (
-              <motion.div
+              <motion.button
                 key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-                className="bg-white rounded-[16px] p-6 hover:shadow-md transition-all duration-200 border border-gray-100"
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                onClick={() => handleFeatureClick(feature.key)}
+                className="w-full flex items-start gap-6 p-8 rounded-[20px] hover:bg-gray-50 transition-all duration-200 group text-left"
               >
-                <div className={`w-12 h-12 ${feature.color} rounded-[12px] flex items-center justify-center mb-4`}>
-                  <feature.icon className={`w-6 h-6 ${feature.iconColor}`} />
+                <div className={`w-16 h-16 ${feature.color} rounded-[16px] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform`}>
+                  <feature.icon className={`w-8 h-8 ${feature.iconColor}`} />
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-gray-900">{feature.title}</h3>
-                <p className="text-sm text-gray-600 leading-relaxed">{feature.description}</p>
-              </motion.div>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold mb-3 text-gray-900">{feature.title}</h3>
+                  <p className="text-lg text-gray-600 leading-relaxed">{feature.description}</p>
+                </div>
+                <ChevronRight className="w-6 h-6 text-gray-400 group-hover:text-gray-900 flex-shrink-0 transition-colors" />
+              </motion.button>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 주요 특징 */}
-      <section className="px-5 py-20">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <div className="mb-4">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-full mb-4">
-                  <Sparkles className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-600">AI 기반</span>
-                </div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">
-                  STAR 방식으로
-                  <br />
-                  자기소개서 작성
-                </h2>
-                <p className="text-lg text-gray-600 leading-relaxed mb-6">
-                  AI 챗봇과 대화하며 상황, 과제, 행동, 결과를 체계적으로 정리하고
-                  완성도 높은 자기소개서를 작성할 수 있습니다.
-                </p>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="bg-gray-50 rounded-[20px] p-8 h-64 flex items-center justify-center"
-            >
-              <div className="text-center">
-                <Brain className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">마인드맵 미리보기</p>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA 섹션 */}
-      <section className="px-5 py-20 bg-gray-50">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900">
-              지금 바로 시작하세요
-            </h2>
-            <p className="text-lg text-gray-600 mb-8">
-              무료로 경험을 구조화하고 자기소개서를 작성해보세요
-            </p>
-            <Link href="/login">
-              <Button
-                size="lg"
-                className="h-14 px-8 bg-blue-600 hover:bg-blue-700 text-white text-lg font-medium rounded-[12px] shadow-sm hover:shadow-md transition-all duration-200"
-              >
-                무료로 시작하기
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-          </motion.div>
-        </div>
-      </section>
-
       {/* 푸터 */}
-      <footer className="px-5 py-12 border-t border-gray-200">
+      <footer className="px-5 py-16 border-t border-gray-100">
         <div className="max-w-6xl mx-auto text-center">
-          <p className="text-sm text-gray-500">© 2024 Episode. All rights reserved.</p>
+          <p className="text-sm text-gray-400">© 2025 Episode</p>
         </div>
       </footer>
     </div>

@@ -138,8 +138,46 @@ export default function BadgeSelectionPage() {
   };
 
   const handleSkip = () => {
-    // 건너뛰기 시에도 기본 프로젝트 생성
-    handleComplete();
+    // 건너뛰기: 배지 없이 중심 노드만 있는 마인드맵 생성
+    const user = userStorage.load();
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    // 새 마인드맵 프로젝트 생성 (중심 노드만)
+    const projectId = `project_${Date.now()}`;
+    const projectName = `${user.name}의 경험 맵`;
+
+    // 중앙 노드만 생성
+    const centerNode: MindMapNode = {
+      id: 'center',
+      label: user.name || '나',
+      parentId: null,
+      children: [],
+      x: 500,
+      y: 300,
+      level: 0,
+      nodeType: 'center',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    const newProject: MindMapProject = {
+      id: projectId,
+      name: projectName,
+      description: '경험을 관리합니다',
+      badges: [],
+      nodes: [centerNode],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      isDefault: true,
+    };
+
+    mindMapProjectStorage.add(newProject);
+    currentProjectStorage.save(projectId);
+    
+    router.push(`/mindmap/${projectId}`);
   };
 
   return (

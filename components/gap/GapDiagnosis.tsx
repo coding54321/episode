@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Check, X, ChevronRight, ChevronLeft, Building2, Briefcase } from 'lucide-react';
+import { Check, X, ChevronRight, ChevronLeft, Building2 } from 'lucide-react';
 import { 
   Company, 
   Job, 
@@ -30,11 +30,19 @@ interface GapDiagnosisProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete?: () => void; // 공백 진단 완료 후 콜백
+  resultButtonText?: string; // 결과 단계 버튼 텍스트 (기본값: 'AI 어시스턴트에 추가')
+  onResultButtonClick?: () => void; // 결과 단계 버튼 클릭 핸들러
 }
 
 type Step = 'company' | 'job' | 'questions' | 'result';
 
-export default function GapDiagnosis({ isOpen, onClose, onComplete }: GapDiagnosisProps) {
+export default function GapDiagnosis({ 
+  isOpen, 
+  onClose, 
+  onComplete,
+  resultButtonText = 'AI 어시스턴트에 추가',
+  onResultButtonClick
+}: GapDiagnosisProps) {
   const [step, setStep] = useState<Step>('company');
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -113,8 +121,18 @@ export default function GapDiagnosis({ isOpen, onClose, onComplete }: GapDiagnos
     setStep('result');
   };
 
-  // AI 어시스턴트에 추가
+  // AI 어시스턴트에 추가 또는 결과 버튼 클릭
   const handleAddToAssistant = () => {
+    // 커스텀 핸들러가 있으면 그것을 사용
+    if (onResultButtonClick) {
+      analyzedTags.forEach(tag => {
+        gapTagStorage.add(tag);
+      });
+      onResultButtonClick();
+      return;
+    }
+
+    // 기본 동작 (AI 어시스턴트에 추가)
     analyzedTags.forEach(tag => {
       gapTagStorage.add(tag);
     });
@@ -172,7 +190,7 @@ export default function GapDiagnosis({ isOpen, onClose, onComplete }: GapDiagnos
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] p-0 flex flex-col" showCloseButton={false}>
+      <DialogContent className="max-w-7xl max-h-[90vh] p-0 flex flex-col" showCloseButton={false}>
         <DialogTitle className="sr-only">공백 진단</DialogTitle>
         {/* 헤더 */}
         <div className="px-6 py-5 border-b border-gray-100 flex-shrink-0">
@@ -252,8 +270,7 @@ export default function GapDiagnosis({ isOpen, onClose, onComplete }: GapDiagnos
                 <div className="space-y-6">
                   {Object.entries(jobsByCategory).map(([category, jobs]) => (
                     <div key={category} className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm font-bold text-gray-900 px-1">
-                        <Briefcase className="w-4 h-4 text-blue-600" />
+                      <div className="text-sm font-bold text-gray-900 px-1">
                         {category}
                       </div>
                       <div className="grid grid-cols-2 gap-3">
@@ -261,17 +278,14 @@ export default function GapDiagnosis({ isOpen, onClose, onComplete }: GapDiagnos
                           <button
                             key={job.id}
                             onClick={() => handleJobSelect(job)}
-                            className="p-4 rounded-xl border border-gray-200 hover:border-blue-600 hover:shadow-sm transition-all text-left group"
+                            className="p-4 rounded-xl border border-gray-200 hover:border-gray-900 hover:shadow-sm transition-all text-left group"
                           >
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-blue-50 transition-colors">
-                                <Briefcase className="w-5 h-5 text-gray-600 group-hover:text-blue-600" />
-                              </div>
+                            <div className="flex items-center justify-between gap-3">
                               <div className="flex-1">
-                                <h3 className="font-semibold text-gray-900">{job.job_title}</h3>
+                                <h3 className="font-semibold text-gray-900 mb-1">{job.job_title}</h3>
                                 <p className="text-sm text-gray-500">{job.department}</p>
                               </div>
-                              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600" />
+                              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-900 flex-shrink-0" />
                             </div>
                           </button>
                         ))}
@@ -422,7 +436,7 @@ export default function GapDiagnosis({ isOpen, onClose, onComplete }: GapDiagnos
                 onClick={handleAddToAssistant}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                AI 어시스턴트에 추가
+                {resultButtonText}
               </Button>
             )}
             

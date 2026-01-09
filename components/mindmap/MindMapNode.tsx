@@ -118,7 +118,7 @@ export default function MindMapNode({
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (node.id === 'center') return;
+    // 중심 노드도 편집 가능하도록 허용
     onStartEdit(node.id);
   };
 

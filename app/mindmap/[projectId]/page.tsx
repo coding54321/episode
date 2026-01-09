@@ -11,6 +11,7 @@ import STAREditor from '@/components/star/STAREditor';
 import GapDiagnosis from '@/components/gap/GapDiagnosis';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, MessageSquare, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import Header from '@/components/Header';
@@ -753,7 +754,7 @@ export default function MindMapProjectPage() {
               </Button>
             </div>
             
-            {/* AI 어시스턴트 토글 버튼 */}
+            {/* 어시스턴트 토글 버튼 */}
             <Button
               variant={isAIChatbotOpen ? "default" : "ghost"}
               size="sm"
@@ -763,10 +764,10 @@ export default function MindMapProjectPage() {
                   ? 'bg-blue-600 text-white hover:bg-blue-700' 
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
-              title={isAIChatbotOpen ? 'AI 어시스턴트 닫기' : 'AI 어시스턴트 열기'}
+              title={isAIChatbotOpen ? '어시스턴트 닫기' : '어시스턴트 열기'}
             >
               <MessageSquare className="h-4 w-4" />
-              <span>AI 어시스턴트</span>
+              <span>어시스턴트</span>
               <motion.div
                 animate={{ rotate: isAIChatbotOpen ? 180 : 0 }}
                 transition={{ duration: 0.2 }}
@@ -966,63 +967,46 @@ export default function MindMapProjectPage() {
       <GapDiagnosis
         isOpen={isGapDiagnosisOpen}
         onClose={() => setIsGapDiagnosisOpen(false)}
-        onComplete={() => {
+        resultButtonText="추가 경험 정리하기"
+        onResultButtonClick={() => {
           // 공백 진단 완료 시 AI 어시스턴트 열고 추천 인벤토리 탭으로 전환
           setAiChatbotDefaultTab('inventory');
           setIsAIChatbotOpen(true);
+          setIsGapDiagnosisOpen(false);
         }}
       />
 
       {/* 노드 추가 다이얼로그 */}
       {showConfirmDialog && droppedTag && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]" onClick={handleCancelAddTag}>
+          <div className="bg-white rounded-[24px] p-8 max-w-md w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             {/* 헤더 */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0">
-                  💡
-                </div>
-                <h3 className="text-lg font-bold text-gray-900">노드 추가하기</h3>
-              </div>
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-2xl font-bold text-gray-900">노드 추가하기</h3>
               <button
                 onClick={handleCancelAddTag}
-                className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors"
+                className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
                 title="닫기"
               >
                 <X className="h-5 w-5 text-gray-600" />
               </button>
             </div>
             
-            {/* 정보 */}
-            <div className="bg-gray-50 rounded-xl p-4 mb-4">
-              <p className="text-sm text-gray-600 mb-1">추가될 위치</p>
-              <p className="text-sm text-gray-900 font-semibold mb-3">
-                <strong className="text-blue-600">{nodes.find(n => n.id === droppedTag.targetNodeId)?.label}</strong>의 하위 노드
+            {/* 간단한 정보 */}
+            <div className="mb-8 space-y-2">
+              <p className="text-sm text-gray-500">
+                <span className="font-semibold text-gray-900">{nodes.find(n => n.id === droppedTag.targetNodeId)?.label}</span>의 하위 노드로 추가됩니다
               </p>
-              <p className="text-sm text-gray-600 mb-1">관련 역량</p>
-              <p className="text-sm text-gray-900 font-semibold">
-                <span className="px-2 py-1 bg-blue-50 text-blue-600 text-xs font-semibold rounded-md">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">관련 역량:</span>
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-medium">
                   {droppedTag.tag.category}
-                </span>
-              </p>
-            </div>
-            
-            {/* 힌트 */}
-            <div className="bg-blue-50 rounded-xl p-3 mb-4">
-              <p className="text-xs text-blue-900 font-semibold mb-1">
-                💬 이런 경험을 떠올려보세요
-              </p>
-              <p className="text-xs text-blue-800">
-                {droppedTag.tag.label}
-              </p>
+                </Badge>
+              </div>
             </div>
 
             {/* 입력 필드 */}
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-900 mb-2">
-                노드 이름
-              </label>
+            <div className="mb-8">
               <Input
                 value={newNodeName}
                 onChange={(e) => setNewNodeName(e.target.value)}
@@ -1033,22 +1017,28 @@ export default function MindMapProjectPage() {
                     handleCancelAddTag();
                   }
                 }}
-                placeholder={`예: ${droppedTag.tag.category} 관련 경험`}
-                className="h-11 rounded-xl border-gray-200 focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                placeholder="노드 이름을 입력하세요"
+                className="h-14 rounded-[16px] border-gray-200 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 text-base"
                 autoFocus
               />
-              <p className="text-xs text-gray-500 mt-2">
-                입력하지 않으면 기본 이름으로 생성됩니다
-              </p>
             </div>
             
             {/* 버튼 */}
-            <Button 
-              onClick={handleConfirmAddTag}
-              className="w-full h-11 bg-blue-600 hover:bg-blue-700 rounded-xl"
-            >
-              생성하기
-            </Button>
+            <div className="flex gap-3">
+              <Button 
+                onClick={handleCancelAddTag}
+                variant="outline"
+                className="flex-1 h-14 rounded-[16px] border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold"
+              >
+                취소
+              </Button>
+              <Button 
+                onClick={handleConfirmAddTag}
+                className="flex-1 h-14 bg-gray-900 hover:bg-gray-800 rounded-[16px] text-white font-semibold"
+              >
+                생성하기
+              </Button>
+            </div>
           </div>
         </div>
       )}
