@@ -185,7 +185,7 @@ export default function Header({
   const isHomePage = pathname === '/';
 
   return (
-    <header className={`bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between z-20 ${isHomePage ? '' : 'sticky top-0'}`}>
+    <header className={`bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between z-[60] ${isHomePage ? '' : 'sticky top-0'}`}>
       <div className="flex items-center gap-6">
         {/* 로고 */}
         <Link href="/">
@@ -302,7 +302,7 @@ export default function Header({
               <span className="text-sm font-medium text-gray-700">{user.name}님</span>
             </Button>
             {showMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-[80]">
                 {/* 사용자 정보 */}
                 <div className="px-4 py-3 border-b border-gray-200">
                   <p className="text-sm font-medium text-gray-900">{user.name}</p>

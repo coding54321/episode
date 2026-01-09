@@ -167,10 +167,11 @@ export default function MindMapsPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: index * 0.05 }}
+                  className="h-full"
                 >
-                  <Card className="p-6 hover:shadow-lg transition-all duration-200 cursor-pointer border border-gray-200 rounded-[20px] group bg-white">
-                    <Link href={`/mindmap/${project.id}`}>
-                      <div className="mb-5">
+                  <Card className="h-full p-6 hover:shadow-lg transition-all duration-200 cursor-pointer border border-gray-200 rounded-[20px] group bg-white flex flex-col">
+                    <Link href={`/mindmap/${project.id}`} className="flex-1 flex flex-col">
+                      <div className="mb-5 flex-1">
                         {editingProjectId === project.id ? (
                           <div className="flex items-center gap-2 mb-3" onClick={(e) => e.preventDefault()}>
                             <input
@@ -250,14 +251,14 @@ export default function MindMapsPage() {
                       </div>
 
                       {/* 메타 정보 */}
-                      <div className="flex items-center justify-between text-sm text-gray-500 pb-5 border-b border-gray-100">
+                      <div className="flex items-center justify-between text-sm text-gray-500 pb-5 border-b border-gray-100 mt-auto">
                         <span>{formatDate(project.updatedAt)}</span>
                         <span className="font-medium">{project.nodes.length}개 노드</span>
                       </div>
                     </Link>
 
                     {/* 액션 버튼 */}
-                    <div className="flex items-center gap-2 pt-5">
+                    <div className="flex items-center gap-2 pt-5 flex-shrink-0">
                       <Link
                         href={`/mindmap/${project.id}`}
                         className="flex-1"

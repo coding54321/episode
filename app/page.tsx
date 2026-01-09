@@ -21,20 +21,16 @@ export default function LandingPage() {
   }, []);
 
   const handleFeatureClick = (feature: string) => {
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
+    // 기능 설명 페이지로 이동 (FloatingHeader의 기능 드롭다운과 동일)
     switch (feature) {
       case 'mindmap':
-        router.push('/mindmaps');
+        router.push('/features/mindmap');
         break;
       case 'gap-diagnosis':
-        router.push('/gap-diagnosis');
+        router.push('/features/gap-diagnosis');
         break;
       case 'archive':
-        router.push('/archive');
+        router.push('/features/archive');
         break;
     }
   };
@@ -203,12 +199,22 @@ export default function LandingPage() {
             transition={{ duration: 0.6 }}
             className="text-center mb-20"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 tracking-tight">
-              간단하게 시작하세요
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 tracking-tight flex items-center justify-center gap-3 flex-wrap">
+              취업준비{' '}
+              <span className="inline-block px-4 py-2 bg-white border-2 border-blue-300 rounded-xl shadow-sm text-inherit">
+                소스
+              </span>
+              {' '}정리,
+              <Image
+                src="/new_logo.png"
+                alt="Episode"
+                width={120}
+                height={40}
+                className="object-contain h-10"
+                priority
+              />
+              와 함께
             </h2>
-            <p className="text-xl text-gray-500">
-              경험을 구조화하고, 부족한 역량을 찾고, STAR로 정리하세요
-            </p>
           </motion.div>
 
           <div className="space-y-8">

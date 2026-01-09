@@ -60,6 +60,11 @@ export interface GapTag {
   label: string;
   category: string; // 역량 범주
   source: string; // 어떤 기업 문항에서 추출되었는지
+  questions?: Array<{
+    content: string; // 질문 내용
+    year?: number; // 년도
+    half?: string; // 반기 (상반기/하반기)
+  }>; // 답변하기 어려웠던 질문 리스트 (년도/반기 정보 포함)
   createdAt: number;
 }
 

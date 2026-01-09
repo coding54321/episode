@@ -105,7 +105,7 @@ export default function FloatingHeader() {
                           </div>
                         </Link>
 
-                        <Link href="/archive" className="p-3 rounded-xl hover:bg-gray-50 transition-colors group">
+                        <Link href="/features/archive" className="p-3 rounded-xl hover:bg-gray-50 transition-colors group">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
                               <Archive className="w-5 h-5 text-green-600" />

@@ -90,7 +90,7 @@ export default function GapDiagnosis({
   // 분석하기
   const handleAnalyze = () => {
     // 소재가 없는 문항들의 역량 타입 추출
-    const missingCompetencies: Record<string, { count: number; questions: string[] }> = {};
+    const missingCompetencies: Record<string, { count: number; questions: Array<{ content: string; year?: number; half?: string }> }> = {};
 
     questions.forEach(q => {
       if (responses[q.id] === false) { // 소재 없음
@@ -100,7 +100,23 @@ export default function GapDiagnosis({
             missingCompetencies[competency.id] = { count: 0, questions: [] };
           }
           missingCompetencies[competency.id].count++;
-          missingCompetencies[competency.id].questions.push(q.content);
+          
+          // 년도/반기 정보 가져오기
+          let year: number | undefined;
+          let half: string | undefined;
+          if (q.recruitment_id) {
+            const recruitment = mockRecruitments.find(r => r.id === q.recruitment_id);
+            if (recruitment) {
+              year = recruitment.year;
+              half = recruitment.half;
+            }
+          }
+          
+          missingCompetencies[competency.id].questions.push({
+            content: q.content,
+            year,
+            half,
+          });
         }
       }
     });
@@ -113,6 +129,7 @@ export default function GapDiagnosis({
         label: competency.label,
         category: competency.label,
         source: `${selectedCompany!.name} ${selectedJob!.job_title} (부족 ${data.count}건)`,
+        questions: data.questions, // 답변하기 어려웠던 질문 리스트 저장 (년도/반기 정보 포함)
         createdAt: Date.now(),
       };
     });
@@ -123,16 +140,7 @@ export default function GapDiagnosis({
 
   // AI 어시스턴트에 추가 또는 결과 버튼 클릭
   const handleAddToAssistant = () => {
-    // 커스텀 핸들러가 있으면 그것을 사용
-    if (onResultButtonClick) {
-      analyzedTags.forEach(tag => {
-        gapTagStorage.add(tag);
-      });
-      onResultButtonClick();
-      return;
-    }
-
-    // 기본 동작 (AI 어시스턴트에 추가)
+    // 태그 저장
     analyzedTags.forEach(tag => {
       gapTagStorage.add(tag);
     });
@@ -140,6 +148,13 @@ export default function GapDiagnosis({
     // 커스텀 이벤트 발생 (AI 어시스턴트에 알림)
     window.dispatchEvent(new CustomEvent('gap-tags-updated'));
     
+    // 커스텀 핸들러가 있으면 그것을 사용
+    if (onResultButtonClick) {
+      onResultButtonClick();
+      return;
+    }
+
+    // 기본 동작 (AI 어시스턴트에 추가)
     onClose();
     
     // 완료 콜백 호출

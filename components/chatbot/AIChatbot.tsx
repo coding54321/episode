@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { X, Send, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { X, Send, ChevronLeft, ChevronRight, Sparkles, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { gapTagStorage } from '@/lib/storage';
 import { useDrag } from 'react-dnd';
@@ -49,7 +49,7 @@ const STAR_QUESTIONS: Record<STARPhase, string[]> = {
 };
 
 // 드래그 가능한 태그 카드 컴포넌트 (토스 스타일)
-function GapTagCard({ tag, onRemove }: { tag: GapTag; onRemove: (id: string) => void }) {
+function GapTagCard({ tag, onRemove, onShowQuestions }: { tag: GapTag; onRemove: (id: string) => void; onShowQuestions?: (tag: GapTag) => void }) {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'GAP_TAG',
     item: tag,
@@ -58,23 +58,42 @@ function GapTagCard({ tag, onRemove }: { tag: GapTag; onRemove: (id: string) => 
     }),
   }), [tag]);
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // 드래그나 삭제 버튼 클릭이 아닐 때만 질문 리스트 표시
+    if ((e.target as HTMLElement).closest('button')) return;
+    if (isDragging) return;
+    if (onShowQuestions && tag.questions && tag.questions.length > 0) {
+      onShowQuestions(tag);
+    }
+  };
+
   return (
     <div 
       ref={drag as any}
+      onClick={handleCardClick}
       className={`group relative p-5 rounded-[16px] bg-white border-2 border-gray-100 hover:border-blue-400 hover:shadow-lg transition-all duration-200 cursor-move ${
         isDragging ? 'opacity-50 scale-95' : ''
-      }`}
+      } ${tag.questions && tag.questions.length > 0 ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <Badge className="mb-3 bg-blue-50 text-blue-700 hover:bg-blue-50 border-0 font-semibold px-3 py-1">
             {tag.category}
           </Badge>
-          <h4 className="font-bold text-base text-gray-900 mb-2 leading-tight">{tag.label}</h4>
+          {/* category와 label이 같으면 label은 표시하지 않음 */}
+          {tag.category !== tag.label && (
+            <h4 className="font-bold text-base text-gray-900 mb-2 leading-tight">{tag.label}</h4>
+          )}
           <p className="text-sm text-gray-500">{tag.source}</p>
+          {tag.questions && tag.questions.length > 0 && (
+            <p className="text-xs text-blue-600 mt-2 font-medium">클릭하여 질문 보기 ({tag.questions.length}개)</p>
+          )}
         </div>
         <button
-          onClick={() => onRemove(tag.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(tag.id);
+          }}
           className="w-8 h-8 flex items-center justify-center hover:bg-red-50 rounded-full transition-all flex-shrink-0 opacity-0 group-hover:opacity-100"
         >
           <X className="h-4 w-4 text-gray-400 hover:text-red-600" />
@@ -118,20 +137,26 @@ export default function AIChatbot({
   const [activeTab, setActiveTab] = useState<'chat' | 'inventory'>(defaultTab);
   const [conversationState, setConversationState] = useState<'category' | 'experience' | 'episode' | 'star'>('category');
   const [pendingNodeLabel, setPendingNodeLabel] = useState<string>(''); // 생성할 노드 라벨
+  const [selectedTagForQuestions, setSelectedTagForQuestions] = useState<GapTag | null>(null); // 질문 리스트를 보여줄 태그
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 공백 태그 로드
   useEffect(() => {
-    const tags = gapTagStorage.load();
-    setGapTags(tags);
+    const loadTags = () => {
+      const tags = gapTagStorage.load();
+      setGapTags(tags);
+      return tags;
+    };
+
+    // 초기 로드
+    const initialTags = loadTags();
 
     // 공백 진단에서 태그가 추가될 때 업데이트
     const handleGapTagsUpdate = () => {
-      const updatedTags = gapTagStorage.load();
-      setGapTags(updatedTags);
+      const updatedTags = loadTags();
       // 태그가 추가되면 인벤토리 탭으로 전환
-      if (updatedTags.length > tags.length) {
+      if (updatedTags.length > initialTags.length) {
         setActiveTab('inventory');
       }
     };
@@ -139,6 +164,12 @@ export default function AIChatbot({
     window.addEventListener('gap-tags-updated', handleGapTagsUpdate);
     return () => window.removeEventListener('gap-tags-updated', handleGapTagsUpdate);
   }, []);
+
+  // 컴포넌트가 표시될 때마다 태그 다시 로드 (나중에 열릴 때 최신 태그 반영)
+  useEffect(() => {
+    const tags = gapTagStorage.load();
+    setGapTags(tags);
+  }, [selectedNodeId]); // 노드 선택 시마다 태그 다시 로드
 
   // defaultTab이 변경되면 activeTab 업데이트
   useEffect(() => {
@@ -555,6 +586,7 @@ export default function AIChatbot({
                               gapTagStorage.remove(id);
                               setGapTags(prev => prev.filter(t => t.id !== id));
                             }}
+                            onShowQuestions={(tag) => setSelectedTagForQuestions(tag)}
                           />
                         ))}
                       </div>
@@ -563,6 +595,52 @@ export default function AIChatbot({
                 )}
             </TabsContent>
             </Tabs>
+
+      {/* 질문 리스트 모달 */}
+      {selectedTagForQuestions && selectedTagForQuestions.questions && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70]" onClick={() => setSelectedTagForQuestions(null)}>
+          <div className="bg-white rounded-[24px] p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">{selectedTagForQuestions.label}</h3>
+                <p className="text-sm text-gray-500">{selectedTagForQuestions.source}</p>
+              </div>
+              <button
+                onClick={() => setSelectedTagForQuestions(null)}
+                className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-600" />
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-4">
+                <FileText className="w-5 h-5 text-blue-600" />
+                <h4 className="font-semibold text-gray-900">답변하기 어려웠던 질문 ({selectedTagForQuestions.questions.length}개)</h4>
+              </div>
+              {selectedTagForQuestions.questions.map((question, index) => (
+                <div key={index} className="p-4 rounded-[12px] bg-gray-50 border border-gray-200">
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs font-semibold text-blue-600">{index + 1}</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900 leading-relaxed mb-1">
+                        {typeof question === 'string' ? question : question.content}
+                      </p>
+                      {typeof question === 'object' && question.year && question.half && (
+                        <p className="text-xs text-gray-500 font-medium">
+                          {question.year}년 {question.half}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }

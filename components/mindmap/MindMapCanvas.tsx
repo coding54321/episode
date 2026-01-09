@@ -17,6 +17,7 @@ interface MindMapCanvasProps {
   onNodeShare: (nodeId: string) => void;
   onNodeUnshare?: (nodeId: string) => void;
   onNodeOpenInNewTab?: (nodeId: string) => void;
+  onNodeOpenSTAREditor?: (nodeId: string) => void; // STAR 에디터 열기
   onStartEdit: (nodeId: string) => void;
   onEndEdit: () => void;
   projectId?: string;
@@ -38,6 +39,7 @@ export default function MindMapCanvas({
   onNodeShare,
   onNodeUnshare,
   onNodeOpenInNewTab,
+  onNodeOpenSTAREditor,
   onStartEdit,
   onEndEdit,
   projectId,
@@ -577,6 +579,7 @@ export default function MindMapCanvas({
                 onShare={onNodeShare}
                 onUnshare={onNodeUnshare}
                 onOpenInNewTab={onNodeOpenInNewTab}
+                onOpenSTAREditor={onNodeOpenSTAREditor}
                 onDragStart={handleNodeDragStart}
                 onStartEdit={onStartEdit}
                 onEndEdit={onEndEdit}

@@ -1,30 +1,36 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { userStorage, mindMapProjectStorage } from '@/lib/storage';
 import { User } from '@/types';
 import { motion } from 'framer-motion';
 import { ChevronLeft } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     // 이미 로그인된 사용자는 마인드맵 목록으로 리다이렉트
     const user = userStorage.load();
     if (user) {
-      const projects = mindMapProjectStorage.load();
+      const returnUrl = searchParams.get('returnUrl');
+      if (returnUrl) {
+        router.push(returnUrl);
+        return;
+      }
       
+      const projects = mindMapProjectStorage.load();
       if (projects.length > 0) {
         router.push('/mindmaps');
       } else {
         router.push('/badge-selection');
       }
     }
-  }, [router]);
+  }, [router, searchParams]);
 
   const handleLogin = async (provider: 'kakao' | 'google') => {
     setIsLoading(true);
@@ -43,6 +49,13 @@ export default function LoginPage() {
       };
 
       userStorage.save(mockUser);
+
+      // returnUrl이 있으면 그곳으로 리디렉션
+      const returnUrl = searchParams.get('returnUrl');
+      if (returnUrl) {
+        router.push(returnUrl);
+        return;
+      }
 
       // 마인드맵 프로젝트가 있는지 체크
       const { mindMapProjectStorage } = await import('@/lib/storage');
@@ -144,6 +157,21 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
 

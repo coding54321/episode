@@ -33,11 +33,9 @@ export default function BadgeSelectionPage() {
       return;
     }
 
-    // 이미 선택한 배지가 있으면 로드
-    const savedBadges = badgeStorage.load();
-    if (savedBadges.length > 0) {
-      setSelectedBadges(savedBadges);
-    }
+    // 새 마인드맵 생성 시 이전 선택 초기화
+    setSelectedBadges([]);
+    setCustomLabels({});
   }, [router]);
 
   const toggleBadge = (badgeId: BadgeType) => {

@@ -429,8 +429,14 @@ export default function ArchivePage() {
               에피소드가 없습니다
             </h2>
             <p className="text-gray-600 mb-8">
-              마인드맵에서 경험과 에피소드를 추가하고 STAR를 작성해보세요
+              마인드맵에서 경험과 에피소드를 추가하고 STAR 기법으로 정리해보세요
             </p>
+            <Button
+              onClick={() => router.push('/badge-selection')}
+              className="bg-gray-900 hover:bg-gray-800 text-white font-semibold h-12 px-6 rounded-[12px] shadow-sm"
+            >
+              마인드맵 작성하기
+            </Button>
           </div>
         ) : (
           <div className="bg-white rounded-[16px] border border-gray-200 overflow-hidden">

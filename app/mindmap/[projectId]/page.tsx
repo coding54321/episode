@@ -832,24 +832,25 @@ export default function MindMapProjectPage() {
           editingNodeId={editingNodeId}
           onNodeSelect={(nodeId) => {
             setSelectedNodeId(nodeId);
-            // 에피소드 노드를 선택하면 STAR 에디터 자동 열기
-            if (nodeId) {
-              const node = nodes.find(n => n.id === nodeId);
-              if (node && (node.nodeType === 'episode' || node.level === 3)) {
-                // 기존 STAR 데이터 로드
-                const existingAsset = assetStorage.getByNodeId(nodeId);
-                if (existingAsset) {
-                  setStarData({
-                    situation: existingAsset.situation,
-                    task: existingAsset.task,
-                    action: existingAsset.action,
-                    result: existingAsset.result,
-                  });
-                } else {
-                  setStarData(null);
-                }
-                setIsSTAREditorOpen(true);
+          }}
+          onNodeOpenSTAREditor={(nodeId) => {
+            // STAR 에디터 열기
+            setSelectedNodeId(nodeId);
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) {
+              // 기존 STAR 데이터 로드
+              const existingAsset = assetStorage.getByNodeId(nodeId);
+              if (existingAsset) {
+                setStarData({
+                  situation: existingAsset.situation,
+                  task: existingAsset.task,
+                  action: existingAsset.action,
+                  result: existingAsset.result,
+                });
+              } else {
+                setStarData(null);
               }
+              setIsSTAREditorOpen(true);
             }
           }}
           onNodeEdit={handleNodeEdit}

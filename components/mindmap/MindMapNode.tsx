@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { MindMapNode as NodeType, GapTag } from '@/types';
-import { Plus, Share2, ExternalLink, XCircle, Copy } from 'lucide-react';
+import { Plus, Share2, ExternalLink, XCircle, Copy, FileText } from 'lucide-react';
 import { useDrop } from 'react-dnd';
 import {
   ContextMenu,
@@ -23,6 +23,7 @@ interface MindMapNodeProps {
   onShare: (nodeId: string) => void;
   onUnshare?: (nodeId: string) => void;
   onOpenInNewTab?: (nodeId: string) => void;
+  onOpenSTAREditor?: (nodeId: string) => void; // STAR 에디터 열기
   onDragStart: (nodeId: string, e: React.MouseEvent) => void;
   onStartEdit: (nodeId: string) => void;
   onEndEdit: () => void;
@@ -45,6 +46,7 @@ export default function MindMapNode({
   onShare,
   onUnshare,
   onOpenInNewTab,
+  onOpenSTAREditor,
   onDragStart,
   onStartEdit,
   onEndEdit,
@@ -394,6 +396,13 @@ export default function MindMapNode({
         {node.id !== 'center' && (
           <ContextMenuItem onClick={() => onStartEdit(node.id)}>
             이름 변경
+          </ContextMenuItem>
+        )}
+        {/* 에피소드 노드일 때만 STAR 정리하기 표시 */}
+        {(node.nodeType === 'episode' || node.level === 3) && onOpenSTAREditor && (
+          <ContextMenuItem onClick={() => onOpenSTAREditor(node.id)}>
+            <FileText className="w-4 h-4 mr-2" />
+            STAR 정리하기
           </ContextMenuItem>
         )}
         {node.isShared ? (
