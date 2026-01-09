@@ -586,8 +586,27 @@ export default function MindMapProjectPage() {
     
     if (!targetNode) return;
 
-    // 입력값이 없으면 기본값 사용
-    const nodeName = newNodeName.trim() || `${tag.category} 관련 경험`;
+    // 노드 층위에 따른 기본값 및 타입 결정
+    const newLevel = targetNode.level + 1;
+    let nodeType: NodeType = 'detail';
+    let defaultLabelSuffix = '내용';
+    
+    if (newLevel === 1) {
+      nodeType = 'category';
+      defaultLabelSuffix = '범주';
+    } else if (newLevel === 2) {
+      nodeType = 'experience';
+      defaultLabelSuffix = '경험';
+    } else if (newLevel === 3) {
+      nodeType = 'episode';
+      defaultLabelSuffix = '에피소드';
+    } else if (newLevel >= 4) {
+      nodeType = 'detail';
+      defaultLabelSuffix = '내용';
+    }
+
+    // 입력값이 없으면 기본값 사용 (층위에 따라 다르게)
+    const nodeName = newNodeName.trim() || `${tag.category} 관련 ${defaultLabelSuffix}`;
 
     // 새 자식 노드 생성
     const newNodeId = `node_${Date.now()}`;
@@ -598,7 +617,8 @@ export default function MindMapProjectPage() {
       children: [],
       x: targetNode.x + 200, // 임시 위치
       y: targetNode.y,
-      level: targetNode.level + 1,
+      level: newLevel,
+      nodeType,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -995,33 +1015,79 @@ export default function MindMapProjectPage() {
             
             {/* 간단한 정보 */}
             <div className="mb-8 space-y-2">
-              <p className="text-sm text-gray-500">
-                <span className="font-semibold text-gray-900">{nodes.find(n => n.id === droppedTag.targetNodeId)?.label}</span>의 하위 노드로 추가됩니다
-              </p>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">관련 역량:</span>
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-medium">
-                  {droppedTag.tag.category}
-                </Badge>
-              </div>
+              {(() => {
+                const targetNode = nodes.find(n => n.id === droppedTag.targetNodeId);
+                if (!targetNode) return null;
+                
+                // 노드 층위에 따른 안내 문구
+                let guidanceText = '';
+                let placeholderText = '노드 이름을 입력하세요';
+                
+                if (targetNode.nodeType === 'category' || targetNode.level === 1) {
+                  // 범주 → 경험 추가
+                  guidanceText = `"${targetNode.label}" 범주에 어떤 경험이 있었나요?`;
+                  placeholderText = '예: 웹 개발 프로젝트, 모바일 앱 개발 등';
+                } else if (targetNode.nodeType === 'experience' || targetNode.level === 2) {
+                  // 경험 → 에피소드 추가
+                  guidanceText = `"${targetNode.label}" 경험에서 어떤 에피소드가 있었나요?`;
+                  placeholderText = '예: 프로젝트 초기 기획 단계, 개발 중 발생한 문제 해결 등';
+                } else if (targetNode.nodeType === 'episode' || targetNode.level === 3) {
+                  // 에피소드 → 세부 내용 추가
+                  guidanceText = `"${targetNode.label}" 에피소드의 세부 내용을 추가해보세요`;
+                  placeholderText = '예: 구체적인 상황, 해결 과정 등';
+                } else {
+                  // 기타 → 하위 노드 추가
+                  guidanceText = `"${targetNode.label}"의 하위 내용을 추가해보세요`;
+                  placeholderText = '노드 이름을 입력하세요';
+                }
+                
+                return (
+                  <>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      {guidanceText}
+                    </p>
+                    <div className="flex items-center gap-2 pt-2">
+                      <span className="text-sm text-gray-500">관련 역량:</span>
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-medium">
+                        {droppedTag.tag.category}
+                      </Badge>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* 입력 필드 */}
             <div className="mb-8">
-              <Input
-                value={newNodeName}
-                onChange={(e) => setNewNodeName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleConfirmAddTag();
-                  } else if (e.key === 'Escape') {
-                    handleCancelAddTag();
-                  }
-                }}
-                placeholder="노드 이름을 입력하세요"
-                className="h-14 rounded-[16px] border-gray-200 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 text-base"
-                autoFocus
-              />
+              {(() => {
+                const targetNode = nodes.find(n => n.id === droppedTag.targetNodeId);
+                let placeholderText = '노드 이름을 입력하세요';
+                
+                if (targetNode?.nodeType === 'category' || targetNode?.level === 1) {
+                  placeholderText = '예: 웹 개발 프로젝트, 모바일 앱 개발 등';
+                } else if (targetNode?.nodeType === 'experience' || targetNode?.level === 2) {
+                  placeholderText = '예: 프로젝트 초기 기획 단계, 개발 중 발생한 문제 해결 등';
+                } else if (targetNode?.nodeType === 'episode' || targetNode?.level === 3) {
+                  placeholderText = '예: 구체적인 상황, 해결 과정 등';
+                }
+                
+                return (
+                  <Input
+                    value={newNodeName}
+                    onChange={(e) => setNewNodeName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleConfirmAddTag();
+                      } else if (e.key === 'Escape') {
+                        handleCancelAddTag();
+                      }
+                    }}
+                    placeholder={placeholderText}
+                    className="h-14 rounded-[16px] border-gray-200 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 text-base"
+                    autoFocus
+                  />
+                );
+              })()}
             </div>
             
             {/* 버튼 */}
