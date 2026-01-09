@@ -269,21 +269,27 @@ export default function AIChatbot({
 
       if (phase === 'situation') {
         if (keywords.includes('프로젝트') || keywords.includes('팀')) {
-          response = '프로젝트 상황이군요. 어떤 과제나 목표가 있었나요?';
+          // 상황(Situation)에 대한 응답에서는 다음 단계 질문을 바로 던지지 않고,
+          // 간단한 공감/요약만 제공합니다.
+          response = '프로젝트 상황이군요. 잘 이해했습니다.';
         } else {
-          response = '이해했습니다. 어떤 과제나 목표가 있었나요?';
+          response = '상황을 잘 이해했습니다.';
         }
       } else if (phase === 'task') {
+        // Task 단계에서는 다음 단계(Action) 질문을 미리 하지 않고,
+        // 과제/역할에 대한 간단한 피드백만 제공합니다.
         if (keywords.includes('개발') || keywords.includes('기능')) {
-          response = '개발 과제였군요. 구체적으로 어떤 행동을 취하셨나요?';
+          response = '개발 과제와 역할을 잘 이해했습니다.';
         } else {
-          response = '알겠습니다. 구체적으로 어떤 행동을 취하셨나요?';
+          response = '과제와 당신의 역할을 잘 이해했습니다.';
         }
       } else if (phase === 'action') {
+        // Action 단계에서도 결과(Result) 질문은 다음 단계에서만 한 번 나오도록,
+        // 여기서는 행동에 대한 피드백만 제공합니다.
         if (keywords.includes('협업') || keywords.includes('소통')) {
-          response = '협업을 통해 진행하셨군요. 결과는 어땠나요?';
+          response = '협업 과정과 행동을 잘 이해했습니다.';
         } else {
-          response = '좋습니다. 결과는 어땠나요?';
+          response = '실행 과정과 행동을 잘 이해했습니다.';
         }
       } else {
         response = '완벽합니다! STAR 초안을 생성할 수 있습니다.';
@@ -362,11 +368,14 @@ export default function AIChatbot({
       
     } else if ((conversationState === 'episode' || conversationState === 'star') && currentPhase) {
       // 에피소드 -> STAR 단계
-      // STAR 데이터 저장
-      setStarData(prev => ({
-        ...prev,
-        [currentPhase]: prev[currentPhase] + (prev[currentPhase] ? ' ' : '') + userInput,
-      }));
+      // 현재 입력까지 반영된 STAR 데이터 계산 (state 비동기 갱신으로 인한 누락 방지)
+      const updatedStarData: Record<STARPhase, string> = {
+        ...starData,
+        [currentPhase]: (starData[currentPhase] ? starData[currentPhase] + ' ' : '') + userInput,
+      };
+
+      // STAR 데이터 상태 업데이트
+      setStarData(updatedStarData);
 
       // AI 응답 생성
       const aiResponse = await generateAIResponse(userInput, conversationState, currentPhase);
@@ -415,7 +424,8 @@ export default function AIChatbot({
             timestamp: Date.now(),
           };
           setMessages(prev => [...prev, completeMessage]);
-          onSTARComplete(starData);
+          // 최신 입력이 반영된 STAR 데이터 전달
+          onSTARComplete(updatedStarData);
         }, 500);
       }
 

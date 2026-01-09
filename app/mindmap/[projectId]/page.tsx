@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { MindMapNode, MindMapProject, GapTag, NodeType } from '@/types';
-import { mindMapProjectStorage, currentProjectStorage, userStorage, sharedNodeStorage, assetStorage } from '@/lib/storage';
+import { mindMapProjectStorage, currentProjectStorage, userStorage, sharedNodeStorage, assetStorage, mindMapOnboardingStorage } from '@/lib/storage';
 import MindMapCanvas from '@/components/mindmap/MindMapCanvas';
 import MindMapTabs, { Tab } from '@/components/mindmap/MindMapTabs';
 import AIChatbot from '@/components/chatbot/AIChatbot';
@@ -51,6 +51,8 @@ export default function MindMapProjectPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [newNodeName, setNewNodeName] = useState('');
   const [aiChatbotDefaultTab, setAiChatbotDefaultTab] = useState<'chat' | 'inventory'>('chat');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
 
   useEffect(() => {
     // 로그인 확인
@@ -80,6 +82,11 @@ export default function MindMapProjectPage() {
     };
     setTabs([mainTab]);
     setActiveTabId('main');
+
+    // 마인드맵 온보딩(튜토리얼) 최초 1회 노출
+    if (!mindMapOnboardingStorage.isShown()) {
+      setShowOnboarding(true);
+    }
   }, [projectId, router]);
 
   // URL의 nodeId가 있으면 해당 처리
@@ -1107,6 +1114,108 @@ export default function MindMapProjectPage() {
               </Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 마인드맵 온보딩 오버레이 (최초 1회) */}
+      {showOnboarding && (
+        <div className="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.96 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full max-w-xl bg-white rounded-[24px] shadow-2xl p-8 relative"
+          >
+            {/* 닫기 버튼 */}
+            <button
+              onClick={() => {
+                mindMapOnboardingStorage.saveShown();
+                setShowOnboarding(false);
+              }}
+              className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+            >
+              <X className="h-5 w-5 text-gray-500" />
+            </button>
+
+            {/* 콘텐츠 */}
+            <div className="mb-6">
+              <p className="text-xs font-semibold text-blue-600 mb-2">마인드맵 튜토리얼</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                {onboardingStep === 0 && '계층 구조로 경험 정리하기'}
+                {onboardingStep === 1 && '공백 진단으로 부족한 경험 찾기'}
+                {onboardingStep === 2 && '어시스턴트로 노드 확장하기'}
+                {onboardingStep === 3 && '캔버스 조작과 노드 편집'}
+              </h2>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {onboardingStep === 0 &&
+                  'episode의 마인드맵은 중심-범주-경험-에피소드 구조로 경험을 정리합니다. 먼저 중심 노드를 기준으로 범주(인턴, 동아리 등)를 만들고, 그 안에 구체적인 경험과 에피소드를 쌓아가세요.'}
+                {onboardingStep === 1 &&
+                  '상단의 공백 진단하기 버튼을 눌러 5개년 기출 자소서 문항을 기준으로 부족한 역량을 찾을 수 있어요. 진단 결과는 추천 인벤토리로 들어가 드래그앤드롭으로 마인드맵에 바로 추가할 수 있습니다.'}
+                {onboardingStep === 2 &&
+                  '오른쪽 어시스턴트를 열고 범주/경험/에피소드 노드를 선택하면, STAR 기법에 맞춰 질문을 던지며 자동으로 노드를 확장하고 STAR 내용을 채워줍니다.'}
+                {onboardingStep === 3 &&
+                  '노드를 드래그해서 위치를 바꾸고, 더블클릭으로 이름을 수정할 수 있어요. 우클릭 메뉴에서 하위 노드 추가, STAR 정리하기, 공유 링크 만들기 등 주요 기능을 사용할 수 있습니다.'}
+              </p>
+            </div>
+
+            {/* 하단 네비게이션 */}
+            <div className="flex items-center justify-between mt-6">
+              <button
+                onClick={() => {
+                  mindMapOnboardingStorage.saveShown();
+                  setShowOnboarding(false);
+                }}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                건너뛰기
+              </button>
+
+              <div className="flex items-center gap-4">
+                {/* 단계 인디케이터 */}
+                <div className="flex items-center gap-2">
+                  {[0, 1, 2, 3].map((step) => (
+                    <button
+                      key={step}
+                      onClick={() => setOnboardingStep(step)}
+                      className={`w-2.5 h-2.5 rounded-full transition-all ${
+                        onboardingStep === step
+                          ? 'bg-blue-600'
+                          : 'bg-gray-200 hover:bg-gray-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                {/* 다음/이전 버튼 */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={onboardingStep === 0}
+                    onClick={() => setOnboardingStep((prev) => Math.max(prev - 1, 0))}
+                    className="h-9 px-3 text-xs rounded-full disabled:opacity-40"
+                  >
+                    이전
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (onboardingStep < 3) {
+                        setOnboardingStep((prev) => Math.min(prev + 1, 3));
+                      } else {
+                        mindMapOnboardingStorage.saveShown();
+                        setShowOnboarding(false);
+                      }
+                    }}
+                    className="h-9 px-4 text-xs rounded-full bg-gray-900 hover:bg-gray-800 text-white"
+                  >
+                    {onboardingStep < 3 ? '다음' : '시작하기'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </div>
       )}
     </div>

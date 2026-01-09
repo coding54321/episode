@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   ASSETS: 'episode_assets',
   GAP_TAGS: 'episode_gap_tags',
   SHARED_NODES: 'episode_shared_nodes',
+  MINDMAP_ONBOARDING: 'episode_mindmap_onboarding_v1',
 } as const;
 
 // 사용자 정보 저장/로드
@@ -35,6 +36,32 @@ export const userStorage = {
       localStorage.removeItem(STORAGE_KEYS.USER);
     } catch (error) {
       console.error('Failed to clear user:', error);
+    }
+  },
+};
+
+// 마인드맵 온보딩(튜토리얼) 노출 여부
+export const mindMapOnboardingStorage = {
+  saveShown: (): void => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.MINDMAP_ONBOARDING, 'true');
+    } catch (error) {
+      console.error('Failed to save mindmap onboarding state:', error);
+    }
+  },
+  isShown: (): boolean => {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.MINDMAP_ONBOARDING) === 'true';
+    } catch (error) {
+      console.error('Failed to load mindmap onboarding state:', error);
+      return false;
+    }
+  },
+  clear: (): void => {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.MINDMAP_ONBOARDING);
+    } catch (error) {
+      console.error('Failed to clear mindmap onboarding state:', error);
     }
   },
 };
