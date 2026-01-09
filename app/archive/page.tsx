@@ -264,45 +264,40 @@ export default function ArchivePage() {
     // STAR 에셋 생성 또는 업데이트
     const existingAsset = assetStorage.getByNodeId(episodeNodeId);
     
-    const starAsset: STARAsset = {
-      id: existingAsset?.id || `asset_${Date.now()}`,
-      nodeId: episodeNodeId,
-      title: item.episodeName,
-      situation: editFormData.situation,
-      task: editFormData.task,
-      action: editFormData.action,
-      result: editFormData.result,
-      content: [
-        editFormData.situation && `상황(Situation): ${editFormData.situation}`,
-        editFormData.task && `과제(Task): ${editFormData.task}`,
-        editFormData.action && `행동(Action): ${editFormData.action}`,
-        editFormData.result && `결과(Result): ${editFormData.result}`,
-      ].filter(Boolean).join('\n\n'),
-      tags: editFormData.tags,
-      createdAt: existingAsset?.createdAt || Date.now(),
-      updatedAt: Date.now(),
-    };
+    const content = [
+      editFormData.situation && `상황(Situation): ${editFormData.situation}`,
+      editFormData.task && `과제(Task): ${editFormData.task}`,
+      editFormData.action && `행동(Action): ${editFormData.action}`,
+      editFormData.result && `결과(Result): ${editFormData.result}`,
+    ].filter(Boolean).join('\n\n');
 
     // 기존 asset이 있으면 업데이트, 없으면 추가
     if (existingAsset) {
-      console.log('Updating existing asset:', existingAsset.id, 'with tags:', starAsset.tags);
-      // 전체 객체로 교체
+      // 업데이트할 필드만 명시적으로 전달
       assetStorage.update(existingAsset.id, {
-        title: starAsset.title,
-        situation: starAsset.situation,
-        task: starAsset.task,
-        action: starAsset.action,
-        result: starAsset.result,
-        content: starAsset.content,
-        tags: starAsset.tags,
-        updatedAt: starAsset.updatedAt,
+        title: item.episodeName,
+        situation: editFormData.situation,
+        task: editFormData.task,
+        action: editFormData.action,
+        result: editFormData.result,
+        content: content,
+        tags: editFormData.tags, // 태그 배열 전체를 업데이트
       });
-      
-      // 업데이트 확인
-      const updated = assetStorage.getByNodeId(episodeNodeId);
-      console.log('After update, asset tags:', updated?.tags);
     } else {
-      console.log('Adding new asset with tags:', starAsset.tags);
+      // 새 asset 추가
+      const starAsset: STARAsset = {
+        id: `asset_${Date.now()}`,
+        nodeId: episodeNodeId,
+        title: item.episodeName,
+        situation: editFormData.situation,
+        task: editFormData.task,
+        action: editFormData.action,
+        result: editFormData.result,
+        content: content,
+        tags: editFormData.tags,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
       assetStorage.add(starAsset);
     }
     
@@ -684,7 +679,9 @@ export default function ArchivePage() {
                                     {item.star.situation}
                                   </div>
                                 ) : (
-                                  <span className="text-gray-400 italic text-xs">미작성</span>
+                                  <div className="h-5 flex items-center">
+                                    <span className="text-gray-300 text-xs">-</span>
+                                  </div>
                                 )}
                               </td>
 
@@ -695,7 +692,9 @@ export default function ArchivePage() {
                                     {item.star.task}
                                   </div>
                                 ) : (
-                                  <span className="text-gray-400 italic text-xs">미작성</span>
+                                  <div className="h-5 flex items-center">
+                                    <span className="text-gray-300 text-xs">-</span>
+                                  </div>
                                 )}
                               </td>
 
@@ -706,7 +705,9 @@ export default function ArchivePage() {
                                     {item.star.action}
                                   </div>
                                 ) : (
-                                  <span className="text-gray-400 italic text-xs">미작성</span>
+                                  <div className="h-5 flex items-center">
+                                    <span className="text-gray-300 text-xs">-</span>
+                                  </div>
                                 )}
                               </td>
 
@@ -717,13 +718,15 @@ export default function ArchivePage() {
                                     {item.star.result}
                                   </div>
                                 ) : (
-                                  <span className="text-gray-400 italic text-xs">미작성</span>
+                                  <div className="h-5 flex items-center">
+                                    <span className="text-gray-300 text-xs">-</span>
+                                  </div>
                                 )}
                               </td>
 
                               {/* 강점/역량 태그 */}
                               <td className="px-4 py-4">
-                                <div className="flex flex-wrap gap-1">
+                                <div className="flex flex-wrap gap-1 min-h-[20px]">
                                   {item.tags.length > 0 ? (
                                     item.tags.map((tag) => (
                                       <Badge
@@ -735,7 +738,7 @@ export default function ArchivePage() {
                                       </Badge>
                                     ))
                                   ) : (
-                                    <span className="text-gray-400 italic text-xs">태그 없음</span>
+                                    <span className="text-gray-300 text-xs">-</span>
                                   )}
                                 </div>
                               </td>
@@ -746,7 +749,7 @@ export default function ArchivePage() {
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => handleStartEdit(item)}
-                                  className="h-8 w-8 p-0"
+                                  className="h-8 w-8 p-0 hover:bg-blue-50"
                                 >
                                   <Edit className="h-4 w-4 text-gray-600" />
                                 </Button>

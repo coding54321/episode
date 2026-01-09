@@ -950,6 +950,15 @@ export default function MindMapProjectPage() {
         }}
         nodeId={selectedNodeId}
         nodeLabel={selectedNode?.label || null}
+        onNodeLabelUpdate={(nodeId, newLabel) => {
+          // 노드 라벨 업데이트
+          const updatedNodes = nodes.map(n =>
+            n.id === nodeId
+              ? { ...n, label: newLabel, updatedAt: Date.now() }
+              : n
+          );
+          handleNodesChange(updatedNodes);
+        }}
         initialData={starData || undefined}
       />
 

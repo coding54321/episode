@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ interface STAREditorProps {
   onClose: () => void;
   nodeId: string | null;
   nodeLabel: string | null;
+  onNodeLabelUpdate?: (nodeId: string, newLabel: string) => void; // 노드 라벨 업데이트 콜백
   initialData?: {
     situation: string;
     task: string;
@@ -29,6 +30,7 @@ export default function STAREditor({
   onClose,
   nodeId,
   nodeLabel,
+  onNodeLabelUpdate,
   initialData,
 }: STAREditorProps) {
   const [title, setTitle] = useState('');
@@ -109,6 +111,11 @@ export default function STAREditor({
     } else {
       assetStorage.add(asset);
     }
+
+    // 노드 라벨이 변경되었으면 마인드맵 노드도 업데이트
+    if (onNodeLabelUpdate && title.trim() !== nodeLabel) {
+      onNodeLabelUpdate(nodeId, title.trim());
+    }
     
     toast.success('저장되었습니다');
     onClose();
@@ -148,13 +155,8 @@ export default function STAREditor({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            STAR 자기소개서 작성
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-6">
+        <DialogTitle className="sr-only">STAR 에디터</DialogTitle>
+        <div className="space-y-6 pt-6">
           {/* 제목 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -249,38 +251,6 @@ export default function STAREditor({
             </p>
           </div>
 
-          {/* 최종 텍스트 */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                최종 텍스트 <span className="text-red-500">*</span>
-              </label>
-              <div className="flex items-center gap-2">
-                <span className={`text-sm ${isOverLimit ? 'text-red-600' : wordCount > 500 ? 'text-orange-600' : 'text-gray-500'}`}>
-                  {wordCount}자 {isOverLimit && '(700자 초과)'}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopy}
-                  className="gap-2"
-                >
-                  {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  복사하기
-                </Button>
-              </div>
-            </div>
-            <Textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="STAR 구성 요소가 자동으로 조립됩니다"
-              className="min-h-[200px] font-mono text-sm"
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              권장: 500자 이상, 700자 이하
-            </p>
-          </div>
-
           {/* 액션 버튼 */}
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button variant="outline" onClick={onClose}>
@@ -288,7 +258,7 @@ export default function STAREditor({
             </Button>
             <Button
               onClick={handleSave}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Save className="h-4 w-4 mr-2" />
               저장하기
