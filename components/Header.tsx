@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, Menu, LogOut, Home, Map, ChevronRight } from 'lucide-react';
+import { Search, Menu, LogOut, Home, Map, ChevronRight, User as UserIcon, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { userStorage, mindMapProjectStorage } from '@/lib/storage';
 import { User, MindMapNode, MindMapProject } from '@/types';
@@ -137,7 +137,7 @@ export default function Header({
 
   const handleLogout = () => {
     userStorage.clear();
-    router.push('/login');
+    router.push('/');
   };
 
   const handleSearchResultClick = (result: SearchResult) => {
@@ -193,31 +193,14 @@ export default function Header({
             <Image
               src="/new_logo.png"
               alt="episode"
-              width={100}
-              height={32}
-              className="h-8 w-auto"
+              width={70}
+              height={24}
+              className="h-6 w-auto"
               priority
             />
           </button>
         </Link>
 
-        {/* 네비게이션 (로그인된 경우만) */}
-        {user && (
-          <nav className="flex items-center gap-1">
-            <Link href="/mindmaps">
-              <Button
-                variant={isActive('/mindmaps') ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-9 px-3"
-              >
-                <div className="flex items-center gap-1.5">
-                  <Map className="w-4 h-4" />
-                  <span>마인드맵</span>
-                </div>
-              </Button>
-            </Link>
-          </nav>
-        )}
 
         {/* 검색 (로그인된 경우, 데스크톱에서만 표시) */}
         {user && showSearch && (
@@ -311,9 +294,12 @@ export default function Header({
               variant="ghost"
               size="sm"
               onClick={() => setShowMenu(!showMenu)}
-              className="h-9 w-9 p-0"
+              className="flex items-center gap-2 h-9 px-3 hover:bg-gray-100 rounded-lg"
             >
-              <Menu className="w-5 h-5" />
+              <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                <UserIcon className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-sm font-medium text-gray-700">{user.name}님</span>
             </Button>
             {showMenu && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
@@ -324,6 +310,22 @@ export default function Header({
                 </div>
                 {/* 메뉴 항목 */}
                 <div className="py-1">
+                  <Link
+                    href="/mindmaps"
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                    onClick={() => setShowMenu(false)}
+                  >
+                    <Map className="w-4 h-4" />
+                    마인드맵 목록
+                  </Link>
+                  <Link
+                    href="/archive"
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                    onClick={() => setShowMenu(false)}
+                  >
+                    <Archive className="w-4 h-4" />
+                    에피소드 아카이브
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"

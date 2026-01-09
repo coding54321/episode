@@ -208,6 +208,10 @@ export const assetStorage = {
     const assets = assetStorage.load();
     assetStorage.save(assets.filter(a => a.id !== id));
   },
+  getByNodeId: (nodeId: string): STARAsset | null => {
+    const assets = assetStorage.load();
+    return assets.find(a => a.nodeId === nodeId) || null;
+  },
   clear: (): void => {
     try {
       localStorage.removeItem(STORAGE_KEYS.ASSETS);

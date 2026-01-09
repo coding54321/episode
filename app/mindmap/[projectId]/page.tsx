@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { MindMapNode, MindMapProject, GapTag } from '@/types';
+import { MindMapNode, MindMapProject, GapTag, NodeType } from '@/types';
 import { mindMapProjectStorage, currentProjectStorage, userStorage, sharedNodeStorage, assetStorage } from '@/lib/storage';
 import MindMapCanvas from '@/components/mindmap/MindMapCanvas';
 import MindMapTabs, { Tab } from '@/components/mindmap/MindMapTabs';
@@ -288,14 +288,37 @@ export default function MindMapProjectPage() {
         break;
     }
 
+    // 노드 타입 결정
+    const newLevel = parent.level + 1;
+    let nodeType: NodeType = 'detail'; // 기본값
+    let defaultLabel = '새 노드';
+    
+    if (newLevel === 0) {
+      nodeType = 'center';
+      defaultLabel = '중심';
+    } else if (newLevel === 1) {
+      nodeType = 'category';
+      defaultLabel = '대분류';
+    } else if (newLevel === 2) {
+      nodeType = 'experience';
+      defaultLabel = '경험';
+    } else if (newLevel === 3) {
+      nodeType = 'episode';
+      defaultLabel = '에피소드';
+    } else if (newLevel >= 4) {
+      nodeType = 'detail';
+      defaultLabel = '새 노드'; // 자유롭게 작성
+    }
+
     const newChild: MindMapNode = {
       id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      label: '새 노드',
+      label: defaultLabel,
       parentId: parentId,
       children: [],
       x,
       y,
-      level: parent.level + 1,
+      level: newLevel,
+      nodeType,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -806,7 +829,28 @@ export default function MindMapProjectPage() {
           }}
           selectedNodeId={selectedNodeId}
           editingNodeId={editingNodeId}
-          onNodeSelect={setSelectedNodeId}
+          onNodeSelect={(nodeId) => {
+            setSelectedNodeId(nodeId);
+            // 에피소드 노드를 선택하면 STAR 에디터 자동 열기
+            if (nodeId) {
+              const node = nodes.find(n => n.id === nodeId);
+              if (node && (node.nodeType === 'episode' || node.level === 3)) {
+                // 기존 STAR 데이터 로드
+                const existingAsset = assetStorage.getByNodeId(nodeId);
+                if (existingAsset) {
+                  setStarData({
+                    situation: existingAsset.situation,
+                    task: existingAsset.task,
+                    action: existingAsset.action,
+                    result: existingAsset.result,
+                  });
+                } else {
+                  setStarData(null);
+                }
+                setIsSTAREditorOpen(true);
+              }
+            }
+          }}
           onNodeEdit={handleNodeEdit}
           onNodeAddChild={handleNodeAddChild}
           onNodeDelete={(nodeId) => {
@@ -849,7 +893,43 @@ export default function MindMapProjectPage() {
             <AIChatbot
               selectedNodeId={selectedNodeId}
               selectedNodeLabel={selectedNode?.label || null}
+              selectedNodeType={selectedNode?.nodeType}
+              selectedNodeLevel={selectedNode?.level}
               onSTARComplete={handleSTARComplete}
+              onNodeAdd={(parentId, label, nodeType) => {
+                // 새 노드 생성
+                const parent = nodes.find(n => n.id === parentId);
+                if (!parent) return;
+
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 200;
+                const x = parent.x + Math.cos(angle) * radius;
+                const y = parent.y + Math.sin(angle) * radius;
+
+                const newNode: MindMapNode = {
+                  id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  label,
+                  parentId,
+                  children: [],
+                  x,
+                  y,
+                  level: parent.level + 1,
+                  nodeType,
+                  createdAt: Date.now(),
+                  updatedAt: Date.now(),
+                };
+
+                // 부모 노드의 children 업데이트
+                const updatedNodes = nodes.map(n =>
+                  n.id === parentId
+                    ? { ...n, children: [...n.children, newNode.id], updatedAt: Date.now() }
+                    : n
+                );
+                updatedNodes.push(newNode);
+
+                handleNodesChange(updatedNodes);
+                setSelectedNodeId(newNode.id);
+              }}
               onClose={() => {
                 setIsAIChatbotOpen(false);
                 setAiChatbotDefaultTab('chat'); // 닫을 때 기본 탭으로 리셋

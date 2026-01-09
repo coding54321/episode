@@ -76,8 +76,12 @@ export default function MindMapNode({
   }), [node.id, onTagDrop]);
 
   // 노드 타입별 스타일 결정
-  const isRootNode = node.id === 'center';
-  const isBadgeNode = node.level === 1;
+  const isRootNode = node.id === 'center' || node.nodeType === 'center';
+  const isBadgeNode = node.level === 1 || node.nodeType === 'category';
+  const isExperienceNode = node.level === 2 || node.nodeType === 'experience';
+  const isEpisodeNode = node.level === 3 || node.nodeType === 'episode';
+  const isDetailNode = node.level >= 4 || node.nodeType === 'detail';
+  
   // 공유 배지는 최상단 노드(isShared=true)에만 표시
   const sharedBadge = node.isShared;
   // 공유 경로 스타일은 isSharedPath 또는 node.isShared일 때 적용
@@ -175,12 +179,18 @@ export default function MindMapNode({
             className={`
               relative min-w-[120px] text-center select-none transition-all duration-200
               ${isRootNode
-                ? 'bg-blue-600 text-white border-2 border-blue-600 px-6 py-4 rounded-2xl shadow-lg'
+                ? 'bg-blue-600 text-white border-2 border-blue-600 px-6 py-4 rounded-2xl shadow-lg font-bold'
                 : isInSharedPath
                   ? 'bg-green-50 text-green-800 border-2 border-green-400 hover:border-green-500 px-4 py-3 rounded-xl shadow-sm ring-2 ring-green-100'
                   : isBadgeNode
-                    ? 'bg-white text-blue-700 border-2 border-blue-300 hover:border-blue-400 px-4 py-3 rounded-xl shadow-sm'
-                    : 'bg-white text-gray-800 border-2 border-gray-200 hover:border-gray-300 px-4 py-3 rounded-xl shadow-sm'}
+                    ? 'bg-white text-blue-700 border-2 border-blue-300 hover:border-blue-400 px-4 py-3 rounded-xl shadow-sm font-semibold'
+                    : isExperienceNode
+                      ? 'bg-white text-purple-700 border-2 border-purple-300 hover:border-purple-400 px-4 py-3 rounded-xl shadow-sm'
+                      : isEpisodeNode
+                        ? 'bg-white text-green-700 border-2 border-green-300 hover:border-green-400 px-4 py-3 rounded-xl shadow-sm font-medium'
+                        : isDetailNode
+                          ? 'bg-white text-gray-700 border-2 border-gray-200 hover:border-gray-300 px-3 py-2 rounded-lg shadow-sm'
+                          : 'bg-white text-gray-800 border-2 border-gray-200 hover:border-gray-300 px-4 py-3 rounded-xl shadow-sm'}
               ${
                 isSelected
                   ? 'ring-4 ring-blue-200 ring-opacity-60'

@@ -5,16 +5,16 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Brain, MessageSquare, FileText, FolderKanban, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
-import Header from '@/components/Header';
+import FloatingHeader from '@/components/FloatingHeader';
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* 헤더 */}
-      <Header showSearch={false} />
+      {/* 플로팅 헤더바 */}
+      <FloatingHeader />
 
       {/* 히어로 섹션 */}
-      <section className="px-5 py-24 md:py-32">
+      <section className="px-5 pt-32 pb-24 md:pt-40 md:pb-32">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

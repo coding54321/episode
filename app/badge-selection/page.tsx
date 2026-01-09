@@ -23,6 +23,7 @@ const BADGES: { id: BadgeType; label: string; emoji: string }[] = [
 export default function BadgeSelectionPage() {
   const router = useRouter();
   const [selectedBadges, setSelectedBadges] = useState<BadgeType[]>([]);
+  const [customLabels, setCustomLabels] = useState<Record<string, string>>({});
 
   useEffect(() => {
     // 로그인 확인
@@ -85,6 +86,7 @@ export default function BadgeSelectionPage() {
       x: 500,
       y: 300,
       level: 0,
+      nodeType: 'center',
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -93,18 +95,26 @@ export default function BadgeSelectionPage() {
     const badgeNodes: MindMapNode[] = selectedBadges.map((badgeId, index) => {
       const angle = (index / selectedBadges.length) * 2 * Math.PI;
       const radius = 200;
-      const nodeId = `badge_${badgeId}`;
+      const nodeId = `badge_${badgeId}_${index}`;
       
       centerNode.children.push(nodeId);
       
+      // '기타'인 경우 사용자가 입력한 라벨 사용
+      const displayLabel = badgeId === 'other' && customLabels[index] 
+        ? customLabels[index] 
+        : badgeMap[badgeId] || badgeId;
+      
       return {
         id: nodeId,
-        label: badgeMap[badgeId] || badgeId,
+        label: displayLabel,
         parentId: 'center',
         children: [],
         x: 500 + Math.cos(angle) * radius,
         y: 300 + Math.sin(angle) * radius,
         level: 1,
+        nodeType: 'category',
+        badgeType: badgeId,
+        customLabel: badgeId === 'other' ? customLabels[index] : undefined,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -159,42 +169,69 @@ export default function BadgeSelectionPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-12">
-              {BADGES.map((badge, index) => {
-                const isSelected = selectedBadges.includes(badge.id);
-                return (
-                  <motion.button
-                    key={badge.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.4, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
-                    onClick={() => toggleBadge(badge.id)}
-                    className={`relative h-[72px] rounded-[16px] border-[1.5px] transition-all duration-200 ease-out ${
-                      isSelected
-                        ? 'bg-blue-50 border-blue-500 shadow-sm'
-                        : 'bg-white border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 px-4">
-                      <span className="text-2xl">{badge.emoji}</span>
-                      <span className={`font-semibold text-sm ${
-                        isSelected ? 'text-blue-700' : 'text-gray-700'
-                      }`}>
-                        {badge.label}
-                      </span>
-                    </div>
-                    {isSelected && (
-                      <motion.div
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center"
-                      >
-                        <Check className="w-3.5 h-3.5 text-white" />
-                      </motion.div>
-                    )}
-                  </motion.button>
-                );
+            <div className="space-y-3 mb-12">
+              <div className="grid grid-cols-2 gap-3">
+                {BADGES.map((badge, index) => {
+                  const isSelected = selectedBadges.includes(badge.id);
+                  return (
+                    <motion.button
+                      key={badge.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.4, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
+                      onClick={() => toggleBadge(badge.id)}
+                      className={`relative h-[72px] rounded-[16px] border-[1.5px] transition-all duration-200 ease-out ${
+                        isSelected
+                          ? 'bg-blue-50 border-blue-500 shadow-sm'
+                          : 'bg-white border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 px-4">
+                        <span className="text-2xl">{badge.emoji}</span>
+                        <span className={`font-semibold text-sm ${
+                          isSelected ? 'text-blue-700' : 'text-gray-700'
+                        }`}>
+                          {badge.label}
+                        </span>
+                      </div>
+                      {isSelected && (
+                        <motion.div
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ duration: 0.2 }}
+                          className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center"
+                        >
+                          <Check className="w-3.5 h-3.5 text-white" />
+                        </motion.div>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
+
+              {/* '기타' 선택 시 커스텀 입력 필드 표시 */}
+              {selectedBadges.map((badgeId, idx) => {
+                if (badgeId === 'other') {
+                  return (
+                    <motion.div
+                      key={`custom-${idx}`}
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="mt-3"
+                    >
+                      <input
+                        type="text"
+                        placeholder="기타 경험 유형을 입력하세요 (예: 어학연수, 창업 등)"
+                        value={customLabels[idx] || ''}
+                        onChange={(e) => setCustomLabels(prev => ({ ...prev, [idx]: e.target.value }))}
+                        className="w-full h-[48px] px-4 rounded-[12px] border-[1.5px] border-gray-200 focus:border-blue-500 focus:outline-none text-sm"
+                      />
+                    </motion.div>
+                  );
+                }
+                return null;
               })}
             </div>
 

@@ -16,6 +16,9 @@ export interface Badge {
   icon?: string;
 }
 
+// 노드 타입 정의
+export type NodeType = 'center' | 'category' | 'experience' | 'episode' | 'detail';
+
 // 마인드맵 노드
 export interface MindMapNode {
   id: string;
@@ -24,7 +27,10 @@ export interface MindMapNode {
   children: string[];
   x: number;
   y: number;
-  level: number;
+  level: number; // 0: 중심, 1: 대분류(배지), 2: 경험, 3: 에피소드, 4+: 상세 노드
+  nodeType?: NodeType; // 노드 유형
+  badgeType?: BadgeType; // level 1일 때 배지 타입
+  customLabel?: string; // '기타' 배지일 때 사용자가 입력한 실제 라벨
   isShared?: boolean;
   sharedLink?: string;
   createdAt: number;
@@ -45,6 +51,7 @@ export interface STARAsset {
   updatedAt: number;
   company?: string;
   competency?: string;
+  tags?: string[]; // 강점/역량 태그 (예: ["협업", "리더십", "책임감"])
 }
 
 // 공백 태그
@@ -167,4 +174,44 @@ export interface SharedNodeData {
   createdAt: number;
   createdBy?: string; // 공유한 사용자
 }
+
+// 에피소드 아카이브 아이템
+export interface ArchiveItem {
+  id: string;
+  projectId: string;
+  projectName: string;
+  category: BadgeType; // 대분류 (인턴, 동아리 등)
+  categoryLabel: string;
+  experienceName: string; // 경험명
+  episodeName: string; // 에피소드명
+  star: STARAsset | null; // STAR 내용 (작성 전이면 null)
+  tags: string[]; // 강점/역량 태그
+  nodePath: string[]; // 노드 경로 (breadcrumb용)
+  createdAt: number;
+  updatedAt: number;
+}
+
+// 역량 키워드 목록
+export const COMPETENCY_KEYWORDS = [
+  '리더십',
+  '팀워크',
+  '협업',
+  '커뮤니케이션',
+  '문제해결',
+  '창의성',
+  '책임감',
+  '성실성',
+  '도전정신',
+  '분석력',
+  '기획력',
+  '실행력',
+  '꼼꼼함',
+  '적응력',
+  '학습능력',
+  '시간관리',
+  '갈등해결',
+  '의사결정',
+  '목표지향',
+  '열정',
+] as const;
 
