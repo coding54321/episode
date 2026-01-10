@@ -89,6 +89,13 @@ function LoginContent() {
       const returnUrl = searchParams.get('returnUrl') || '/mindmaps';
       const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnUrl)}`;
 
+      // 디버깅: redirectTo 값 확인
+      console.log('🔍 OAuth Redirect URL:', {
+        currentOrigin: window.location.origin,
+        redirectTo,
+        returnUrl,
+      });
+
       // Supabase Auth를 통한 OAuth 로그인
       const { error } = await supabase.auth.signInWithOAuth({
         provider: provider,

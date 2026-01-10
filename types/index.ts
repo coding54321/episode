@@ -180,7 +180,8 @@ export interface SharedNodeData {
   starAssets: STARAsset[]; // 관련 STAR 에셋
   includeSTAR: boolean; // STAR 에셋 포함 여부
   createdAt: number;
-  createdBy?: string; // 공유한 사용자
+  createdBy?: string; // 공유한 사용자 ID
+  createdByUser?: { id: string; name: string; email?: string }; // 공유한 사용자 정보
 }
 
 // 에피소드 아카이브 아이템

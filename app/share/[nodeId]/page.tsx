@@ -77,7 +77,7 @@ export default function SharePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-600">로딩 중...</p>
@@ -88,14 +88,14 @@ export default function SharePage() {
 
   if (!sharedData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
-        <Card className="p-8 text-center max-w-md">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <Card className="p-8 text-center max-w-md border border-gray-200 rounded-[16px] shadow-sm">
           <h1 className="text-2xl font-bold mb-4 text-gray-900">공유된 노드를 찾을 수 없습니다</h1>
           <p className="text-gray-600 mb-6">
             공유 링크가 만료되었거나 잘못된 링크일 수 있습니다.
           </p>
           <Link href="/">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
+            <Button className="bg-gray-900 hover:bg-gray-800 text-white rounded-[12px] h-12 px-6 font-semibold shadow-sm">
               <Home className="h-4 w-4 mr-2" />
               홈으로 돌아가기
             </Button>
@@ -106,28 +106,39 @@ export default function SharePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       {/* 헤더 */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm flex-shrink-0">
-        <div className="container mx-auto flex items-center justify-between">
+      <header className="bg-white border-b border-gray-200 px-5 py-4 flex-shrink-0">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-[12px]">
               <ArrowLeft className="h-4 w-4 mr-2" />
               돌아가기
             </Button>
           </Link>
-          <div className="flex items-center gap-2">
-            <Share2 className="h-5 w-5 text-green-600" />
-            <h1 className="text-xl font-bold text-gray-900">
-              공유된 경험 맵
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-xs text-gray-500 flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {new Date(sharedData.createdAt).toLocaleDateString('ko-KR')}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+              <Share2 className="h-4 w-4 text-gray-700" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">
+                공유된 경험 맵
+              </h1>
+              <div className="flex items-center gap-3 text-xs text-gray-500">
+                {sharedData.createdByUser && (
+                  <span className="flex items-center gap-1">
+                    <span className="font-medium text-gray-700">{sharedData.createdByUser.name}</span>
+                    <span>님이 공유</span>
+                  </span>
+                )}
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {new Date(sharedData.createdAt).toLocaleDateString('ko-KR')}
+                </span>
+              </div>
             </div>
           </div>
+          <div className="w-20" /> {/* 균형을 위한 빈 공간 */}
         </div>
       </header>
 
@@ -136,29 +147,29 @@ export default function SharePage() {
         {/* 마인드맵 캔버스 */}
         <div className="flex-1 relative">
           {/* 줌 컨트롤 */}
-          <div className="absolute top-4 right-4 z-10 bg-white rounded-xl shadow-lg border border-gray-200 p-2 flex flex-col gap-2">
+          <div className="absolute top-4 right-4 z-10 bg-white rounded-[12px] shadow-sm border border-gray-200 p-2 flex flex-col gap-1">
             <button
               onClick={handleZoomIn}
-              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors"
+              className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 rounded-lg transition-colors"
               title="확대"
             >
-              <ZoomIn className="h-5 w-5 text-gray-700" />
+              <ZoomIn className="h-4 w-4 text-gray-700" />
             </button>
-            <div className="h-px bg-gray-200" />
+            <div className="h-px bg-gray-100 mx-1" />
             <button
               onClick={handleZoomOut}
-              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors"
+              className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 rounded-lg transition-colors"
               title="축소"
             >
-              <ZoomOut className="h-5 w-5 text-gray-700" />
+              <ZoomOut className="h-4 w-4 text-gray-700" />
             </button>
-            <div className="h-px bg-gray-200" />
+            <div className="h-px bg-gray-100 mx-1" />
             <button
               onClick={handleResetView}
-              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors"
+              className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 rounded-lg transition-colors"
               title="초기화"
             >
-              <Maximize2 className="h-5 w-5 text-gray-700" />
+              <Maximize2 className="h-4 w-4 text-gray-700" />
             </button>
           </div>
 
@@ -191,9 +202,9 @@ export default function SharePage() {
                     y1={parent.y}
                     x2={node.x}
                     y2={node.y}
-                    stroke="#22c55e"
-                    strokeWidth={2.6}
-                    opacity={0.6}
+                    stroke="#6b7280"
+                    strokeWidth={2}
+                    opacity={0.4}
                   />
                 );
               })}
@@ -210,9 +221,9 @@ export default function SharePage() {
                       width={160}
                       height={50}
                       rx={12}
-                      fill={isRoot ? '#3b82f6' : 'white'}
-                      stroke={isRoot ? '#2563eb' : '#22c55e'}
-                      strokeWidth={isRoot ? 3 : 2}
+                      fill={isRoot ? '#111827' : 'white'}
+                      stroke={isRoot ? '#111827' : '#6b7280'}
+                      strokeWidth={isRoot ? 2.5 : 2}
                       className="drop-shadow-md"
                     />
                     {/* 노드 텍스트 */}
@@ -231,7 +242,7 @@ export default function SharePage() {
                     {/* 공유 배지 (루트 노드만) */}
                     {isRoot && (
                       <g transform={`translate(${node.x + 70}, ${node.y - 25})`}>
-                        <circle cx="0" cy="0" r="10" fill="#22c55e" />
+                        <circle cx="0" cy="0" r="10" fill="#6b7280" />
                         <text
                           x="0"
                           y="1"
@@ -259,18 +270,39 @@ export default function SharePage() {
               {/* 노드 정보 */}
               <div>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <span className="text-xl font-bold text-blue-600">
+                  <div className="w-12 h-12 bg-gray-100 rounded-[12px] flex items-center justify-center">
+                    <span className="text-xl font-bold text-gray-700">
                       {sharedData.node.label.charAt(0)}
                     </span>
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h2 className="text-xl font-bold text-gray-900">{sharedData.node.label}</h2>
                     <p className="text-sm text-gray-500">공유된 경험</p>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                {/* 공유한 사용자 정보 */}
+                {sharedData.createdByUser && (
+                  <div className="mb-4 p-3 bg-gray-50 rounded-[12px] border border-gray-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-semibold text-gray-700">
+                          {sharedData.createdByUser.name.charAt(0)}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {sharedData.createdByUser.name}님이 공유
+                        </p>
+                        {sharedData.createdByUser.email && (
+                          <p className="text-xs text-gray-500">{sharedData.createdByUser.email}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-gray-50 rounded-[12px] p-4 space-y-3 border border-gray-100">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">하위 노드</span>
                     <span className="font-semibold text-gray-900">{sharedData.descendants.length}개</span>
@@ -292,14 +324,16 @@ export default function SharePage() {
               {sharedData.includeSTAR && sharedData.starAssets.length > 0 && (
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-blue-600" />
+                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <FileText className="h-4 w-4 text-gray-700" />
+                    </div>
                     STAR 작성 내용
                   </h3>
                   <div className="space-y-3">
                     {sharedData.starAssets.map(asset => (
                       <div
                         key={asset.id}
-                        className="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer"
+                        className="bg-white border border-gray-200 rounded-[12px] p-4 hover:border-gray-300 hover:shadow-sm transition-all cursor-pointer"
                         onClick={() => setSelectedAsset(asset)}
                       >
                         <div className="flex items-start justify-between mb-2">
@@ -307,7 +341,7 @@ export default function SharePage() {
                           <Eye className="h-4 w-4 text-gray-400 flex-shrink-0" />
                         </div>
                         {asset.company && (
-                          <p className="text-xs text-blue-600 mb-2">{asset.company}</p>
+                          <p className="text-xs text-gray-600 mb-2">{asset.company}</p>
                         )}
                         <p className="text-xs text-gray-500 line-clamp-2">
                           {asset.content || '작성 중...'}
@@ -319,13 +353,13 @@ export default function SharePage() {
               )}
 
               {/* CTA */}
-              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 text-center">
+              <div className="bg-gray-50 rounded-[12px] p-6 text-center border border-gray-100">
                 <h3 className="font-bold text-gray-900 mb-2">나만의 경험 맵 만들기</h3>
                 <p className="text-sm text-gray-600 mb-4">
                   Episode와 함께 취업 준비를 시작해보세요
                 </p>
                 <Link href="/login">
-                  <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl">
+                  <Button className="w-full bg-gray-900 hover:bg-gray-800 text-white rounded-[12px] h-12 font-semibold shadow-sm">
                     시작하기
                   </Button>
                 </Link>
@@ -367,8 +401,8 @@ export default function SharePage() {
               {/* Situation */}
               {selectedAsset.situation && (
                 <div>
-                  <h3 className="text-sm font-bold text-blue-600 mb-2">상황 (Situation)</h3>
-                  <p className="text-sm text-gray-700 leading-relaxed bg-blue-50 rounded-xl p-4">
+                  <h3 className="text-sm font-bold text-gray-900 mb-2">상황 (Situation)</h3>
+                  <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 rounded-[12px] p-4 border border-gray-100">
                     {selectedAsset.situation}
                   </p>
                 </div>
@@ -377,8 +411,8 @@ export default function SharePage() {
               {/* Task */}
               {selectedAsset.task && (
                 <div>
-                  <h3 className="text-sm font-bold text-purple-600 mb-2">과제 (Task)</h3>
-                  <p className="text-sm text-gray-700 leading-relaxed bg-purple-50 rounded-xl p-4">
+                  <h3 className="text-sm font-bold text-gray-900 mb-2">과제 (Task)</h3>
+                  <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 rounded-[12px] p-4 border border-gray-100">
                     {selectedAsset.task}
                   </p>
                 </div>
@@ -387,8 +421,8 @@ export default function SharePage() {
               {/* Action */}
               {selectedAsset.action && (
                 <div>
-                  <h3 className="text-sm font-bold text-green-600 mb-2">행동 (Action)</h3>
-                  <p className="text-sm text-gray-700 leading-relaxed bg-green-50 rounded-xl p-4">
+                  <h3 className="text-sm font-bold text-gray-900 mb-2">행동 (Action)</h3>
+                  <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 rounded-[12px] p-4 border border-gray-100">
                     {selectedAsset.action}
                   </p>
                 </div>
@@ -397,8 +431,8 @@ export default function SharePage() {
               {/* Result */}
               {selectedAsset.result && (
                 <div>
-                  <h3 className="text-sm font-bold text-orange-600 mb-2">결과 (Result)</h3>
-                  <p className="text-sm text-gray-700 leading-relaxed bg-orange-50 rounded-xl p-4">
+                  <h3 className="text-sm font-bold text-gray-900 mb-2">결과 (Result)</h3>
+                  <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 rounded-[12px] p-4 border border-gray-100">
                     {selectedAsset.result}
                   </p>
                 </div>
@@ -406,9 +440,9 @@ export default function SharePage() {
 
               {/* 최종 내용 */}
               {selectedAsset.content && (
-                <div className="border-t pt-6">
+                <div className="border-t border-gray-200 pt-6">
                   <h3 className="text-sm font-bold text-gray-900 mb-2">최종 작성 내용</h3>
-                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap bg-gray-50 rounded-xl p-4">
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap bg-gray-50 rounded-[12px] p-4 border border-gray-100">
                     {selectedAsset.content}
                   </p>
                 </div>

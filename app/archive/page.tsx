@@ -73,7 +73,11 @@ export default function ArchivePage() {
     const items: ArchiveItem[] = [];
     const tagsSet = new Set<string>();
 
-    for (const project of projects) {
+    for (const projectSummary of projects) {
+      // 각 프로젝트의 전체 데이터(노드 포함)를 Supabase에서 로드
+      const project = await mindMapProjectStorage.get(projectSummary.id);
+      if (!project) continue;
+
       // 중심 노드만 있는 경우 (레벨 0만 있는 경우)
       const centerNode = project.nodes.find(n => n.level === 0);
       if (!centerNode) continue;
@@ -263,6 +267,7 @@ export default function ArchivePage() {
   const handleSaveEdit = async (item: ArchiveItem) => {
     if (!editFormData) return;
 
+    try {
     const episodeNodeId = item.id.split('_')[1];
     
     // STAR 에셋 생성 또는 업데이트
@@ -277,8 +282,9 @@ export default function ArchivePage() {
 
     // 기존 asset이 있으면 업데이트, 없으면 추가
     if (existingAsset) {
-      // 업데이트할 필드만 명시적으로 전달
+        // 업데이트할 필드만 명시적으로 전달 (nodeId 포함 필요)
       await assetStorage.update(existingAsset.id, {
+          nodeId: episodeNodeId, // nodeId를 포함하여 전달
         title: item.episodeName,
         situation: editFormData.situation,
         task: editFormData.task,
@@ -309,12 +315,16 @@ export default function ArchivePage() {
     setEditingItemId(null);
     setEditFormData(null);
     
-    // 데이터 다시 로드 (약간의 딜레이를 주어 localStorage 동기화 보장)
+      // 데이터 다시 로드 (약간의 딜레이를 주어 Supabase 동기화 보장)
     setTimeout(() => {
       loadArchiveData();
     }, 100);
     
     toast.success('저장되었습니다');
+    } catch (error) {
+      console.error('Failed to save STAR asset:', error);
+      toast.error('저장에 실패했습니다. 다시 시도해주세요.');
+    }
   };
 
   const handleToggleTag = (tag: string) => {

@@ -85,19 +85,72 @@ export class SupabaseProvider {
       if (data && data.doc_state) {
         // bytea를 Uint8Array로 변환
         // Supabase에서 bytea는 base64 문자열로 반환됨
-        let state: Uint8Array;
-        if (typeof data.doc_state === 'string') {
-          // base64 문자열인 경우
-          state = Uint8Array.from(atob(data.doc_state), c => c.charCodeAt(0));
-        } else if (Buffer.isBuffer(data.doc_state)) {
-          // Buffer인 경우
-          state = new Uint8Array(data.doc_state);
-        } else {
-          // 이미 Uint8Array인 경우
-          state = new Uint8Array(data.doc_state);
+        let state: Uint8Array | null = null;
+        
+        try {
+          const docState = data.doc_state as any; // 타입 체크를 위해 any로 캐스팅
+          
+          if (typeof docState === 'string') {
+            // base64 문자열인지 확인하고 디코딩
+            try {
+              // 유효한 base64 문자열인지 검증
+              const decoded = atob(docState);
+              state = Uint8Array.from(decoded, c => c.charCodeAt(0));
+            } catch (base64Error) {
+              // base64가 아닌 경우, 이미 바이너리 데이터일 수 있음
+              console.warn('doc_state is not valid base64, skipping:', base64Error);
+              return; // 유효하지 않은 base64면 건너뜀
+            }
+          } else if (Buffer.isBuffer(docState)) {
+            // Buffer인 경우
+            state = new Uint8Array(docState);
+          } else if (docState instanceof Uint8Array) {
+            // 이미 Uint8Array인 경우
+            state = docState;
+          } else if (Array.isArray(docState)) {
+            // 배열인 경우
+            state = new Uint8Array(docState);
+          } else {
+            console.warn('Unknown doc_state format, skipping:', typeof docState);
+            return; // 알 수 없는 형식이면 건너뜀
+          }
+          
+          // Yjs 문서에 상태 적용
+          // encodeStateAsUpdate로 인코딩된 데이터는 applyUpdate로 직접 적용 가능
+          // 하지만 유효성 검증을 위해 try-catch로 감싸기
+          if (state && state.length > 0) {
+            try {
+              // 최소 길이 검증 (Yjs 업데이트는 최소 몇 바이트 필요)
+              if (state.length < 1) {
+                console.warn('doc_state is too short, skipping');
+                return;
+              }
+              
+              // Yjs 문서에 상태 적용
+              Y.applyUpdate(this.ydoc, state, this);
+              console.log('Successfully loaded document state from Supabase');
+            } catch (applyError) {
+              // applyUpdate 실패 시 로그만 남기고 계속 진행
+              // (로컬에서 이미 초기화된 노드를 사용)
+              console.warn('Failed to apply document state, using local state:', applyError, {
+                stateLength: state.length,
+                statePreview: Array.from(state.slice(0, 20)),
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Failed to decode document state:', error, {
+            docStateType: typeof data.doc_state,
+            docStateLength: data.doc_state?.length,
+            docStatePreview: typeof data.doc_state === 'string' 
+              ? data.doc_state.substring(0, 100) 
+              : 'not a string',
+          });
+          // 에러가 발생해도 계속 진행 (로컬 상태 사용)
         }
-        // Yjs 문서에 상태 적용
-        Y.applyUpdate(this.ydoc, state, this);
+      } else {
+        // doc_state가 없으면 새 문서로 시작
+        console.log('No document state found in Supabase, starting with local state');
       }
     } catch (error) {
       console.error('Failed to load document state:', error);
@@ -123,15 +176,35 @@ export class SupabaseProvider {
           // 다른 클라이언트의 업데이트만 처리 (자신의 업데이트는 제외)
           if (payload.new.client_id !== this.clientId) {
             try {
-      // bytea를 Uint8Array로 변환
-      // Supabase에서 bytea는 base64로 인코딩되어 옴
-      const updateData = Uint8Array.from(
-        atob(payload.new.update_data)
-          .split('')
-          .map((c) => c.charCodeAt(0))
-      );
+              // bytea를 Uint8Array로 변환
+              // Supabase에서 bytea는 base64로 인코딩되어 옴
+              let updateData: Uint8Array;
+              
+              if (typeof payload.new.update_data === 'string') {
+                try {
+                  const decoded = atob(payload.new.update_data);
+                  updateData = Uint8Array.from(decoded, c => c.charCodeAt(0));
+                } catch (base64Error) {
+                  console.error('Failed to decode update_data as base64:', base64Error, {
+                    updateDataType: typeof payload.new.update_data,
+                    updateDataLength: payload.new.update_data?.length,
+                    updateDataPreview: payload.new.update_data?.substring(0, 100),
+                  });
+                  return; // 디코딩 실패 시 건너뜀
+                }
+              } else if (payload.new.update_data instanceof Uint8Array) {
+                updateData = payload.new.update_data;
+              } else if (Array.isArray(payload.new.update_data)) {
+                updateData = new Uint8Array(payload.new.update_data);
+              } else {
+                console.error('Unknown update_data format:', typeof payload.new.update_data);
+                return;
+              }
+              
               // Yjs 문서에 업데이트 적용
-              Y.applyUpdate(this.ydoc, updateData, this);
+              if (updateData && updateData.length > 0) {
+                Y.applyUpdate(this.ydoc, updateData, this);
+              }
             } catch (error) {
               console.error('Failed to apply update:', error);
             }

@@ -7,6 +7,7 @@ import {
   getNodes,
   saveNodes,
   getSTARAssets,
+  getSTARAssetById,
   getSTARAssetByNodeId,
   saveSTARAsset,
   deleteSTARAsset,
@@ -14,6 +15,7 @@ import {
   saveGapTag,
   deleteGapTag,
   getSharedNodes,
+  getSharedNodeByNodeId,
   saveSharedNode,
   deleteSharedNode,
 } from './supabase/data';
@@ -160,12 +162,36 @@ export const assetStorage = {
     return await getSTARAssets(userId);
   },
   add: async (asset: STARAsset): Promise<void> => {
-    await saveSTARAsset(asset);
+    const success = await saveSTARAsset(asset);
+    if (!success) {
+      throw new Error(`Failed to add STAR asset: ${asset.id}`);
+    }
   },
   update: async (id: string, updates: Partial<STARAsset>): Promise<void> => {
-    const existing = await getSTARAssetByNodeId(updates.nodeId || '');
-    if (existing) {
-      await saveSTARAsset({ ...existing, ...updates });
+    // id로 먼저 찾기 시도
+    let existing = await getSTARAssetById(id);
+    
+    // id로 찾지 못했고 nodeId가 있으면 nodeId로 찾기
+    if (!existing && updates.nodeId) {
+      existing = await getSTARAssetByNodeId(updates.nodeId);
+    }
+    
+    if (!existing) {
+      console.error('STAR asset not found for update:', { id, nodeId: updates.nodeId });
+      throw new Error(`STAR asset not found: id=${id}, nodeId=${updates.nodeId}`);
+    }
+    
+    // 기존 데이터와 업데이트를 병합
+    const updatedAsset: STARAsset = {
+      ...existing,
+      ...updates,
+      // updatedAt은 항상 현재 시간으로 업데이트
+      updatedAt: Date.now(),
+    };
+    
+    const success = await saveSTARAsset(updatedAsset);
+    if (!success) {
+      throw new Error('Failed to update STAR asset');
     }
   },
   delete: async (id: string): Promise<void> => {
@@ -226,12 +252,8 @@ export const sharedNodeStorage = {
     await saveSharedNode(sharedData);
   },
   get: async (nodeId: string): Promise<SharedNodeData | null> => {
-    const userId = (await getCurrentUser())?.id;
-    if (!userId) {
-      return null;
-    }
-    const sharedNodes = await getSharedNodes(userId);
-    return sharedNodes.find(s => s.nodeId === nodeId) || null;
+    // 공유 링크로 접근하는 경우를 위해 사용자 ID 없이도 조회 가능하도록 수정
+    return await getSharedNodeByNodeId(nodeId);
   },
   remove: async (nodeId: string): Promise<void> => {
     // shared_nodes 테이블에서 node_id로 찾아서 삭제
