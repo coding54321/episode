@@ -19,22 +19,26 @@ export default function MindMapsPage() {
   const [editedTitle, setEditedTitle] = useState('');
 
   useEffect(() => {
-    // 로그인 확인
-    const user = userStorage.load();
-    if (!user) {
-      router.push('/login');
-      return;
-    }
+    const loadData = async () => {
+      // 로그인 확인
+      const user = await userStorage.load();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
 
-    // 프로젝트 로드
-    const savedProjects = mindMapProjectStorage.load();
-    setProjects(savedProjects);
-    setIsLoading(false);
+      // 프로젝트 로드
+      const savedProjects = await mindMapProjectStorage.load();
+      setProjects(savedProjects);
+      setIsLoading(false);
+    };
+
+    loadData();
   }, [router]);
 
-  const handleDelete = (projectId: string) => {
+  const handleDelete = async (projectId: string) => {
     if (confirm('정말 이 마인드맵을 삭제하시겠습니까?')) {
-      mindMapProjectStorage.delete(projectId);
+      await mindMapProjectStorage.delete(projectId);
       setProjects(prev => prev.filter(p => p.id !== projectId));
       
       // 현재 프로젝트가 삭제된 경우 첫 번째 프로젝트 선택
@@ -61,7 +65,7 @@ export default function MindMapsPage() {
     setEditedTitle(project.name);
   };
 
-  const handleEditSave = (projectId: string) => {
+  const handleEditSave = async (projectId: string) => {
     if (!editedTitle.trim()) {
       setEditingProjectId(null);
       return;
@@ -74,7 +78,7 @@ export default function MindMapsPage() {
         name: editedTitle.trim(),
         updatedAt: Date.now(),
       };
-      mindMapProjectStorage.update(projectId, updatedProject);
+      await mindMapProjectStorage.update(projectId, updatedProject);
       setProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
     }
     setEditingProjectId(null);

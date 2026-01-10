@@ -143,18 +143,21 @@ export default function AIChatbot({
 
   // 공백 태그 로드
   useEffect(() => {
-    const loadTags = () => {
-      const tags = gapTagStorage.load();
+    const loadTags = async () => {
+      const tags = await gapTagStorage.load();
       setGapTags(tags);
       return tags;
     };
 
     // 초기 로드
-    const initialTags = loadTags();
+    let initialTags: GapTag[] = [];
+    loadTags().then(tags => {
+      initialTags = tags;
+    });
 
     // 공백 진단에서 태그가 추가될 때 업데이트
-    const handleGapTagsUpdate = () => {
-      const updatedTags = loadTags();
+    const handleGapTagsUpdate = async () => {
+      const updatedTags = await loadTags();
       // 태그가 추가되면 인벤토리 탭으로 전환
       if (updatedTags.length > initialTags.length) {
         setActiveTab('inventory');
@@ -167,8 +170,11 @@ export default function AIChatbot({
 
   // 컴포넌트가 표시될 때마다 태그 다시 로드 (나중에 열릴 때 최신 태그 반영)
   useEffect(() => {
-    const tags = gapTagStorage.load();
-    setGapTags(tags);
+    const loadTags = async () => {
+      const tags = await gapTagStorage.load();
+      setGapTags(tags);
+    };
+    loadTags();
   }, [selectedNodeId]); // 노드 선택 시마다 태그 다시 로드
 
   // defaultTab이 변경되면 activeTab 업데이트

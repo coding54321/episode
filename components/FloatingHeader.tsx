@@ -9,6 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { userStorage } from '@/lib/storage';
 import type { User as UserType } from '@/types';
+import { supabase } from '@/lib/supabase/client';
+import { getCurrentUser, signOut, onAuthStateChange } from '@/lib/supabase/auth';
 
 export default function FloatingHeader() {
   const router = useRouter();
@@ -18,12 +20,44 @@ export default function FloatingHeader() {
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const currentUser = userStorage.load();
-    setUser(currentUser);
+    // Supabase Auth 상태 확인
+    const loadUser = async () => {
+      const supabaseUser = await getCurrentUser();
+      if (supabaseUser) {
+        setUser(supabaseUser);
+        // localStorage에도 저장 (기존 코드와의 호환성)
+        await userStorage.save(supabaseUser);
+      } else {
+        // Supabase에 없으면 localStorage 확인
+        const localUser = await userStorage.load();
+        setUser(localUser);
+      }
+    };
+
+    loadUser();
+
+    // Auth 상태 변경 감지
+    const { data: { subscription } } = onAuthStateChange(async (user) => {
+      setUser(user);
+      if (user) {
+        await userStorage.save(user);
+      } else {
+        userStorage.clear();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Supabase Auth 로그아웃
+    await signOut();
+    // localStorage도 클리어
     userStorage.clear();
+    setUser(null);
+    // 홈으로 리다이렉트
     router.push('/');
   };
 

@@ -15,8 +15,11 @@ export default function MindMapFeaturePage() {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const currentUser = userStorage.load();
-    setUser(currentUser);
+    const checkUser = async () => {
+      const currentUser = await userStorage.load();
+      setUser(currentUser);
+    };
+    checkUser();
   }, []);
 
   const handleGetStarted = () => {

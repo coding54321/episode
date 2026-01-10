@@ -23,17 +23,20 @@ export default function DashboardPage() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   useEffect(() => {
-    // 로그인 확인
-    const user = userStorage.load();
-    if (!user) {
-      router.push('/login');
-      return;
-    }
+    const loadData = async () => {
+      // 로그인 확인
+      const user = await userStorage.load();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
 
-    // 에셋 로드
-    const savedAssets = assetStorage.load();
-    setAssets(savedAssets);
-    setFilteredAssets(savedAssets);
+      // 에셋 로드
+      const savedAssets = await assetStorage.load();
+      setAssets(savedAssets);
+      setFilteredAssets(savedAssets);
+    };
+    loadData();
   }, [router]);
 
   useEffect(() => {
@@ -53,9 +56,9 @@ export default function DashboardPage() {
     setFilteredAssets(filtered);
   }, [searchQuery, assets]);
 
-  const handleDelete = (assetId: string) => {
+  const handleDelete = async (assetId: string) => {
     if (confirm('정말 삭제하시겠습니까?')) {
-      assetStorage.delete(assetId);
+      await assetStorage.delete(assetId);
       const updatedAssets = assets.filter(a => a.id !== assetId);
       setAssets(updatedAssets);
       setFilteredAssets(updatedAssets);

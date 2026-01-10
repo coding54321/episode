@@ -54,25 +54,29 @@ export default function ArchivePage() {
   } | null>(null);
 
   useEffect(() => {
-    // 로그인 확인
-    const user = userStorage.load();
-    if (!user) {
-      router.push('/login');
-      return;
-    }
+    const checkAuthAndLoad = async () => {
+      // 로그인 확인
+      const user = await userStorage.load();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
 
-    loadArchiveData();
+      await loadArchiveData();
+    };
+
+    checkAuthAndLoad();
   }, [router]);
 
-  const loadArchiveData = () => {
-    const projects = mindMapProjectStorage.load();
+  const loadArchiveData = async () => {
+    const projects = await mindMapProjectStorage.load();
     const items: ArchiveItem[] = [];
     const tagsSet = new Set<string>();
 
-    projects.forEach((project) => {
+    for (const project of projects) {
       // 중심 노드만 있는 경우 (레벨 0만 있는 경우)
       const centerNode = project.nodes.find(n => n.level === 0);
-      if (!centerNode) return;
+      if (!centerNode) continue;
 
       // 노드를 레벨별로 그룹화
       const nodesByLevel = groupNodesByLevel(project.nodes);
@@ -96,10 +100,10 @@ export default function ArchivePage() {
           createdAt: project.createdAt,
           updatedAt: project.updatedAt,
         });
-        return;
+        continue;
       }
       
-      categoryNodes.forEach((categoryNode) => {
+      for (const categoryNode of categoryNodes) {
         const badgeType = categoryNode.badgeType || 'other';
         // '기타'인 경우 customLabel 사용, 없으면 label 사용
         const categoryLabel = categoryNode.customLabel || categoryNode.label || BADGE_LABELS[badgeType];
@@ -125,10 +129,10 @@ export default function ArchivePage() {
             createdAt: categoryNode.createdAt,
             updatedAt: categoryNode.updatedAt,
           });
-          return;
+          continue;
         }
         
-        experienceNodes.forEach((experienceNode) => {
+        for (const experienceNode of experienceNodes) {
           // 에피소드 노드들 (level 3)
           const episodeNodes = project.nodes.filter(
             (n) => n.parentId === experienceNode.id && n.level === 3
@@ -154,12 +158,12 @@ export default function ArchivePage() {
               createdAt: experienceNode.createdAt,
               updatedAt: experienceNode.updatedAt,
             });
-            return;
+            continue;
           }
           
-          episodeNodes.forEach((episodeNode) => {
+          for (const episodeNode of episodeNodes) {
             // 해당 에피소드의 STAR 에셋 찾기 (없어도 표시)
-            const starAsset = assetStorage.getByNodeId(episodeNode.id);
+            const starAsset = await assetStorage.getByNodeId(episodeNode.id);
             const tags = starAsset?.tags || [];
             
             // 태그 수집
@@ -185,10 +189,10 @@ export default function ArchivePage() {
               createdAt: episodeNode.createdAt,
               updatedAt: episodeNode.updatedAt,
             });
-          });
-        });
-      });
-    });
+          }
+        }
+      }
+    }
 
     setArchiveItems(items);
     setFilteredItems(items);
@@ -256,13 +260,13 @@ export default function ArchivePage() {
     setEditFormData(null);
   };
 
-  const handleSaveEdit = (item: ArchiveItem) => {
+  const handleSaveEdit = async (item: ArchiveItem) => {
     if (!editFormData) return;
 
     const episodeNodeId = item.id.split('_')[1];
     
     // STAR 에셋 생성 또는 업데이트
-    const existingAsset = assetStorage.getByNodeId(episodeNodeId);
+    const existingAsset = await assetStorage.getByNodeId(episodeNodeId);
     
     const content = [
       editFormData.situation && `상황(Situation): ${editFormData.situation}`,
@@ -274,7 +278,7 @@ export default function ArchivePage() {
     // 기존 asset이 있으면 업데이트, 없으면 추가
     if (existingAsset) {
       // 업데이트할 필드만 명시적으로 전달
-      assetStorage.update(existingAsset.id, {
+      await assetStorage.update(existingAsset.id, {
         title: item.episodeName,
         situation: editFormData.situation,
         task: editFormData.task,
@@ -298,7 +302,7 @@ export default function ArchivePage() {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
-      assetStorage.add(starAsset);
+      await assetStorage.add(starAsset);
     }
     
     // 편집 모드 먼저 종료

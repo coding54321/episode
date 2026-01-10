@@ -55,10 +55,13 @@ export default function STAREditor({
     
     // 기존 저장된 태그 로드
     if (nodeId) {
-      const existingAsset = assetStorage.getByNodeId(nodeId);
-      if (existingAsset && existingAsset.tags) {
-        setSelectedTags(existingAsset.tags);
-      }
+      const loadExistingAsset = async () => {
+        const existingAsset = await assetStorage.getByNodeId(nodeId);
+        if (existingAsset && existingAsset.tags) {
+          setSelectedTags(existingAsset.tags);
+        }
+      };
+      loadExistingAsset();
     }
   }, [initialData, nodeLabel, nodeId]);
 
@@ -72,7 +75,7 @@ export default function STAREditor({
     setContent(parts.join('\n\n'));
   }, [situation, task, action, result]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) {
       toast.error('제목을 입력해주세요');
       return;
@@ -89,7 +92,7 @@ export default function STAREditor({
     }
 
     // 기존 asset 확인
-    const existingAsset = assetStorage.getByNodeId(nodeId);
+    const existingAsset = await assetStorage.getByNodeId(nodeId);
 
     const asset: STARAsset = {
       id: existingAsset?.id || `asset_${Date.now()}`,
@@ -107,9 +110,9 @@ export default function STAREditor({
 
     // 기존 asset이 있으면 업데이트, 없으면 추가
     if (existingAsset) {
-      assetStorage.update(existingAsset.id, asset);
+      await assetStorage.update(existingAsset.id, asset);
     } else {
-      assetStorage.add(asset);
+      await assetStorage.add(asset);
     }
 
     // 노드 라벨이 변경되었으면 마인드맵 노드도 업데이트

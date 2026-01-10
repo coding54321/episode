@@ -11,15 +11,19 @@ export default function GapDiagnosisPage() {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    // 로그인 확인
-    const user = userStorage.load();
-    if (!user) {
-      router.push('/login');
-      return;
-    }
+    const checkAuth = async () => {
+      // 로그인 확인
+      const user = await userStorage.load();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
 
-    // 페이지 로드 시 모달 열기
-    setIsOpen(true);
+      // 페이지 로드 시 모달 열기
+      setIsOpen(true);
+    };
+
+    checkAuth();
   }, [router]);
 
   const handleResultButtonClick = () => {

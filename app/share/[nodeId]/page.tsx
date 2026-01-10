@@ -24,19 +24,21 @@ export default function SharePage() {
   const [selectedAsset, setSelectedAsset] = useState<STARAsset | null>(null);
 
   useEffect(() => {
-    const data = sharedNodeStorage.get(nodeId);
-    
-    if (data) {
-      setSharedData(data);
-      // 초기 뷰를 중앙에 맞추기
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const centerX = canvas.clientWidth / 2;
-        const centerY = canvas.clientHeight / 2;
-        setPan({ x: centerX - data.node.x, y: centerY - data.node.y });
+    const loadSharedData = async () => {
+      const data = await sharedNodeStorage.get(nodeId);
+      if (data) {
+        setSharedData(data);
+        // 초기 뷰를 중앙에 맞추기
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const centerX = canvas.clientWidth / 2;
+          const centerY = canvas.clientHeight / 2;
+          setPan({ x: centerX - data.node.x, y: centerY - data.node.y });
+        }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+    loadSharedData();
   }, [nodeId]);
 
   // 모든 노드 (루트 + 하위 노드들)

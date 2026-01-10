@@ -16,8 +16,11 @@ export default function LandingPage() {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const currentUser = userStorage.load();
-    setUser(currentUser);
+    const loadUser = async () => {
+      const currentUser = await userStorage.load();
+      setUser(currentUser);
+    };
+    loadUser();
   }, []);
 
   const handleFeatureClick = (feature: string) => {

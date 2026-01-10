@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { MindMapNode, MindMapProject, GapTag, NodeType } from '@/types';
 import { mindMapProjectStorage, currentProjectStorage, userStorage, sharedNodeStorage, assetStorage, mindMapOnboardingStorage } from '@/lib/storage';
@@ -18,6 +18,9 @@ import Header from '@/components/Header';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import * as Y from 'yjs';
+import { SupabaseProvider } from '@/lib/yjs/supabase-provider';
+import { nodesToYjsMap, yjsMapToNodes, updateNodeInYjs, deleteNodeFromYjs } from '@/lib/yjs/mindmap-sync';
 
 export default function MindMapProjectPage() {
   const router = useRouter();
@@ -54,39 +57,109 @@ export default function MindMapProjectPage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
 
+  // Yjs 관련 refs
+  const ydocRef = useRef<Y.Doc | null>(null);
+  const providerRef = useRef<SupabaseProvider | null>(null);
+  const isYjsInitializedRef = useRef(false);
+  const isUpdatingFromYjsRef = useRef(false);
+
   useEffect(() => {
-    // 로그인 확인
-    const user = userStorage.load();
-    if (!user) {
-      router.push('/login');
-      return;
-    }
+    const loadProject = async () => {
+      // 로그인 확인
+      const user = await userStorage.load();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
 
-    // 프로젝트 로드
-    const loadedProject = mindMapProjectStorage.get(projectId);
-    if (!loadedProject) {
-      router.push('/mindmaps');
-      return;
-    }
+      // 프로젝트 로드
+      const loadedProject = await mindMapProjectStorage.get(projectId);
+      if (!loadedProject) {
+        router.push('/mindmaps');
+        return;
+      }
 
-    setProject(loadedProject);
-    setNodes(loadedProject.nodes);
-    currentProjectStorage.save(projectId);
+      setProject(loadedProject);
+      currentProjectStorage.save(projectId);
 
-    // 탭 초기화
-    const mainTab: Tab = {
-      id: 'main',
-      label: loadedProject.name,
-      nodeId: null,
-      href: `/mindmap/${projectId}`,
+      // 탭 초기화
+      const mainTab: Tab = {
+        id: 'main',
+        label: loadedProject.name,
+        nodeId: null,
+        href: `/mindmap/${projectId}`,
+      };
+      setTabs([mainTab]);
+      setActiveTabId('main');
+
+      // 마인드맵 온보딩(튜토리얼) 최초 1회 노출
+      if (!mindMapOnboardingStorage.isShown()) {
+        setShowOnboarding(true);
+      }
+
+      // Yjs 초기화
+      if (!isYjsInitializedRef.current) {
+        const ydoc = new Y.Doc();
+        ydocRef.current = ydoc;
+
+        // 초기 노드를 Yjs Map에 설정
+        nodesToYjsMap(ydoc, loadedProject.nodes);
+        setNodes(loadedProject.nodes);
+
+        // Supabase Provider 생성
+        const provider = new SupabaseProvider(ydoc, {
+          projectId: projectId,
+        });
+        providerRef.current = provider;
+
+        // Yjs Map 변경 감지
+        const nodesMap = ydoc.getMap('nodes');
+        nodesMap.observe((event: Y.YMapEvent<any>) => {
+          if (!isUpdatingFromYjsRef.current) {
+            // Yjs에서 변경된 경우에만 노드 상태 업데이트
+            const updatedNodes = yjsMapToNodes(ydoc);
+            isUpdatingFromYjsRef.current = true;
+            setNodes(updatedNodes);
+            
+            // 프로젝트도 업데이트 (Supabase DB 동기화)
+            const updatedProject: MindMapProject = {
+              ...loadedProject,
+              nodes: updatedNodes,
+              updatedAt: Date.now(),
+            };
+            mindMapProjectStorage.update(projectId, updatedProject).then(() => {
+              setProject(updatedProject);
+              isUpdatingFromYjsRef.current = false;
+            });
+          }
+        });
+
+        provider.onSynced = () => {
+          console.log('Yjs synced with Supabase');
+        };
+
+        provider.onConnectionError = (error) => {
+          console.error('Yjs connection error:', error);
+        };
+
+        isYjsInitializedRef.current = true;
+      }
     };
-    setTabs([mainTab]);
-    setActiveTabId('main');
 
-    // 마인드맵 온보딩(튜토리얼) 최초 1회 노출
-    if (!mindMapOnboardingStorage.isShown()) {
-      setShowOnboarding(true);
-    }
+    loadProject();
+
+    // Cleanup
+    return () => {
+      if (providerRef.current) {
+        providerRef.current.destroy();
+        providerRef.current = null;
+      }
+      if (ydocRef.current) {
+        ydocRef.current.destroy();
+        ydocRef.current = null;
+      }
+      isYjsInitializedRef.current = false;
+    };
   }, [projectId, router]);
 
   // URL의 nodeId가 있으면 해당 처리
@@ -174,30 +247,34 @@ export default function MindMapProjectPage() {
       }
     };
 
-    const handleCustomUpdate = (e: CustomEvent) => {
-      if (e.detail && e.detail.projectId === projectId) {
-        const updatedProject = e.detail.project as MindMapProject;
-        setProject(updatedProject);
-        setNodes(updatedProject.nodes);
-        
-        // 탭 라벨 업데이트
-        setTabs(prev => prev.map(tab => {
-          if (tab.nodeId) {
-            const node = updatedProject.nodes.find((n: MindMapNode) => n.id === tab.nodeId);
-            if (node) {
+    const handleCustomUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && customEvent.detail.projectId === projectId) {
+        // 전체 프로젝트가 전달되는 경우
+        if (customEvent.detail.project) {
+          const updatedProject = customEvent.detail.project as MindMapProject;
+          setProject(updatedProject);
+          setNodes(updatedProject.nodes || []);
+          
+          // 탭 라벨 업데이트
+          setTabs(prev => prev.map(tab => {
+            if (tab.nodeId) {
+              const node = updatedProject.nodes.find((n: MindMapNode) => n.id === tab.nodeId);
+              if (node) {
+                return {
+                  ...tab,
+                  label: typeof node.label === 'string' ? node.label : '노드',
+                };
+              }
+            } else {
               return {
                 ...tab,
-                label: typeof node.label === 'string' ? node.label : '노드',
+                label: updatedProject.name,
               };
             }
-          } else {
-            return {
-              ...tab,
-              label: updatedProject.name,
-            };
-          }
-          return tab;
-        }));
+            return tab;
+          }));
+        }
       }
     };
 
@@ -213,22 +290,47 @@ export default function MindMapProjectPage() {
   const activeTab = tabs.find(t => t.id === activeTabId);
   const isNodeView = activeTab?.nodeId !== null;
 
-  const handleNodesChange = (newNodes: MindMapNode[]) => {
+  const handleNodesChange = async (newNodes: MindMapNode[]) => {
     setNodes(newNodes);
     
-    // 프로젝트 업데이트
+    // Yjs Map 업데이트 (로컬 변경사항을 Yjs에 반영)
+    if (ydocRef.current && !isUpdatingFromYjsRef.current) {
+      const nodesMap = ydocRef.current.getMap('nodes');
+      
+      // 기존 노드와 새 노드 비교하여 업데이트
+      const existingNodeIds = new Set<string>();
+      nodesMap.forEach((_, nodeId) => {
+        existingNodeIds.add(nodeId);
+      });
+
+      const newNodeIds = new Set(newNodes.map(n => n.id));
+
+      // 삭제된 노드 제거
+      existingNodeIds.forEach(nodeId => {
+        if (!newNodeIds.has(nodeId)) {
+          deleteNodeFromYjs(ydocRef.current!, nodeId);
+        }
+      });
+
+      // 새/업데이트된 노드 추가/업데이트
+      newNodes.forEach(node => {
+        updateNodeInYjs(ydocRef.current!, node);
+      });
+    }
+    
+    // 프로젝트 업데이트 (Supabase DB 동기화)
     if (project) {
       const updatedProject: MindMapProject = {
         ...project,
         nodes: newNodes,
         updatedAt: Date.now(),
       };
-      mindMapProjectStorage.update(projectId, updatedProject);
+      await mindMapProjectStorage.update(projectId, updatedProject);
       setProject(updatedProject);
     }
   };
 
-  const handleNodeEdit = (nodeId: string, label: string) => {
+  const handleNodeEdit = async (nodeId: string, label: string) => {
     const updatedNodes = nodes.map(node => {
       if (node.id === nodeId) {
         return { ...node, label, updatedAt: Date.now() };
@@ -244,7 +346,7 @@ export default function MindMapProjectPage() {
     setIsEditingTitle(true);
   };
 
-  const handleTitleSave = () => {
+  const handleTitleSave = async () => {
     if (!project || !editedTitle.trim()) {
       setIsEditingTitle(false);
       return;
@@ -255,7 +357,7 @@ export default function MindMapProjectPage() {
       name: editedTitle.trim(),
       updatedAt: Date.now(),
     };
-    mindMapProjectStorage.update(projectId, updatedProject);
+    await mindMapProjectStorage.update(projectId, updatedProject);
     setProject(updatedProject);
     setIsEditingTitle(false);
   };
@@ -348,7 +450,7 @@ export default function MindMapProjectPage() {
     setIsSTAREditorOpen(true);
   };
 
-  const handleNodeShare = (nodeId: string) => {
+  const handleNodeShare = async (nodeId: string) => {
     // 1. 공유할 노드 찾기
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
@@ -371,11 +473,12 @@ export default function MindMapProjectPage() {
     const descendants = getDescendants(nodeId);
 
     // 3. 관련 STAR 에셋 가져오기 (노드와 하위 노드들의 에셋)
-    const allAssets = assetStorage.load();
+    const allAssets = await assetStorage.load();
     const nodeIds = [nodeId, ...descendants.map(d => d.id)];
     const relatedAssets = allAssets.filter(asset => nodeIds.includes(asset.nodeId));
 
     // 4. 공유 데이터 생성
+    const user = await userStorage.load();
     const sharedData = {
       id: nodeId,
       nodeId: nodeId,
@@ -385,11 +488,11 @@ export default function MindMapProjectPage() {
       starAssets: relatedAssets,
       includeSTAR: relatedAssets.length > 0, // STAR 에셋이 있으면 포함
       createdAt: Date.now(),
-      createdBy: userStorage.load()?.id,
+      createdBy: user?.id,
     };
 
     // 5. 공유 스토리지에 저장
-    sharedNodeStorage.add(sharedData);
+    await sharedNodeStorage.add(sharedData);
 
     // 6. 노드의 isShared 상태 업데이트
     setNodes(prevNodes => 
@@ -407,7 +510,7 @@ export default function MindMapProjectPage() {
           ? { ...n, isShared: true, sharedLink: `${window.location.origin}/share/${nodeId}` }
           : n
       );
-      mindMapProjectStorage.update(projectId, { nodes: updatedNodes });
+      await mindMapProjectStorage.update(projectId, { nodes: updatedNodes });
     }
 
     // 8. 공유 링크 복사 및 토스트 표시
@@ -432,9 +535,9 @@ export default function MindMapProjectPage() {
     });
   };
 
-  const handleNodeUnshare = (nodeId: string) => {
+  const handleNodeUnshare = async (nodeId: string) => {
     // 1. 공유 스토리지에서 삭제
-    sharedNodeStorage.remove(nodeId);
+    await sharedNodeStorage.remove(nodeId);
 
     // 2. 노드의 isShared 상태 업데이트
     setNodes(prevNodes => 
@@ -452,7 +555,7 @@ export default function MindMapProjectPage() {
           ? { ...n, isShared: false, sharedLink: undefined }
           : n
       );
-      mindMapProjectStorage.update(projectId, { nodes: updatedNodes });
+      await mindMapProjectStorage.update(projectId, { nodes: updatedNodes });
     }
 
     // 4. 토스트 표시
@@ -860,13 +963,13 @@ export default function MindMapProjectPage() {
           onNodeSelect={(nodeId) => {
             setSelectedNodeId(nodeId);
           }}
-          onNodeOpenSTAREditor={(nodeId) => {
+          onNodeOpenSTAREditor={async (nodeId) => {
             // STAR 에디터 열기
             setSelectedNodeId(nodeId);
             const node = nodes.find(n => n.id === nodeId);
             if (node) {
               // 기존 STAR 데이터 로드
-              const existingAsset = assetStorage.getByNodeId(nodeId);
+              const existingAsset = await assetStorage.getByNodeId(nodeId);
               if (existingAsset) {
                 setStarData({
                   situation: existingAsset.situation,

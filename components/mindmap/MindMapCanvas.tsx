@@ -282,7 +282,9 @@ export default function MindMapCanvas({
           return node;
         });
         onNodesChange(updatedNodes);
-        mindMapStorage.save(updatedNodes);
+        if (projectId) {
+          mindMapStorage.save(updatedNodes, projectId);
+        }
       }
     }
   }, [isPanning, panStart, draggedNodeId, dragOffset, zoom, pan, nodes, onNodesChange, getDescendantIds]);

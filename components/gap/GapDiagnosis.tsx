@@ -8,22 +8,19 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Check, X, ChevronRight, ChevronLeft, Building2 } from 'lucide-react';
 import { 
   Company, 
+  Recruitment,
   Job, 
   Question, 
   GapTag,
   CompetencyType 
 } from '@/types';
 import {
-  mockCompanies,
-  mockJobs,
-  mockRecruitments,
-  mockCompetencyTypes,
-  getCompanyById,
+  getCompanies,
   getJobsByCompany,
   getJobsByCategory,
   getQuestionsByJobTitle,
   getCompetencyTypeById,
-} from '@/lib/mockData';
+} from '@/lib/supabase/companyData';
 import { gapTagStorage } from '@/lib/storage';
 
 interface GapDiagnosisProps {
@@ -46,11 +43,15 @@ export default function GapDiagnosis({
   const [step, setStep] = useState<Step>('company');
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<Array<Question & { recruitment?: Recruitment }>>([]);
   const [responses, setResponses] = useState<Record<string, boolean>>({});
   const [analyzedTags, setAnalyzedTags] = useState<GapTag[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobsByCategory, setJobsByCategory] = useState<Record<string, Job[]>>({});
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 초기화
+  // 초기화 및 기업 목록 로드
   useEffect(() => {
     if (isOpen) {
       setStep('company');
@@ -59,24 +60,62 @@ export default function GapDiagnosis({
       setQuestions([]);
       setResponses({});
       setAnalyzedTags([]);
+      
+      // 기업 목록 로드
+      loadCompanies();
     }
   }, [isOpen]);
 
+  // 기업 목록 로드
+  const loadCompanies = async () => {
+    setIsLoading(true);
+    try {
+      const data = await getCompanies();
+      setCompanies(data);
+    } catch (error) {
+      console.error('기업 목록 로드 실패:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // 기업 선택
-  const handleCompanySelect = (company: Company) => {
+  const handleCompanySelect = async (company: Company) => {
     setSelectedCompany(company);
-    setStep('job');
+    setIsLoading(true);
+    try {
+      // 직무 목록 로드
+      const jobsData = await getJobsByCompany(company.id);
+      setJobs(jobsData);
+      
+      // 카테고리별 그룹화
+      const grouped = await getJobsByCategory(company.id);
+      setJobsByCategory(grouped);
+      
+      setStep('job');
+    } catch (error) {
+      console.error('직무 목록 로드 실패:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 직무 선택
-  const handleJobSelect = (job: Job) => {
+  const handleJobSelect = async (job: Job) => {
     setSelectedJob(job);
+    setIsLoading(true);
     
-    // 해당 직무의 최근 5년간 문항 수집
-    const allQuestions = getQuestionsByJobTitle(selectedCompany!.id, job.job_title);
-    
-    setQuestions(allQuestions);
-    setStep('questions');
+    try {
+      // 해당 직무의 최근 5년간 문항 수집
+      const allQuestions = await getQuestionsByJobTitle(selectedCompany!.id, job.job_title);
+      
+      setQuestions(allQuestions);
+      setStep('questions');
+    } catch (error) {
+      console.error('문항 로드 실패:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 문항 응답
@@ -88,28 +127,40 @@ export default function GapDiagnosis({
   };
 
   // 분석하기
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     // 소재가 없는 문항들의 역량 타입 추출
     const missingCompetencies: Record<string, { count: number; questions: Array<{ content: string; year?: number; half?: string }> }> = {};
 
-    questions.forEach(q => {
+    // 모든 역량 타입을 먼저 로드
+    const competencyMap = new Map<string, CompetencyType>();
+    for (const q of questions) {
+      if (responses[q.id] === false && q.competency_type_id) {
+        if (!competencyMap.has(q.competency_type_id)) {
+          const competency = await getCompetencyTypeById(q.competency_type_id);
+          if (competency) {
+            competencyMap.set(q.competency_type_id, competency);
+          }
+        }
+      }
+    }
+
+    // 문항들을 순회하며 역량별로 그룹화
+    for (const q of questions) {
       if (responses[q.id] === false) { // 소재 없음
-        const competency = getCompetencyTypeById(q.competency_type_id);
+        const competency = competencyMap.get(q.competency_type_id);
         if (competency) {
           if (!missingCompetencies[competency.id]) {
             missingCompetencies[competency.id] = { count: 0, questions: [] };
           }
           missingCompetencies[competency.id].count++;
           
-          // 년도/반기 정보 가져오기
+          // 년도/반기 정보는 questions에 포함된 recruitment 정보에서 가져오기
           let year: number | undefined;
           let half: string | undefined;
-          if (q.recruitment_id) {
-            const recruitment = mockRecruitments.find(r => r.id === q.recruitment_id);
-            if (recruitment) {
-              year = recruitment.year;
-              half = recruitment.half;
-            }
+          
+          if (q.recruitment) {
+            year = q.recruitment.year;
+            half = q.recruitment.half;
           }
           
           missingCompetencies[competency.id].questions.push({
@@ -119,18 +170,32 @@ export default function GapDiagnosis({
           });
         }
       }
-    });
+    }
 
     // GapTag 생성
+    // 같은 역량에 대해 여러 문항이 있을 수 있으므로, 각 문항별로 태그를 생성하거나
+    // 역량별로 하나의 태그를 만들고 questions 배열에 모든 문항을 포함
     const tags: GapTag[] = Object.entries(missingCompetencies).map(([competencyId, data]) => {
-      const competency = getCompetencyTypeById(competencyId)!;
+      const competency = competencyMap.get(competencyId)!;
+      
+      // 첫 번째 질문의 question_id를 가져오기 (나중에 Supabase 마이그레이션 시 사용)
+      const firstQuestion = questions.find(q => 
+        responses[q.id] === false && 
+        q.competency_type_id === competencyId &&
+        data.questions.some(dq => dq.content === q.content)
+      );
+      
       return {
-        id: `gap_${Date.now()}_${competencyId}`,
+        id: `gap_${Date.now()}_${competencyId}_${Math.random().toString(36).substr(2, 9)}`,
         label: competency.label,
         category: competency.label,
         source: `${selectedCompany!.name} ${selectedJob!.job_title} (부족 ${data.count}건)`,
         questions: data.questions, // 답변하기 어려웠던 질문 리스트 저장 (년도/반기 정보 포함)
         createdAt: Date.now(),
+        // 나중에 Supabase 마이그레이션 시 사용할 필드들 (현재는 localStorage에 저장되지 않음)
+        // company_id: selectedCompany!.id,
+        // job_id: selectedJob!.id,
+        // question_id: firstQuestion?.id,
       };
     });
 
@@ -139,11 +204,11 @@ export default function GapDiagnosis({
   };
 
   // AI 어시스턴트에 추가 또는 결과 버튼 클릭
-  const handleAddToAssistant = () => {
+  const handleAddToAssistant = async () => {
     // 태그 저장
-    analyzedTags.forEach(tag => {
-      gapTagStorage.add(tag);
-    });
+    for (const tag of analyzedTags) {
+      await gapTagStorage.add(tag);
+    }
     
     // 커스텀 이벤트 발생 (AI 어시스턴트에 알림)
     window.dispatchEvent(new CustomEvent('gap-tags-updated'));
@@ -171,29 +236,24 @@ export default function GapDiagnosis({
     setQuestions([]);
     setResponses({});
     setAnalyzedTags([]);
+    setJobsByCategory({});
   };
-
-  // 직무별 카테고리 그룹화
-  const jobsByCategory = selectedCompany ? getJobsByCategory(selectedCompany.id) : {};
 
   // 문항을 년도/반기별로 그룹화
   const questionsByYearHalf = questions.reduce((acc, q) => {
-    if (q.recruitment_id) {
-      const recruitment = mockRecruitments.find(r => r.id === q.recruitment_id);
-      if (recruitment) {
-        const key = `${recruitment.year}년 ${recruitment.half}`;
-        if (!acc[key]) {
-          acc[key] = {
-            questions: [],
-            year: recruitment.year,
-            half: recruitment.half,
-          };
-        }
-        acc[key].questions.push(q);
+    if (q.recruitment) {
+      const key = `${q.recruitment.year}년 ${q.recruitment.half}`;
+      if (!acc[key]) {
+        acc[key] = {
+          questions: [],
+          year: q.recruitment.year,
+          half: q.recruitment.half,
+        };
       }
+      acc[key].questions.push(q);
     }
     return acc;
-  }, {} as Record<string, { questions: Question[], year: number, half: string }>);
+  }, {} as Record<string, { questions: Array<Question & { recruitment?: Recruitment }>, year: number, half: string }>);
 
   // 년도/반기 순으로 정렬
   const sortedYearHalfKeys = Object.keys(questionsByYearHalf).sort((a, b) => {
@@ -249,7 +309,13 @@ export default function GapDiagnosis({
               {/* 1단계: 기업 선택 */}
               {step === 'company' && (
                 <div className="grid grid-cols-2 gap-3">
-                  {mockCompanies.map(company => (
+                  {isLoading ? (
+                    <div className="col-span-2 text-center py-8">
+                      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                      <p className="text-sm text-gray-600">로딩 중...</p>
+                    </div>
+                  ) : (
+                    companies.map(company => (
                     <button
                       key={company.id}
                       onClick={() => handleCompanySelect(company)}
@@ -276,20 +342,27 @@ export default function GapDiagnosis({
                         <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />
                       </div>
                     </button>
-                  ))}
+                    ))
+                  )}
                 </div>
               )}
 
               {/* 2단계: 직무 선택 */}
               {step === 'job' && selectedCompany && (
                 <div className="space-y-6">
-                  {Object.entries(jobsByCategory).map(([category, jobs]) => (
+                  {isLoading ? (
+                    <div className="text-center py-8">
+                      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                      <p className="text-sm text-gray-600">로딩 중...</p>
+                    </div>
+                  ) : (
+                    Object.entries(jobsByCategory).map(([category, categoryJobs]) => (
                     <div key={category} className="space-y-3">
                       <div className="text-sm font-bold text-gray-900 px-1">
                         {category}
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        {jobs.map(job => (
+                        {categoryJobs.map(job => (
                           <button
                             key={job.id}
                             onClick={() => handleJobSelect(job)}
@@ -306,13 +379,25 @@ export default function GapDiagnosis({
                         ))}
                       </div>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               )}
 
               {/* 3단계: 문항 체크 */}
               {step === 'questions' && (
                 <div className="space-y-6">
+                  {isLoading ? (
+                    <div className="text-center py-8">
+                      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                      <p className="text-sm text-gray-600">문항을 불러오는 중...</p>
+                    </div>
+                  ) : questions.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-600">해당 직무의 문항이 없습니다.</p>
+                    </div>
+                  ) : (
+                    <>
                   <div className="bg-blue-50 rounded-xl p-4">
                     <p className="text-sm text-blue-900">
                       <strong>{selectedCompany?.name} {selectedJob?.job_title}</strong> 직무의 최근 5년간 기출 문항입니다.
@@ -382,6 +467,8 @@ export default function GapDiagnosis({
                       </div>
                     );
                   })}
+                    </>
+                  )}
                 </div>
               )}
 

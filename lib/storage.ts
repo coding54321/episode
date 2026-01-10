@@ -1,6 +1,13 @@
 import { User, BadgeType, MindMapNode, STARAsset, GapTag, MindMapProject, SharedNodeData } from '@/types';
 
-// localStorage 키 상수
+/**
+ * @deprecated 이 파일은 Supabase 기반으로 마이그레이션되었습니다.
+ * 새로운 코드는 lib/storage-supabase.ts를 사용하세요.
+ * 
+ * 기존 코드와의 호환성을 위해 유지되지만, 내부적으로 Supabase를 사용합니다.
+ */
+
+// localStorage 키 상수 (온보딩, 현재 프로젝트 ID 등 클라이언트 상태용)
 export const STORAGE_KEYS = {
   USER: 'episode_user',
   BADGES: 'episode_badges',
@@ -13,320 +20,176 @@ export const STORAGE_KEYS = {
   MINDMAP_ONBOARDING: 'episode_mindmap_onboarding_v1',
 } as const;
 
-// 사용자 정보 저장/로드
+// Supabase 기반 스토리지 import
+import * as supabaseStorage from './storage-supabase';
+
+// 사용자 정보 저장/로드 (Supabase 기반)
 export const userStorage = {
-  save: (user: User): void => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-    } catch (error) {
-      console.error('Failed to save user:', error);
-    }
+  save: async (user: User): Promise<void> => {
+    await supabaseStorage.userStorage.save(user);
   },
-  load: (): User | null => {
-    try {
-      const data = localStorage.getItem(STORAGE_KEYS.USER);
-      return data ? JSON.parse(data) : null;
-    } catch (error) {
-      console.error('Failed to load user:', error);
-      return null;
-    }
+  load: async (): Promise<User | null> => {
+    return await supabaseStorage.userStorage.load();
   },
   clear: (): void => {
-    try {
-      localStorage.removeItem(STORAGE_KEYS.USER);
-    } catch (error) {
-      console.error('Failed to clear user:', error);
-    }
+    supabaseStorage.userStorage.clear();
   },
 };
 
-// 마인드맵 온보딩(튜토리얼) 노출 여부
+// 마인드맵 온보딩(튜토리얼) 노출 여부 (클라이언트 상태 - localStorage 유지)
 export const mindMapOnboardingStorage = {
   saveShown: (): void => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.MINDMAP_ONBOARDING, 'true');
-    } catch (error) {
-      console.error('Failed to save mindmap onboarding state:', error);
-    }
+    supabaseStorage.mindMapOnboardingStorage.saveShown();
   },
   isShown: (): boolean => {
-    try {
-      return localStorage.getItem(STORAGE_KEYS.MINDMAP_ONBOARDING) === 'true';
-    } catch (error) {
-      console.error('Failed to load mindmap onboarding state:', error);
-      return false;
-    }
+    return supabaseStorage.mindMapOnboardingStorage.isShown();
   },
   clear: (): void => {
-    try {
-      localStorage.removeItem(STORAGE_KEYS.MINDMAP_ONBOARDING);
-    } catch (error) {
-      console.error('Failed to clear mindmap onboarding state:', error);
-    }
+    supabaseStorage.mindMapOnboardingStorage.clear();
   },
 };
 
-// 배지 저장/로드
+// 배지 저장/로드 (Supabase 기반 - 프로젝트의 badges 필드에 저장됨)
 export const badgeStorage = {
-  save: (badges: BadgeType[]): void => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.BADGES, JSON.stringify(badges));
-    } catch (error) {
-      console.error('Failed to save badges:', error);
-    }
+  save: async (badges: BadgeType[]): Promise<void> => {
+    await supabaseStorage.badgeStorage.save(badges);
   },
-  load: (): BadgeType[] => {
-    try {
-      const data = localStorage.getItem(STORAGE_KEYS.BADGES);
-      return data ? JSON.parse(data) : [];
-    } catch (error) {
-      console.error('Failed to load badges:', error);
-      return [];
-    }
+  load: async (): Promise<BadgeType[]> => {
+    return await supabaseStorage.badgeStorage.load();
   },
   clear: (): void => {
-    try {
-      localStorage.removeItem(STORAGE_KEYS.BADGES);
-    } catch (error) {
-      console.error('Failed to clear badges:', error);
-    }
+    supabaseStorage.badgeStorage.clear();
   },
 };
 
-// 마인드맵 저장/로드 (레거시 호환)
+// 마인드맵 저장/로드 (레거시 호환 - Supabase 기반)
+// projectId가 필요하므로 사용 시 주의
 export const mindMapStorage = {
-  save: (nodes: MindMapNode[]): void => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.MINDMAP, JSON.stringify(nodes));
-      // 다른 탭에 변경사항 알림
+  save: async (nodes: MindMapNode[], projectId?: string): Promise<void> => {
+    if (!projectId) {
+      console.error('projectId is required for mindMapStorage.save()');
+      return;
+    }
+    await supabaseStorage.mindMapStorage.save(nodes, projectId);
+    // 다른 탭에 변경사항 알림
+    if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('storage'));
-    } catch (error) {
-      console.error('Failed to save mindmap:', error);
     }
   },
-  load: (): MindMapNode[] => {
-    try {
-      const data = localStorage.getItem(STORAGE_KEYS.MINDMAP);
-      return data ? JSON.parse(data) : [];
-    } catch (error) {
-      console.error('Failed to load mindmap:', error);
+  load: async (projectId?: string): Promise<MindMapNode[]> => {
+    if (!projectId) {
+      console.error('projectId is required for mindMapStorage.load()');
       return [];
     }
+    return await supabaseStorage.mindMapStorage.load(projectId);
   },
   clear: (): void => {
-    try {
-      localStorage.removeItem(STORAGE_KEYS.MINDMAP);
-    } catch (error) {
-      console.error('Failed to clear mindmap:', error);
-    }
+    supabaseStorage.mindMapStorage.clear();
   },
 };
 
-// 마인드맵 프로젝트 저장/로드
+// 마인드맵 프로젝트 저장/로드 (Supabase 기반)
 export const mindMapProjectStorage = {
-  save: (projects: MindMapProject[]): void => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.MINDMAP_PROJECTS, JSON.stringify(projects));
-      window.dispatchEvent(new Event('storage'));
-    } catch (error) {
-      console.error('Failed to save mindmap projects:', error);
-    }
+  save: async (projects: MindMapProject[]): Promise<void> => {
+    await supabaseStorage.mindMapProjectStorage.save(projects);
   },
-  load: (): MindMapProject[] => {
-    try {
-      const data = localStorage.getItem(STORAGE_KEYS.MINDMAP_PROJECTS);
-      return data ? JSON.parse(data) : [];
-    } catch (error) {
-      console.error('Failed to load mindmap projects:', error);
-      return [];
-    }
+  load: async (): Promise<MindMapProject[]> => {
+    return await supabaseStorage.mindMapProjectStorage.load();
   },
-  add: (project: MindMapProject): void => {
-    const projects = mindMapProjectStorage.load();
-    projects.push(project);
-    mindMapProjectStorage.save(projects);
+  add: async (project: MindMapProject): Promise<void> => {
+    await supabaseStorage.mindMapProjectStorage.add(project);
   },
-  update: (projectId: string, updates: Partial<MindMapProject>): void => {
-    const projects = mindMapProjectStorage.load();
-    const index = projects.findIndex(p => p.id === projectId);
-    if (index !== -1) {
-      projects[index] = { ...projects[index], ...updates, updatedAt: Date.now() };
-      mindMapProjectStorage.save(projects);
-      // 같은 탭에서도 동기화를 위해 custom event 발생
-      window.dispatchEvent(new CustomEvent('mindmap-project-updated', { detail: { projectId, project: projects[index] } }));
-    }
+  update: async (projectId: string, updates: Partial<MindMapProject>): Promise<void> => {
+    // updateProject 내부에서 이벤트를 발생시키므로 여기서는 호출만
+    await supabaseStorage.mindMapProjectStorage.update(projectId, updates);
   },
-  delete: (projectId: string): void => {
-    const projects = mindMapProjectStorage.load();
-    mindMapProjectStorage.save(projects.filter(p => p.id !== projectId));
+  delete: async (projectId: string): Promise<void> => {
+    await supabaseStorage.mindMapProjectStorage.delete(projectId);
   },
-  get: (projectId: string): MindMapProject | null => {
-    const projects = mindMapProjectStorage.load();
-    return projects.find(p => p.id === projectId) || null;
+  get: async (projectId: string): Promise<MindMapProject | null> => {
+    return await supabaseStorage.mindMapProjectStorage.get(projectId);
   },
   clear: (): void => {
-    try {
-      localStorage.removeItem(STORAGE_KEYS.MINDMAP_PROJECTS);
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_PROJECT_ID);
-    } catch (error) {
-      console.error('Failed to clear mindmap projects:', error);
-    }
+    supabaseStorage.mindMapProjectStorage.clear();
   },
 };
 
-// 현재 프로젝트 ID 관리
+// 현재 프로젝트 ID 관리 (클라이언트 상태 - localStorage 유지)
 export const currentProjectStorage = {
   save: (projectId: string): void => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_ID, projectId);
-    } catch (error) {
-      console.error('Failed to save current project ID:', error);
-    }
+    supabaseStorage.currentProjectStorage.save(projectId);
   },
   load: (): string | null => {
-    try {
-      return localStorage.getItem(STORAGE_KEYS.CURRENT_PROJECT_ID);
-    } catch (error) {
-      console.error('Failed to load current project ID:', error);
-      return null;
-    }
+    return supabaseStorage.currentProjectStorage.load();
   },
   clear: (): void => {
-    try {
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_PROJECT_ID);
-    } catch (error) {
-      console.error('Failed to clear current project ID:', error);
-    }
+    supabaseStorage.currentProjectStorage.clear();
   },
 };
 
-// STAR 에셋 저장/로드
+// STAR 에셋 저장/로드 (Supabase 기반)
 export const assetStorage = {
-  save: (assets: STARAsset[]): void => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.ASSETS, JSON.stringify(assets));
-    } catch (error) {
-      console.error('Failed to save assets:', error);
-    }
+  save: async (assets: STARAsset[]): Promise<void> => {
+    await supabaseStorage.assetStorage.save(assets);
   },
-  load: (): STARAsset[] => {
-    try {
-      const data = localStorage.getItem(STORAGE_KEYS.ASSETS);
-      return data ? JSON.parse(data) : [];
-    } catch (error) {
-      console.error('Failed to load assets:', error);
-      return [];
-    }
+  load: async (): Promise<STARAsset[]> => {
+    return await supabaseStorage.assetStorage.load();
   },
-  add: (asset: STARAsset): void => {
-    const assets = assetStorage.load();
-    assets.push(asset);
-    assetStorage.save(assets);
+  add: async (asset: STARAsset): Promise<void> => {
+    await supabaseStorage.assetStorage.add(asset);
   },
-  update: (id: string, updates: Partial<STARAsset>): void => {
-    const assets = assetStorage.load();
-    const index = assets.findIndex(a => a.id === id);
-    if (index !== -1) {
-      assets[index] = { ...assets[index], ...updates, updatedAt: Date.now() };
-      assetStorage.save(assets);
-    }
+  update: async (id: string, updates: Partial<STARAsset>): Promise<void> => {
+    await supabaseStorage.assetStorage.update(id, updates);
   },
-  delete: (id: string): void => {
-    const assets = assetStorage.load();
-    assetStorage.save(assets.filter(a => a.id !== id));
+  delete: async (id: string): Promise<void> => {
+    await supabaseStorage.assetStorage.delete(id);
   },
-  getByNodeId: (nodeId: string): STARAsset | null => {
-    const assets = assetStorage.load();
-    return assets.find(a => a.nodeId === nodeId) || null;
+  getByNodeId: async (nodeId: string): Promise<STARAsset | null> => {
+    return await supabaseStorage.assetStorage.getByNodeId(nodeId);
   },
   clear: (): void => {
-    try {
-      localStorage.removeItem(STORAGE_KEYS.ASSETS);
-    } catch (error) {
-      console.error('Failed to clear assets:', error);
-    }
+    supabaseStorage.assetStorage.clear();
   },
 };
 
-// 공백 태그 저장/로드
+// 공백 태그 저장/로드 (Supabase 기반)
 export const gapTagStorage = {
-  save: (tags: GapTag[]): void => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.GAP_TAGS, JSON.stringify(tags));
-    } catch (error) {
-      console.error('Failed to save gap tags:', error);
-    }
+  save: async (tags: GapTag[]): Promise<void> => {
+    await supabaseStorage.gapTagStorage.save(tags);
   },
-  load: (): GapTag[] => {
-    try {
-      const data = localStorage.getItem(STORAGE_KEYS.GAP_TAGS);
-      return data ? JSON.parse(data) : [];
-    } catch (error) {
-      console.error('Failed to load gap tags:', error);
-      return [];
-    }
+  load: async (): Promise<GapTag[]> => {
+    return await supabaseStorage.gapTagStorage.load();
   },
-  add: (tag: GapTag): void => {
-    const tags = gapTagStorage.load();
-    tags.push(tag);
-    gapTagStorage.save(tags);
+  add: async (tag: GapTag): Promise<void> => {
+    await supabaseStorage.gapTagStorage.add(tag);
   },
-  remove: (id: string): void => {
-    const tags = gapTagStorage.load();
-    gapTagStorage.save(tags.filter(t => t.id !== id));
+  remove: async (id: string): Promise<void> => {
+    await supabaseStorage.gapTagStorage.remove(id);
   },
   clear: (): void => {
-    try {
-      localStorage.removeItem(STORAGE_KEYS.GAP_TAGS);
-    } catch (error) {
-      console.error('Failed to clear gap tags:', error);
-    }
+    supabaseStorage.gapTagStorage.clear();
   },
 };
 
-// 공유된 노드 저장/로드
+// 공유된 노드 저장/로드 (Supabase 기반)
 export const sharedNodeStorage = {
-  save: (sharedNodes: SharedNodeData[]): void => {
-    try {
-      localStorage.setItem(STORAGE_KEYS.SHARED_NODES, JSON.stringify(sharedNodes));
-    } catch (error) {
-      console.error('Failed to save shared nodes:', error);
-    }
+  save: async (sharedNodes: SharedNodeData[]): Promise<void> => {
+    await supabaseStorage.sharedNodeStorage.save(sharedNodes);
   },
-  load: (): SharedNodeData[] => {
-    try {
-      const data = localStorage.getItem(STORAGE_KEYS.SHARED_NODES);
-      return data ? JSON.parse(data) : [];
-    } catch (error) {
-      console.error('Failed to load shared nodes:', error);
-      return [];
-    }
+  load: async (): Promise<SharedNodeData[]> => {
+    return await supabaseStorage.sharedNodeStorage.load();
   },
-  add: (sharedData: SharedNodeData): void => {
-    const sharedNodes = sharedNodeStorage.load();
-    // 같은 노드 ID가 이미 있으면 업데이트
-    const existingIndex = sharedNodes.findIndex(s => s.id === sharedData.id);
-    if (existingIndex !== -1) {
-      sharedNodes[existingIndex] = sharedData;
-    } else {
-      sharedNodes.push(sharedData);
-    }
-    sharedNodeStorage.save(sharedNodes);
+  add: async (sharedData: SharedNodeData): Promise<void> => {
+    await supabaseStorage.sharedNodeStorage.add(sharedData);
   },
-  get: (nodeId: string): SharedNodeData | null => {
-    const sharedNodes = sharedNodeStorage.load();
-    return sharedNodes.find(s => s.id === nodeId) || null;
+  get: async (nodeId: string): Promise<SharedNodeData | null> => {
+    return await supabaseStorage.sharedNodeStorage.get(nodeId);
   },
-  remove: (nodeId: string): void => {
-    const sharedNodes = sharedNodeStorage.load();
-    sharedNodeStorage.save(sharedNodes.filter(s => s.id !== nodeId));
+  remove: async (nodeId: string): Promise<void> => {
+    await supabaseStorage.sharedNodeStorage.remove(nodeId);
   },
   clear: (): void => {
-    try {
-      localStorage.removeItem(STORAGE_KEYS.SHARED_NODES);
-    } catch (error) {
-      console.error('Failed to clear shared nodes:', error);
-    }
+    supabaseStorage.sharedNodeStorage.clear();
   },
 };
 

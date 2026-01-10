@@ -8,25 +8,28 @@ export default function MindMapPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // 로그인 확인
-    const user = userStorage.load();
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
-    // 현재 프로젝트가 있으면 해당 프로젝트로, 없으면 목록으로
-    const currentProjectId = currentProjectStorage.load();
-    if (currentProjectId) {
-      const project = mindMapProjectStorage.get(currentProjectId);
-      if (project) {
-        router.push(`/mindmap/${currentProjectId}`);
+    const loadData = async () => {
+      // 로그인 확인
+      const user = await userStorage.load();
+      if (!user) {
+        router.push('/login');
         return;
       }
-    }
 
-    // 프로젝트 목록으로 이동
-    router.push('/mindmaps');
+      // 현재 프로젝트가 있으면 해당 프로젝트로, 없으면 목록으로
+      const currentProjectId = currentProjectStorage.load();
+      if (currentProjectId) {
+        const project = await mindMapProjectStorage.get(currentProjectId);
+        if (project) {
+          router.push(`/mindmap/${currentProjectId}`);
+          return;
+        }
+      }
+
+      // 프로젝트 목록으로 이동
+      router.push('/mindmaps');
+    };
+    loadData();
   }, [router]);
 
   return (

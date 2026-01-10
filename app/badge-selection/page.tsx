@@ -26,16 +26,20 @@ export default function BadgeSelectionPage() {
   const [customLabels, setCustomLabels] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    // 로그인 확인
-    const user = userStorage.load();
-    if (!user) {
-      router.push('/login');
-      return;
-    }
+    const checkAuth = async () => {
+      // 로그인 확인
+      const user = await userStorage.load();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
 
-    // 새 마인드맵 생성 시 이전 선택 초기화
-    setSelectedBadges([]);
-    setCustomLabels({});
+      // 새 마인드맵 생성 시 이전 선택 초기화
+      setSelectedBadges([]);
+      setCustomLabels({});
+    };
+
+    checkAuth();
   }, [router]);
 
   const toggleBadge = (badgeId: BadgeType) => {
@@ -48,20 +52,18 @@ export default function BadgeSelectionPage() {
     });
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (selectedBadges.length === 0) return;
     
-    badgeStorage.save(selectedBadges);
-    
     // 마인드맵 프로젝트 생성 및 이동
-    const user = userStorage.load();
+    const user = await userStorage.load();
     if (!user) {
       router.push('/login');
       return;
     }
 
-    // 새 마인드맵 프로젝트 생성
-    const projectId = `project_${Date.now()}`;
+    // 새 마인드맵 프로젝트 생성 (UUID 형식)
+    const projectId = crypto.randomUUID();
     const projectName = `${user.name}의 경험 맵`;
     
     const badgeMap: Record<string, string> = {
@@ -118,7 +120,7 @@ export default function BadgeSelectionPage() {
       };
     });
 
-    const newProject: MindMapProject = {
+    const newProject: MindMapProject & { userId?: string } = {
       id: projectId,
       name: projectName,
       description: `${selectedBadges.length}개의 경험 유형을 관리합니다`,
@@ -127,24 +129,25 @@ export default function BadgeSelectionPage() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       isDefault: true,
+      userId: user.id,
     };
 
-    mindMapProjectStorage.add(newProject);
+    await mindMapProjectStorage.add(newProject);
     currentProjectStorage.save(projectId);
     
     router.push(`/mindmap/${projectId}`);
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
     // 건너뛰기: 배지 없이 중심 노드만 있는 마인드맵 생성
-    const user = userStorage.load();
+    const user = await userStorage.load();
     if (!user) {
       router.push('/login');
       return;
     }
 
-    // 새 마인드맵 프로젝트 생성 (중심 노드만)
-    const projectId = `project_${Date.now()}`;
+    // 새 마인드맵 프로젝트 생성 (중심 노드만, UUID 형식)
+    const projectId = crypto.randomUUID();
     const projectName = `${user.name}의 경험 맵`;
 
     // 중앙 노드만 생성
@@ -161,7 +164,7 @@ export default function BadgeSelectionPage() {
       updatedAt: Date.now(),
     };
 
-    const newProject: MindMapProject = {
+    const newProject: MindMapProject & { userId?: string } = {
       id: projectId,
       name: projectName,
       description: '경험을 관리합니다',
@@ -170,9 +173,10 @@ export default function BadgeSelectionPage() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       isDefault: true,
+      userId: user.id,
     };
 
-    mindMapProjectStorage.add(newProject);
+    await mindMapProjectStorage.add(newProject);
     currentProjectStorage.save(projectId);
     
     router.push(`/mindmap/${projectId}`);

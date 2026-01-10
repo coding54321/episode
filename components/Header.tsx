@@ -8,6 +8,8 @@ import { Search, Menu, LogOut, Home, Map, ChevronRight, User as UserIcon, Archiv
 import { Button } from '@/components/ui/button';
 import { userStorage, mindMapProjectStorage } from '@/lib/storage';
 import { User, MindMapNode, MindMapProject } from '@/types';
+import { supabase } from '@/lib/supabase/client';
+import { getCurrentUser, signOut, onAuthStateChange } from '@/lib/supabase/auth';
 
 interface SearchResult {
   nodeId: string;
@@ -37,8 +39,35 @@ export default function Header({
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const userData = userStorage.load();
-    setUser(userData);
+    // Supabase Auth 상태 확인
+    const loadUser = async () => {
+      const supabaseUser = await getCurrentUser();
+      if (supabaseUser) {
+        setUser(supabaseUser);
+        // localStorage에도 저장 (기존 코드와의 호환성)
+        await userStorage.save(supabaseUser);
+      } else {
+        // Supabase에 없으면 localStorage 확인
+        const localUser = await userStorage.load();
+        setUser(localUser);
+      }
+    };
+
+    loadUser();
+
+    // Auth 상태 변경 감지
+    const { data: { subscription } } = onAuthStateChange(async (user) => {
+      setUser(user);
+      if (user) {
+        await userStorage.save(user);
+      } else {
+        userStorage.clear();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -62,58 +91,62 @@ export default function Header({
 
   // 검색 기능
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
-    }
-
-    const projects = mindMapProjectStorage.load();
-    const results: SearchResult[] = [];
-
-    // 검색어를 소문자로 변환
-    const query = searchQuery.toLowerCase();
-
-    projects.forEach((project) => {
-      // 프로젝트 이름으로 검색
-      const projectMatches = project.name.toLowerCase().includes(query);
-
-      project.nodes.forEach((node) => {
-        // 노드 이름으로 검색
-        const nodeLabel = typeof node.label === 'string' ? node.label : '';
-        const nodeMatches = nodeLabel.toLowerCase().includes(query);
-
-        // 프로젝트 또는 노드가 매칭되면 결과에 추가
-        if (projectMatches || nodeMatches) {
-          // 중앙 노드와 배지 노드는 제외
-          if (node.id === 'center' || node.id.startsWith('badge_')) {
-            return;
-          }
-
-          // 노드까지의 경로 생성
-          const path = getNodePath(node, project.nodes);
-
-          results.push({
-            nodeId: node.id,
-            nodeLabel,
-            projectId: project.id,
-            projectName: project.name,
-            nodePath: path,
-          });
-        }
-      });
-    });
-
-    // 결과를 프로젝트별, 경로 깊이별로 정렬
-    results.sort((a, b) => {
-      if (a.projectName !== b.projectName) {
-        return a.projectName.localeCompare(b.projectName);
+    const performSearch = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        setShowSearchResults(false);
+        return;
       }
-      return a.nodePath.length - b.nodePath.length;
-    });
 
-    setSearchResults(results.slice(0, 10)); // 최대 10개만 표시
-    setShowSearchResults(true);
+      const projects = await mindMapProjectStorage.load();
+      const results: SearchResult[] = [];
+
+      // 검색어를 소문자로 변환
+      const query = searchQuery.toLowerCase();
+
+      for (const project of projects) {
+        // 프로젝트 이름으로 검색
+        const projectMatches = project.name.toLowerCase().includes(query);
+
+        for (const node of project.nodes) {
+          // 노드 이름으로 검색
+          const nodeLabel = typeof node.label === 'string' ? node.label : '';
+          const nodeMatches = nodeLabel.toLowerCase().includes(query);
+
+          // 프로젝트 또는 노드가 매칭되면 결과에 추가
+          if (projectMatches || nodeMatches) {
+            // 중앙 노드와 배지 노드는 제외
+            if (node.id === 'center' || node.id.startsWith('badge_')) {
+              continue;
+            }
+
+            // 노드까지의 경로 생성
+            const path = getNodePath(node, project.nodes);
+
+            results.push({
+              nodeId: node.id,
+              nodeLabel,
+              projectId: project.id,
+              projectName: project.name,
+              nodePath: path,
+            });
+          }
+        }
+      }
+
+      // 결과를 프로젝트별, 경로 깊이별로 정렬
+      results.sort((a, b) => {
+        if (a.projectName !== b.projectName) {
+          return a.projectName.localeCompare(b.projectName);
+        }
+        return a.nodePath.length - b.nodePath.length;
+      });
+
+      setSearchResults(results.slice(0, 10)); // 최대 10개만 표시
+      setShowSearchResults(true);
+    };
+
+    performSearch();
   }, [searchQuery]);
 
   // 노드까지의 경로를 가져오는 함수
@@ -135,8 +168,13 @@ export default function Header({
     return path;
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Supabase Auth 로그아웃
+    await signOut();
+    // localStorage도 클리어
     userStorage.clear();
+    setUser(null);
+    // 홈으로 리다이렉트
     router.push('/');
   };
 

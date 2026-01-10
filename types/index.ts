@@ -3,7 +3,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  provider: 'kakao' | 'google';
+  provider: 'kakao' | 'google' | 'email';
   createdAt: number;
 }
 
@@ -66,6 +66,9 @@ export interface GapTag {
     half?: string; // 반기 (상반기/하반기)
   }>; // 답변하기 어려웠던 질문 리스트 (년도/반기 정보 포함)
   createdAt: number;
+  company_id?: string; // 관련 기업 ID
+  job_id?: string; // 관련 직무 ID
+  question_id?: string; // 관련 문항 ID
 }
 
 // 기업 정보
