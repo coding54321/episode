@@ -383,7 +383,7 @@ export default function ArchivePage() {
     // 태그 목록도 업데이트 (새 태그가 추가된 경우)
     if (updatedStarAsset?.tags && updatedStarAsset.tags.length > 0) {
       setAllTags(prevTags => {
-        const newTags = new Set([...prevTags, ...updatedStarAsset.tags]);
+        const newTags = new Set([...prevTags, ...updatedStarAsset!.tags!]);
         return Array.from(newTags).sort();
       });
     }
