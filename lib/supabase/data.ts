@@ -342,8 +342,8 @@ export async function getSTARAssetByNodeId(nodeId: string): Promise<STARAsset | 
     const { data, error } = await supabase
       .from('star_assets')
       .select('*')
-      .eq('node_id', nodeId)
-      .maybeSingle(); // .single() 대신 .maybeSingle() 사용 (없을 때 에러 대신 null 반환)
+      .eq('node_id', nodeId.trim())
+      .maybeSingle();
 
     if (error) {
       // 406 에러나 다른 에러는 무시하고 null 반환
@@ -398,17 +398,34 @@ export async function saveSTARAsset(asset: STARAsset): Promise<boolean> {
       throw new Error('User not authenticated. Please log in again.');
     }
 
+    // 노드 ID 유효성 검증
+    if (!asset.nodeId || typeof asset.nodeId !== 'string' || asset.nodeId.trim() === '') {
+      console.error('Invalid nodeId:', asset.nodeId);
+      throw new Error(`Invalid nodeId: ${asset.nodeId}`);
+    }
+
     // 노드가 사용자의 프로젝트에 속하는지 확인
     const { data: nodeData, error: nodeError } = await supabase
       .from('nodes')
       .select('id, project_id')
-      .eq('id', asset.nodeId)
-      .single();
+      .eq('id', asset.nodeId.trim())
+      .maybeSingle(); // .single() 대신 .maybeSingle() 사용
 
-    if (nodeError || !nodeData) {
-      console.error('Node not found:', {
+    if (nodeError) {
+      console.error('Error fetching node:', {
         nodeId: asset.nodeId,
         error: nodeError,
+        errorCode: (nodeError as any)?.code,
+        errorMessage: (nodeError as any)?.message,
+      });
+      throw new Error(`Failed to fetch node: ${asset.nodeId}`);
+    }
+
+    if (!nodeData) {
+      console.error('Node not found:', {
+        nodeId: asset.nodeId,
+        nodeIdType: typeof asset.nodeId,
+        nodeIdLength: asset.nodeId.length,
       });
       throw new Error(`Node not found: ${asset.nodeId}`);
     }
@@ -449,18 +466,6 @@ export async function saveSTARAsset(asset: STARAsset): Promise<boolean> {
       created_at: createdAt,
       updated_at: updatedAt,
     };
-
-    // 데이터 검증 로깅
-    console.log('Saving STAR asset:', {
-      id: assetData.id,
-      node_id: assetData.node_id,
-      title: assetData.title,
-      userId: user.id,
-      created_at: assetData.created_at,
-      updated_at: assetData.updated_at,
-      hasTags: Array.isArray(assetData.tags),
-      tagsLength: assetData.tags?.length || 0,
-    });
 
     const { error, data } = await supabase
       .from('star_assets')
@@ -527,7 +532,6 @@ export async function saveSTARAsset(asset: STARAsset): Promise<boolean> {
       throw error;
     }
 
-    console.log('Successfully saved STAR asset:', data);
     return true;
   } catch (error) {
     // 에러를 더 자세히 로깅

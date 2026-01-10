@@ -69,11 +69,14 @@ export default function ArchivePage() {
   }, [router]);
 
   const loadArchiveData = async () => {
-    const projects = await mindMapProjectStorage.load();
-    const items: ArchiveItem[] = [];
-    const tagsSet = new Set<string>();
+    try {
+      setIsLoading(true);
+      
+      const projects = await mindMapProjectStorage.load();
+      const items: ArchiveItem[] = [];
+      const tagsSet = new Set<string>();
 
-    for (const projectSummary of projects) {
+      for (const projectSummary of projects) {
       // 각 프로젝트의 전체 데이터(노드 포함)를 Supabase에서 로드
       const project = await mindMapProjectStorage.get(projectSummary.id);
       if (!project) continue;
@@ -198,10 +201,15 @@ export default function ArchivePage() {
       }
     }
 
-    setArchiveItems(items);
-    setFilteredItems(items);
-    setAllTags(Array.from(tagsSet).sort());
-    setIsLoading(false);
+      setArchiveItems(items);
+      setFilteredItems(items);
+      setAllTags(Array.from(tagsSet).sort());
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to load archive data:', error);
+      setIsLoading(false);
+      toast.error('데이터를 불러오는데 실패했습니다.');
+    }
   };
 
   const groupNodesByLevel = (nodes: MindMapNode[]) => {
@@ -249,6 +257,19 @@ export default function ArchivePage() {
   }, [searchQuery, selectedCategory, selectedTag, archiveItems]);
 
   const handleStartEdit = (item: ArchiveItem) => {
+    // 에피소드가 없는 경우 (episodeName이 '-'인 경우) 편집 불가
+    if (item.episodeName === '-' || !item.episodeName || item.episodeName.trim() === '') {
+      toast.error('에피소드가 없습니다. 먼저 마인드맵에서 에피소드를 생성해주세요.', {
+        description: '마인드맵 페이지로 이동하여 에피소드를 추가한 후 다시 시도해주세요.',
+        action: {
+          label: '마인드맵으로 이동',
+          onClick: () => router.push(`/mindmap/${item.projectId}`),
+        },
+        duration: 5000,
+      });
+      return;
+    }
+    
     setEditingItemId(item.id);
     setEditFormData({
       situation: item.star?.situation || '',
@@ -268,10 +289,27 @@ export default function ArchivePage() {
     if (!editFormData) return;
 
     try {
-    const episodeNodeId = item.id.split('_')[1];
-    
-    // STAR 에셋 생성 또는 업데이트
-    const existingAsset = await assetStorage.getByNodeId(episodeNodeId);
+      // item.id 형식: projectId_nodeId
+      // 하지만 노드 ID 자체에 언더스코어가 있을 수 있으므로, 
+      // 프로젝트 ID는 일반적으로 UUID 형식이므로 첫 번째 언더스코어 이후가 노드 ID
+      const firstUnderscoreIndex = item.id.indexOf('_');
+      if (firstUnderscoreIndex === -1 || firstUnderscoreIndex === item.id.length - 1) {
+        console.error('Invalid item ID format:', item.id);
+        toast.error('잘못된 노드 ID입니다.');
+        return;
+      }
+      
+      // 첫 번째 언더스코어 이후의 모든 부분이 노드 ID
+      const episodeNodeId = item.id.substring(firstUnderscoreIndex + 1);
+      
+      if (!episodeNodeId || episodeNodeId.trim() === '') {
+        console.error('Failed to extract node ID from item ID:', item.id);
+        toast.error('노드 ID를 찾을 수 없습니다.');
+        return;
+      }
+      
+      // STAR 에셋 생성 또는 업데이트
+      const existingAsset = await assetStorage.getByNodeId(episodeNodeId);
     
     const content = [
       editFormData.situation && `상황(Situation): ${editFormData.situation}`,
@@ -311,14 +349,48 @@ export default function ArchivePage() {
       await assetStorage.add(starAsset);
     }
     
-    // 편집 모드 먼저 종료
+    // 저장 후 해당 노드의 STAR asset을 다시 가져와서 상태 업데이트
+    const updatedStarAsset = await assetStorage.getByNodeId(episodeNodeId);
+    
+    // 해당 아이템의 STAR asset을 직접 업데이트
+    setArchiveItems(prevItems => {
+      return prevItems.map(prevItem => {
+        if (prevItem.id === item.id) {
+          return {
+            ...prevItem,
+            star: updatedStarAsset || null,
+            tags: updatedStarAsset?.tags || [],
+          };
+        }
+        return prevItem;
+      });
+    });
+    
+    // 필터링된 아이템도 업데이트
+    setFilteredItems(prevItems => {
+      return prevItems.map(prevItem => {
+        if (prevItem.id === item.id) {
+          return {
+            ...prevItem,
+            star: updatedStarAsset || null,
+            tags: updatedStarAsset?.tags || [],
+          };
+        }
+        return prevItem;
+      });
+    });
+    
+    // 태그 목록도 업데이트 (새 태그가 추가된 경우)
+    if (updatedStarAsset?.tags && updatedStarAsset.tags.length > 0) {
+      setAllTags(prevTags => {
+        const newTags = new Set([...prevTags, ...updatedStarAsset.tags]);
+        return Array.from(newTags).sort();
+      });
+    }
+    
+    // 편집 모드 종료
     setEditingItemId(null);
     setEditFormData(null);
-    
-      // 데이터 다시 로드 (약간의 딜레이를 주어 Supabase 동기화 보장)
-    setTimeout(() => {
-      loadArchiveData();
-    }, 100);
     
     toast.success('저장되었습니다');
     } catch (error) {
@@ -765,14 +837,26 @@ export default function ArchivePage() {
 
                               {/* 편집 버튼 */}
                               <td className="px-4 py-4 text-center">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleStartEdit(item)}
-                                  className="h-8 w-8 p-0 hover:bg-blue-50"
-                                >
-                                  <Edit className="h-4 w-4 text-gray-600" />
-                                </Button>
+                                {item.episodeName === '-' || !item.episodeName || item.episodeName.trim() === '' ? (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled
+                                    className="h-8 w-8 p-0 opacity-50 cursor-not-allowed"
+                                    title="에피소드를 먼저 생성해주세요"
+                                  >
+                                    <Edit className="h-4 w-4 text-gray-400" />
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleStartEdit(item)}
+                                    className="h-8 w-8 p-0 hover:bg-blue-50"
+                                  >
+                                    <Edit className="h-4 w-4 text-gray-600" />
+                                  </Button>
+                                )}
                               </td>
                             </>
                           )}
