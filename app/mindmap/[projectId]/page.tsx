@@ -7,13 +7,12 @@ import { mindMapProjectStorage, currentProjectStorage, sharedNodeStorage, assetS
 import { useUnifiedAuth } from '@/lib/auth/unified-auth-context';
 import MindMapCanvas from '@/components/mindmap/MindMapCanvas';
 import MindMapTabs, { Tab } from '@/components/mindmap/MindMapTabs';
-import AIChatbot from '@/components/chatbot/AIChatbot';
+import UnifiedSidebar from '@/components/UnifiedSidebar';
 import STAREditor from '@/components/star/STAREditor';
-import GapDiagnosis from '@/components/gap/GapDiagnosis';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, MessageSquare, Check, X } from 'lucide-react';
+import { ChevronLeft, MessageSquare, Check, X, BarChart3, FileText } from 'lucide-react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -37,8 +36,8 @@ export default function MindMapProjectPage() {
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
   const [isSTAREditorOpen, setIsSTAREditorOpen] = useState(false);
-  const [isGapDiagnosisOpen, setIsGapDiagnosisOpen] = useState(false);
-  const [isAIChatbotOpen, setIsAIChatbotOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [sidebarMainTab, setSidebarMainTab] = useState<'gap' | 'assistant' | 'star'>('assistant');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [starData, setStarData] = useState<{
@@ -53,7 +52,6 @@ export default function MindMapProjectPage() {
   } | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [newNodeName, setNewNodeName] = useState('');
-  const [aiChatbotDefaultTab, setAiChatbotDefaultTab] = useState<'chat' | 'inventory'>('chat');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
 
@@ -805,7 +803,8 @@ export default function MindMapProjectPage() {
 
     // AI 어시스턴트 열기 및 노드 선택
     setSelectedNodeId(newNodeId);
-    setIsAIChatbotOpen(true);
+    setSidebarMainTab('assistant');
+    setIsSidebarOpen(true);
   };
 
   // 취소/닫기
@@ -905,53 +904,73 @@ export default function MindMapProjectPage() {
           
           {/* 우측 버튼 그룹 */}
           <div className="flex items-center gap-2">
-            {/* 공백 진단하기 버튼 with 말풍선 */}
-            <div className="relative">
-              {/* 말풍선 툴팁 */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.5 }}
-                className="absolute -top-10 left-1/2 transform -translate-x-1/2 z-10"
-              >
-                <div className="relative bg-red-700 text-white px-4 py-1.5 rounded-md text-xs font-semibold shadow-md whitespace-nowrap">
-                  5개년 기출 자소서 기반
-                  {/* 말풍선 꼬리 */}
-                  <div className="absolute -bottom-1.5 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] border-t-red-700" />
-                </div>
-              </motion.div>
-              
-              {/* 공백 진단하기 버튼 */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsGapDiagnosisOpen(true)}
-                className="px-3 py-2 gap-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-300 transition-colors"
-              >
-                <span>공백 진단하기</span>
-              </Button>
-            </div>
-            
-            {/* 어시스턴트 토글 버튼 */}
+            {/* 공백 진단하기 버튼 */}
             <Button
-              variant={isAIChatbotOpen ? "default" : "ghost"}
+              variant={isSidebarOpen && sidebarMainTab === 'gap' ? "default" : "outline"}
               size="sm"
-              onClick={() => setIsAIChatbotOpen(prev => !prev)}
+              onClick={() => {
+                if (isSidebarOpen && sidebarMainTab === 'gap') {
+                  setIsSidebarOpen(false);
+                } else {
+                  setSidebarMainTab('gap');
+                  setIsSidebarOpen(true);
+                }
+              }}
               className={`px-3 py-2 gap-2 transition-all duration-200 ${
-                isAIChatbotOpen 
+                isSidebarOpen && sidebarMainTab === 'gap'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-300'
+              }`}
+              title={isSidebarOpen && sidebarMainTab === 'gap' ? '공백 진단하기 닫기' : '공백 진단하기 열기'}
+            >
+              <BarChart3 className="h-4 w-4" />
+              <span>공백 진단하기</span>
+            </Button>
+            
+            {/* STAR 정리하기 버튼 */}
+            <Button
+              variant={isSidebarOpen && sidebarMainTab === 'star' ? "default" : "ghost"}
+              size="sm"
+              onClick={() => {
+                if (isSidebarOpen && sidebarMainTab === 'star') {
+                  setIsSidebarOpen(false);
+                } else {
+                  setSidebarMainTab('star');
+                  setIsSidebarOpen(true);
+                }
+              }}
+              className={`px-3 py-2 gap-2 transition-all duration-200 ${
+                isSidebarOpen && sidebarMainTab === 'star'
                   ? 'bg-blue-600 text-white hover:bg-blue-700' 
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
-              title={isAIChatbotOpen ? '어시스턴트 닫기' : '어시스턴트 열기'}
+              title={isSidebarOpen && sidebarMainTab === 'star' ? 'STAR 정리하기 닫기' : 'STAR 정리하기 열기'}
+            >
+              <FileText className="h-4 w-4" />
+              <span>STAR 정리하기</span>
+            </Button>
+            
+            {/* 어시스턴트 토글 버튼 */}
+            <Button
+              variant={isSidebarOpen && sidebarMainTab === 'assistant' ? "default" : "ghost"}
+              size="sm"
+              onClick={() => {
+                if (isSidebarOpen && sidebarMainTab === 'assistant') {
+                  setIsSidebarOpen(false);
+                } else {
+                  setSidebarMainTab('assistant');
+                  setIsSidebarOpen(true);
+                }
+              }}
+              className={`px-3 py-2 gap-2 transition-all duration-200 ${
+                isSidebarOpen && sidebarMainTab === 'assistant'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+              title={isSidebarOpen && sidebarMainTab === 'assistant' ? '어시스턴트 닫기' : '어시스턴트 열기'}
             >
               <MessageSquare className="h-4 w-4" />
               <span>어시스턴트</span>
-              <motion.div
-                animate={{ rotate: isAIChatbotOpen ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <ChevronLeft className="h-3 w-3" />
-              </motion.div>
             </Button>
           </div>
         </div>
@@ -1081,26 +1100,27 @@ export default function MindMapProjectPage() {
 
         {/* 배경 오버레이 (모바일용, 선택사항) */}
         <AnimatePresence>
-          {isAIChatbotOpen && (
+          {isSidebarOpen && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="absolute inset-0 bg-black/10 md:hidden z-50"
-              onClick={() => setIsAIChatbotOpen(false)}
+              onClick={() => setIsSidebarOpen(false)}
             />
           )}
         </AnimatePresence>
 
-        {/* AI 챗봇 사이드바 */}
+        {/* 통합 사이드바 */}
         <AnimatePresence>
-          {isAIChatbotOpen && (
-            <AIChatbot
+          {isSidebarOpen && (
+            <UnifiedSidebar
               selectedNodeId={selectedNodeId}
               selectedNodeLabel={selectedNode?.label || null}
               selectedNodeType={selectedNode?.nodeType}
               selectedNodeLevel={selectedNode?.level}
+              nodes={nodes}
               onSTARComplete={handleSTARComplete}
               onNodeAdd={(parentId, label, nodeType) => {
                 // 새 노드 생성 (인덱스 맵 사용)
@@ -1136,12 +1156,20 @@ export default function MindMapProjectPage() {
                 handleNodesChange(updatedNodes);
                 setSelectedNodeId(newNode.id);
               }}
-              onClose={() => {
-                setIsAIChatbotOpen(false);
-                setAiChatbotDefaultTab('chat'); // 닫을 때 기본 탭으로 리셋
+              onNodeLabelUpdate={(nodeId, newLabel) => {
+                // 노드 라벨 업데이트
+                const updatedNodes = nodes.map(n =>
+                  n.id === nodeId
+                    ? { ...n, label: newLabel, updatedAt: Date.now() }
+                    : n
+                );
+                handleNodesChange(updatedNodes);
               }}
-              onOpenGapDiagnosis={() => setIsGapDiagnosisOpen(true)}
-              defaultTab={aiChatbotDefaultTab}
+              onClose={() => {
+                setIsSidebarOpen(false);
+              }}
+              onTagDrop={(tag, targetNodeId) => handleTagDrop(targetNodeId, tag)}
+              defaultMainTab={sidebarMainTab}
             />
           )}
         </AnimatePresence>
@@ -1168,18 +1196,6 @@ export default function MindMapProjectPage() {
         initialData={starData || undefined}
       />
 
-      {/* 공백 진단 */}
-      <GapDiagnosis
-        isOpen={isGapDiagnosisOpen}
-        onClose={() => setIsGapDiagnosisOpen(false)}
-        resultButtonText="추가 경험 정리하기"
-        onResultButtonClick={() => {
-          // 공백 진단 완료 시 AI 어시스턴트 열고 추천 인벤토리 탭으로 전환
-          setAiChatbotDefaultTab('inventory');
-          setIsAIChatbotOpen(true);
-          setIsGapDiagnosisOpen(false);
-        }}
-      />
 
       {/* 노드 추가 다이얼로그 */}
       {showConfirmDialog && droppedTag && (
