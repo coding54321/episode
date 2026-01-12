@@ -1,0 +1,841 @@
+'use client';
+
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { MindMapNode as NodeType, GapTag } from '@/types';
+import { mindMapStorage } from '@/lib/storage';
+import MindMapNode from './MindMapNode';
+
+interface MindMapCanvasProps {
+  nodes: NodeType[];
+  onNodesChange: (nodes: NodeType[], isDrag?: boolean) => void;
+  selectedNodeId: string | null;
+  editingNodeId: string | null;
+  onNodeSelect: (nodeId: string | null) => void;
+  onNodeEdit: (nodeId: string, label: string) => void;
+  onNodeAddChild: (nodeId: string, direction?: 'right' | 'left' | 'top' | 'bottom') => void;
+  onNodeDelete: (nodeId: string) => void;
+  onNodeShare: (nodeId: string) => void;
+  onNodeUnshare?: (nodeId: string) => void;
+  onNodeOpenInNewTab?: (nodeId: string) => void;
+  onNodeOpenSTAREditor?: (nodeId: string) => void; // STAR 에디터 열기
+  onStartEdit: (nodeId: string) => void;
+  onEndEdit: () => void;
+  projectId?: string;
+  centerNodeId?: string | null; // 화면 중앙에 표시할 노드 ID
+  originalNodes?: NodeType[]; // 원본 노드 배열 (좌표 변환 전)
+  focusNodeId?: string | null; // 포커스할 노드 ID (검색 등에서 사용)
+  onTagDrop?: (nodeId: string, tag: GapTag) => void; // 태그 드롭 핸들러
+  isReadOnly?: boolean; // 읽기 전용 모드
+}
+
+export default function MindMapCanvas({
+  nodes,
+  onNodesChange,
+  selectedNodeId,
+  editingNodeId,
+  onNodeSelect,
+  onNodeEdit,
+  onNodeAddChild,
+  onNodeDelete,
+  onNodeShare,
+  onNodeUnshare,
+  onNodeOpenInNewTab,
+  onNodeOpenSTAREditor,
+  onStartEdit,
+  onEndEdit,
+  projectId,
+  centerNodeId,
+  originalNodes,
+  focusNodeId,
+  onTagDrop,
+  isReadOnly = false,
+}: MindMapCanvasProps) {
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [spacePressed, setSpacePressed] = useState(false);
+  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  
+  // 드래그 중 임시 좌표 상태 (렌더링용, 실제 상태 업데이트는 드래그 종료 시)
+  const [dragPositions, setDragPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  const dragStateRef = useRef<{
+    nodeId: string;
+    descendantIds: string[];
+    startPos: { x: number; y: number };
+  } | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+
+  // 실시간 멀티탭 동기화
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'episode_mindmap' && e.newValue) {
+        try {
+          const updatedNodes = JSON.parse(e.newValue);
+          if (Array.isArray(updatedNodes) && updatedNodes.length > 0) {
+            // 스토리지 동기화는 드래그가 아니므로 즉시 업데이트
+            onNodesChange(updatedNodes, false);
+          }
+        } catch (error) {
+          console.error('Failed to sync nodes:', error);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [onNodesChange]);
+
+  // 노드가 없으면 프로젝트에서 로드 (초기화는 프로젝트 생성 시 처리)
+  useEffect(() => {
+    // 노드가 없고 프로젝트가 있는 경우는 프로젝트 생성 시 이미 노드가 있으므로
+    // 여기서는 아무것도 하지 않음
+    // 초기화는 배지 선택 페이지에서 프로젝트 생성 시 처리됨
+  }, [nodes.length, onNodesChange]);
+
+  // 중심 노드가 변경될 때 화면 중앙에 맞추기
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    
+    // zoom을 먼저 1로 설정
+    setZoom(1);
+    
+    // 다음 프레임에서 pan 계산 (zoom이 업데이트된 후)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!canvasRef.current) return;
+        
+        const rect = canvasRef.current.getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const currentZoom = 1; // zoom은 이미 1로 설정됨
+        
+        if (centerNodeId) {
+          // 노드 중심 뷰: 중심 노드는 (0, 0)에 있으므로 화면 중앙으로 pan 조정
+          // 노드는 left: 0, top: 0, transform: translate(-50%, -50%)로 배치되므로
+          // 노드의 중심점이 캔버스 좌표 (0, 0)에 위치합니다.
+          // 컨테이너 transform: scale(zoom) translate(pan.x, pan.y)
+          // 노드 중심점의 화면 좌표 = (0, 0) * zoom + pan = pan
+          // 화면 중앙에 오려면: pan = (centerX, centerY)
+          setPan({
+            x: centerX,
+            y: centerY,
+          });
+        } else {
+          // 메인 뷰: center 노드(id === 'center')를 화면 중앙에 맞춤
+          // 인덱스 맵 사용
+          const centerNode = nodeMap.get('center');
+          if (centerNode) {
+            // center 노드의 절대 좌표를 화면 중앙으로 이동시키기 위한 pan 계산
+            // 노드 좌표 * zoom + pan = 화면 중앙 좌표
+            // 따라서 pan = 화면 중앙 - 노드 좌표 * zoom
+            setPan({
+              x: centerX / currentZoom - centerNode.x,
+              y: centerY / currentZoom - centerNode.y,
+            });
+          } else {
+            // center 노드가 없으면 초기화
+            setPan({ x: 0, y: 0 });
+          }
+        }
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centerNodeId]); // centerNodeId만 의존성으로 사용 (nodes는 최신 값을 참조)
+
+  // 특정 노드로 포커스 (검색 등에서 사용)
+  useEffect(() => {
+    if (!focusNodeId || !canvasRef.current || centerNodeId) return;
+    
+    // 인덱스 맵 사용
+    const targetNode = nodeMap.get(focusNodeId);
+    if (!targetNode) return;
+
+    // 부드러운 애니메이션으로 이동
+    const rect = canvasRef.current.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    // 목표 pan 위치 계산
+    const targetPan = {
+      x: centerX / zoom - targetNode.x,
+      y: centerY / zoom - targetNode.y,
+    };
+
+    // 애니메이션 설정
+    const duration = 500; // 0.5초
+    const startPan = { ...pan };
+    const startTime = Date.now();
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // easeInOutCubic 이징 함수
+      const eased = progress < 0.5
+        ? 4 * progress * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+      setPan({
+        x: startPan.x + (targetPan.x - startPan.x) * eased,
+        y: startPan.y + (targetPan.y - startPan.y) * eased,
+      });
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        // 애니메이션 완료 후 노드 선택
+        onNodeSelect(focusNodeId);
+      }
+    };
+
+    animate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusNodeId]); // focusNodeId가 변경될 때만 실행
+
+  // 키보드 이벤트 처리 (Space 키, ESC 키)
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.code === 'Space' && !editingNodeId) {
+      e.preventDefault();
+      setSpacePressed(true);
+    } else if (e.key === 'Escape' && editingNodeId) {
+      // ESC 키로 편집 모드 종료
+      onEndEdit();
+    }
+  }, [editingNodeId, onEndEdit]);
+
+  const handleKeyUp = useCallback((e: KeyboardEvent) => {
+    if (e.code === 'Space') {
+      setSpacePressed(false);
+      setIsPanning(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [handleKeyDown, handleKeyUp]);
+
+  // 마우스 다운 (팬 시작)
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 1) { // 마우스 중간 버튼
+      e.preventDefault();
+      setIsPanning(true);
+      setPanStart({ x: e.clientX, y: e.clientY });
+    } else if (e.button === 0 && spacePressed) {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX, y: e.clientY });
+      e.preventDefault();
+    }
+  }, [spacePressed]);
+
+  // 노드 인덱스 맵 생성 (O(1) 조회를 위해)
+  const nodeMap = useMemo(() => {
+    return new Map(nodes.map(n => [n.id, n]));
+  }, [nodes]);
+
+  // 부모-자식 관계 맵 생성
+  const childrenMap = useMemo(() => {
+    const map = new Map<string, NodeType[]>();
+    nodes.forEach(node => {
+      if (node.parentId) {
+        if (!map.has(node.parentId)) {
+          map.set(node.parentId, []);
+        }
+        map.get(node.parentId)!.push(node);
+      }
+    });
+    return map;
+  }, [nodes]);
+
+  // 특정 노드의 모든 하위 노드 가져오기 (재귀, 캐싱 적용)
+  const getDescendantIds = useCallback((nodeId: string): string[] => {
+    const descendants: string[] = [];
+    const children = childrenMap.get(nodeId) || [];
+    
+    children.forEach(child => {
+      descendants.push(child.id);
+      descendants.push(...getDescendantIds(child.id));
+    });
+    
+    return descendants;
+  }, [childrenMap]);
+
+  // 마우스 이동 (팬 또는 노드 드래그) - 최적화 버전
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isPanning) {
+      const deltaX = e.clientX - panStart.x;
+      const deltaY = e.clientY - panStart.y;
+      setPan(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
+      setPanStart({ x: e.clientX, y: e.clientY });
+    } else if (draggedNodeId && dragStateRef.current) {
+      // requestAnimationFrame으로 업데이트 빈도 제한 (60fps)
+      if (rafIdRef.current !== null) {
+        return; // 이미 예약된 업데이트가 있으면 스킵
+      }
+
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = null;
+        
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (!rect) return;
+
+        // dragStateRef가 null이면 종료
+        if (!dragStateRef.current) return;
+
+        // 화면 좌표를 캔버스 좌표로 변환
+        const mouseCanvasX = (e.clientX - rect.left - pan.x) / zoom;
+        const mouseCanvasY = (e.clientY - rect.top - pan.y) / zoom;
+
+        // 오프셋을 빼서 새로운 노드 위치 계산
+        const newX = mouseCanvasX - dragOffset.x;
+        const newY = mouseCanvasY - dragOffset.y;
+
+        // 드래그된 노드 찾기 (인덱스 맵 사용)
+        const draggedNode = nodeMap.get(draggedNodeId);
+        if (!draggedNode) return;
+
+        // 이동량 계산
+        const deltaX = newX - dragStateRef.current.startPos.x;
+        const deltaY = newY - dragStateRef.current.startPos.y;
+
+        // 임시 좌표만 업데이트 (상태 업데이트 없이 렌더링만)
+        const newPositions = new Map<string, { x: number; y: number }>();
+        newPositions.set(draggedNodeId, { x: newX, y: newY });
+        
+        // 하위 노드들도 같은 만큼 이동
+        dragStateRef.current.descendantIds.forEach(id => {
+          const node = nodeMap.get(id);
+          if (node) {
+            newPositions.set(id, {
+              x: node.x + deltaX,
+              y: node.y + deltaY,
+            });
+          }
+        });
+
+        setDragPositions(newPositions);
+      });
+    }
+  }, [isPanning, panStart, draggedNodeId, dragOffset, zoom, pan, nodeMap]);
+
+  // 마우스 업 - 드래그 종료 시 실제 상태 업데이트
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false);
+    
+    // 드래그 중이었다면 실제 상태 업데이트
+    if (draggedNodeId && dragStateRef.current && dragPositions.size > 0) {
+      const draggedNode = nodeMap.get(draggedNodeId);
+      if (draggedNode) {
+        const newPos = dragPositions.get(draggedNodeId);
+        if (newPos) {
+          const deltaX = newPos.x - dragStateRef.current.startPos.x;
+          const deltaY = newPos.y - dragStateRef.current.startPos.y;
+
+          // 실제 노드 배열 업데이트 (드래그 종료 시에만)
+          const updatedNodes = nodes.map(node => {
+            if (node.id === draggedNodeId) {
+              return { ...node, x: newPos.x, y: newPos.y, updatedAt: Date.now() };
+            }
+            if (dragStateRef.current!.descendantIds.includes(node.id)) {
+              const pos = dragPositions.get(node.id);
+              if (pos) {
+                return { ...node, x: pos.x, y: pos.y, updatedAt: Date.now() };
+              }
+            }
+            return node;
+          });
+          
+          // 드래그 종료 시 실제 상태 업데이트 (isDrag=false로 전달하여 즉시 업데이트)
+          onNodesChange(updatedNodes, false);
+          if (projectId) {
+            mindMapStorage.save(updatedNodes, projectId);
+          }
+        }
+      }
+    }
+    
+    // 드래그 상태 초기화
+    setDraggedNodeId(null);
+    setDragPositions(new Map());
+    dragStateRef.current = null;
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+  }, [draggedNodeId, dragPositions, nodeMap, nodes, onNodesChange, projectId]);
+
+  useEffect(() => {
+    if (isPanning || draggedNodeId) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isPanning, draggedNodeId, handleMouseMove, handleMouseUp]);
+
+  // 브라우저 확대/축소 방지 (마인드맵 캔버스에서만)
+  useEffect(() => {
+    const preventBrowserZoom = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+      }
+    };
+
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.addEventListener('wheel', preventBrowserZoom, { passive: false });
+      return () => {
+        canvas.removeEventListener('wheel', preventBrowserZoom);
+      };
+    }
+  }, []);
+
+  // 휠로 확대/축소 (마우스 커서 위치 중심)
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    // Ctrl/Cmd 키로 브라우저 확대/축소 방지
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      return;
+    }
+
+    // Alt 키를 눌렀을 때만 줌 (또는 Alt 없이도 작동하게 할 수 있음)
+    if (e.altKey) {
+      e.preventDefault();
+      
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      // 마우스 위치 (캔버스 기준)
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // 줌 변경 전 마우스가 가리키는 월드 좌표
+      const worldXBefore = (mouseX - pan.x) / zoom;
+      const worldYBefore = (mouseY - pan.y) / zoom;
+
+      // 새로운 줌 레벨 계산
+      const delta = -e.deltaY;
+      const zoomSpeed = 0.001;
+      const newZoom = Math.min(Math.max(zoom + delta * zoomSpeed, 0.25), 3);
+
+      // 줌 변경 후 같은 월드 좌표가 마우스 위치에 오도록 pan 조정
+      const worldXAfter = (mouseX - pan.x) / newZoom;
+      const worldYAfter = (mouseY - pan.y) / newZoom;
+
+      const newPan = {
+        x: pan.x + (worldXAfter - worldXBefore) * newZoom,
+        y: pan.y + (worldYAfter - worldYBefore) * newZoom,
+      };
+
+      setZoom(newZoom);
+      setPan(newPan);
+    }
+  }, [zoom, pan]);
+
+  // 노드 드래그 시작
+  const handleNodeDragStart = useCallback((nodeId: string, e: React.MouseEvent) => {
+    // 읽기 전용이면 드래그 안 함
+    if (isReadOnly) return;
+    // 중앙 노드나 편집 중이거나 팬 중이면 드래그 안 함
+    if (nodeId === 'center' || editingNodeId || spacePressed || isPanning) return;
+
+    // 버튼이나 아이콘 클릭은 무시
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'BUTTON' ||
+        target.closest('button') ||
+        target.tagName === 'SVG' ||
+        target.tagName === 'path') {
+      return;
+    }
+
+    // 인덱스 맵 사용
+    const node = nodeMap.get(nodeId);
+    if (!node) return;
+
+    // 왼쪽 마우스 버튼만
+    if (e.button !== 0) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    setDraggedNodeId(nodeId);
+
+    // 마우스 위치를 캔버스 좌표로 변환
+    const mouseCanvasX = (e.clientX - rect.left - pan.x) / zoom;
+    const mouseCanvasY = (e.clientY - rect.top - pan.y) / zoom;
+
+    // 노드 중심에서의 오프셋 계산
+    setDragOffset({
+      x: mouseCanvasX - node.x,
+      y: mouseCanvasY - node.y
+    });
+
+    // 드래그 상태 초기화 (하위 노드 ID 미리 계산)
+    const descendantIds = getDescendantIds(nodeId);
+    dragStateRef.current = {
+      nodeId,
+      descendantIds,
+      startPos: { x: node.x, y: node.y },
+    };
+    setDragPositions(new Map());
+
+    e.stopPropagation();
+  }, [isReadOnly, editingNodeId, spacePressed, isPanning, nodeMap, pan, zoom, getDescendantIds]);
+
+  // 노드 추가 (방향 기반) - prop 핸들러로 위임
+  const handleAddChild = useCallback((parentId: string, direction: 'right' | 'left' | 'top' | 'bottom' = 'right') => {
+    if (isReadOnly) return; // 읽기 전용이면 아무것도 하지 않음
+    onNodeAddChild(parentId, direction);
+  }, [isReadOnly, onNodeAddChild]);
+
+  // 노드 삭제 - 최적화 버전
+  const handleDelete = useCallback((nodeId: string) => {
+    if (isReadOnly) return; // 읽기 전용이면 아무것도 하지 않음
+    // 인덱스 맵 사용
+    const node = nodeMap.get(nodeId);
+    // 루트 노드만 삭제 불가 (배지 노드는 삭제 가능)
+    if (!node || nodeId === 'center') return;
+
+    // 하위 노드까지 재귀적으로 삭제 (childrenMap 사용)
+    const deleteNodeAndChildren = (id: string): string[] => {
+      const targetNode = nodeMap.get(id);
+      if (!targetNode) return [];
+      const children = (childrenMap.get(id) || []).flatMap(child => deleteNodeAndChildren(child.id));
+      return [id, ...children];
+    };
+
+    const idsToDelete = deleteNodeAndChildren(nodeId);
+    const idsToDeleteSet = new Set(idsToDelete);
+    const updatedNodes = nodes
+      .filter(n => !idsToDeleteSet.has(n.id))
+      .map(n => {
+        if (n.children.some(id => idsToDeleteSet.has(id))) {
+          return { ...n, children: n.children.filter(id => !idsToDeleteSet.has(id)) };
+        }
+        return n;
+      });
+
+    // 삭제는 드래그가 아니므로 즉시 업데이트
+    onNodesChange(updatedNodes, false);
+    mindMapStorage.save(updatedNodes);
+    if (selectedNodeId === nodeId) {
+      onNodeSelect(null);
+    }
+  }, [nodeMap, childrenMap, nodes, onNodesChange, selectedNodeId, onNodeSelect, isReadOnly]);
+
+  // 캔버스 클릭 시 선택 해제 및 편집 모드 종료
+  const handleCanvasClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === canvasRef.current || (e.target as HTMLElement).closest('.canvas-container')) {
+      onNodeSelect(null);
+      // 편집 모드 종료
+      if (editingNodeId) {
+        onEndEdit();
+      }
+    }
+  }, [onNodeSelect, editingNodeId, onEndEdit]);
+
+  // 공유 경로 여부 계산 (노드 자신 또는 조상 중 공유된 노드가 있는 경우)
+  const sharedPathMap = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    const dict = new Map(nodes.map(n => [n.id, n]));
+
+    const dfs = (id: string | undefined | null): boolean => {
+      if (!id) return false;
+      if (map[id] !== undefined) return map[id];
+      const node = dict.get(id);
+      if (!node) return false;
+      if (node.isShared) {
+        map[id] = true;
+        return true;
+      }
+      const result = dfs(node.parentId);
+      map[id] = result;
+      return result;
+    };
+
+    nodes.forEach(n => dfs(n.id));
+    return map;
+  }, [nodes]);
+
+  // 캔버스 크기 계산 (노드들의 위치를 기반으로 동적 계산) - 최적화 버전
+  const canvasBounds = useMemo(() => {
+    if (nodes.length === 0) {
+      return { minX: -5000, minY: -5000, maxX: 5000, maxY: 5000, width: 10000, height: 10000 };
+    }
+
+    // 드래그 중에는 bounds 재계산 생략 (성능 향상)
+    if (draggedNodeId && dragPositions.size > 0) {
+      // 드래그 중에는 기존 bounds 사용 (약간의 여유 공간만 추가)
+      const nodePositions = nodes.map(n => {
+        const dragPos = dragPositions.get(n.id);
+        return { 
+          x: dragPos ? dragPos.x : n.x, 
+          y: dragPos ? dragPos.y : n.y 
+        };
+      });
+      
+      // Math.min/max 최적화 (스프레드 연산자 대신 루프 사용)
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      nodePositions.forEach(p => {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+      });
+      
+      minX -= 2000;
+      minY -= 2000;
+      maxX += 2000;
+      maxY += 2000;
+      
+      return { 
+        minX, 
+        minY, 
+        maxX, 
+        maxY, 
+        width: maxX - minX, 
+        height: maxY - minY 
+      };
+    }
+
+    // 일반적인 경우: 루프로 최적화
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    nodes.forEach(n => {
+      if (n.x < minX) minX = n.x;
+      if (n.y < minY) minY = n.y;
+      if (n.x > maxX) maxX = n.x;
+      if (n.y > maxY) maxY = n.y;
+    });
+
+    minX -= 2000;
+    minY -= 2000;
+    maxX += 2000;
+    maxY += 2000;
+
+    return { 
+      minX, 
+      minY, 
+      maxX, 
+      maxY, 
+      width: maxX - minX, 
+      height: maxY - minY 
+    };
+  }, [nodes, draggedNodeId, dragPositions]);
+
+  return (
+    <div
+      ref={canvasRef}
+      className={`w-full h-full overflow-hidden bg-gray-50 relative transition-all duration-200 ${
+        spacePressed || isPanning
+          ? 'cursor-grab active:cursor-grabbing'
+          : draggedNodeId
+            ? 'cursor-move'
+            : 'cursor-default'
+      }`}
+      onMouseDown={handleMouseDown}
+      onWheel={handleWheel}
+      onClick={handleCanvasClick}
+    >
+      {/* 캔버스 컨테이너 - transform으로 줌/팬 처리 */}
+      <div
+        className="absolute canvas-container"
+        style={{
+          left: `${canvasBounds.minX}px`,
+          top: `${canvasBounds.minY}px`,
+          width: `${canvasBounds.width}px`,
+          height: `${canvasBounds.height}px`,
+          transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
+          transformOrigin: 'top left',
+        }}
+      >
+        {/* 연결선 렌더링 */}
+        <svg
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            top: 0,
+            width: `${canvasBounds.width}px`,
+            height: `${canvasBounds.height}px`,
+            zIndex: 1,
+          }}
+        >
+          {nodes.map(node => {
+            if (!node.parentId) return null;
+            // 인덱스 맵 사용
+            const parent = nodeMap.get(node.parentId);
+            if (!parent) return null;
+
+            // 드래그 중 임시 좌표 사용
+            const parentDragPos = dragPositions.get(parent.id);
+            const nodeDragPos = dragPositions.get(node.id);
+            const parentX = parentDragPos ? parentDragPos.x : parent.x;
+            const parentY = parentDragPos ? parentDragPos.y : parent.y;
+            const nodeX = nodeDragPos ? nodeDragPos.x : node.x;
+            const nodeY = nodeDragPos ? nodeDragPos.y : node.y;
+
+            const isSharedLine =
+              (node.parentId && sharedPathMap[node.parentId]) || sharedPathMap[node.id];
+            return (
+              <line
+                key={`line_${node.id}`}
+                x1={parentX - canvasBounds.minX}
+                y1={parentY - canvasBounds.minY}
+                x2={nodeX - canvasBounds.minX}
+                y2={nodeY - canvasBounds.minY}
+                stroke={isSharedLine ? '#22c55e' : '#CBD5E1'}
+                strokeWidth={isSharedLine ? 2.6 : 2}
+                strokeLinecap="round"
+              />
+            );
+          })}
+        </svg>
+
+        {/* 노드 렌더링 */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: `${canvasBounds.width}px`,
+            height: `${canvasBounds.height}px`,
+            zIndex: 2,
+          }}
+        >
+          {nodes.map(node => {
+            // 노드 중심 뷰에서 원본 노드 데이터 찾기 (인덱스 맵 사용)
+            const originalNode = centerNodeId && originalNodes
+              ? originalNodes.find(n => n.id === node.id)
+              : undefined;
+            
+            // 드래그 중 임시 좌표 사용
+            const dragPos = dragPositions.get(node.id);
+            const displayX = dragPos ? dragPos.x : node.x;
+            const displayY = dragPos ? dragPos.y : node.y;
+            
+            return (
+              <MindMapNode
+                key={node.id}
+                node={{ ...node, x: displayX, y: displayY }}
+                isSelected={selectedNodeId === node.id}
+                isEditing={editingNodeId === node.id}
+                isSharedPath={sharedPathMap[node.id] ?? false}
+                onSelect={onNodeSelect}
+                onEdit={onNodeEdit}
+                onAddChild={handleAddChild}
+                onDelete={handleDelete}
+                onShare={onNodeShare}
+                onUnshare={onNodeUnshare}
+                onOpenInNewTab={onNodeOpenInNewTab}
+                onOpenSTAREditor={onNodeOpenSTAREditor}
+                onDragStart={handleNodeDragStart}
+                onStartEdit={onStartEdit}
+                onEndEdit={onEndEdit}
+                x={displayX - canvasBounds.minX}
+                y={displayY - canvasBounds.minY}
+                centerNodeId={centerNodeId}
+                originalNode={originalNode}
+                onTagDrop={onTagDrop}
+                isReadOnly={isReadOnly}
+              />
+            );
+          })}
+          
+          {/* 원격 선택 표시 */}
+        </div>
+      </div>
+
+      {/* 줌 컨트롤 */}
+      <div className="absolute bottom-6 right-5 flex flex-col gap-1 bg-white rounded-[12px] shadow-sm border border-gray-200 p-1 z-50">
+        <button
+          onClick={() => {
+            const rect = canvasRef.current?.getBoundingClientRect();
+            if (!rect) {
+              setZoom(prev => Math.min(3, prev + 0.1));
+              return;
+            }
+
+            // 화면 중앙 좌표
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+
+            // 줌 변경 전 중앙이 가리키는 월드 좌표
+            const worldXBefore = (centerX - pan.x) / zoom;
+            const worldYBefore = (centerY - pan.y) / zoom;
+
+            // 새로운 줌 레벨
+            const newZoom = Math.min(3, zoom + 0.1);
+
+            // 줌 변경 후 같은 월드 좌표가 중앙에 오도록 pan 조정
+            const newPan = {
+              x: centerX - worldXBefore * newZoom,
+              y: centerY - worldYBefore * newZoom,
+            };
+
+            setZoom(newZoom);
+            setPan(newPan);
+          }}
+          className="w-8 h-8 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-[8px] transition-colors duration-200 flex items-center justify-center"
+        >
+          +
+        </button>
+        <div className="text-xs text-center text-gray-500 py-1">
+          {Math.round(zoom * 100)}%
+        </div>
+        <button
+          onClick={() => {
+            const rect = canvasRef.current?.getBoundingClientRect();
+            if (!rect) {
+              setZoom(prev => Math.max(0.25, prev - 0.1));
+              return;
+            }
+
+            // 화면 중앙 좌표
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+
+            // 줌 변경 전 중앙이 가리키는 월드 좌표
+            const worldXBefore = (centerX - pan.x) / zoom;
+            const worldYBefore = (centerY - pan.y) / zoom;
+
+            // 새로운 줌 레벨
+            const newZoom = Math.max(0.25, zoom - 0.1);
+
+            // 줌 변경 후 같은 월드 좌표가 중앙에 오도록 pan 조정
+            const newPan = {
+              x: centerX - worldXBefore * newZoom,
+              y: centerY - worldYBefore * newZoom,
+            };
+
+            setZoom(newZoom);
+            setPan(newPan);
+          }}
+          className="w-8 h-8 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-[8px] transition-colors duration-200 flex items-center justify-center"
+        >
+          −
+        </button>
+        <div className="border-t border-gray-100 my-1" />
+        <button
+          onClick={() => {
+            setPan({ x: 0, y: 0 });
+            setZoom(1);
+          }}
+          className="w-8 h-8 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-[8px] transition-colors duration-200 flex items-center justify-center"
+          title="리셋"
+        >
+          ⌂
+        </button>
+      </div>
+
+    </div>
+  );
+}
