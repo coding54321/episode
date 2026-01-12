@@ -526,14 +526,16 @@ export default function MindMapProjectPage() {
     await sharedNodeStorage.add(sharedData);
 
     // 6. 노드의 isShared 상태 업데이트 및 DB 저장
+    // 상대 경로만 저장하여 환경에 관계없이 작동하도록 함
     const updatedNodes = nodes.map(n => 
       n.id === nodeId 
-        ? { ...n, isShared: true, sharedLink: `${window.location.origin}/share/${nodeId}` }
+        ? { ...n, isShared: true, sharedLink: `/share/${nodeId}` }
         : n
     );
     handleNodesChange(updatedNodes);
 
     // 8. 공유 링크 복사 및 토스트 표시
+    // 복사 시에는 현재 환경의 전체 URL 생성
     const shareUrl = `${window.location.origin}/share/${nodeId}`;
     
     // 클립보드 복사 (에러 처리 포함)

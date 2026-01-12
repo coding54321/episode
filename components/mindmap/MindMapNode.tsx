@@ -417,7 +417,11 @@ export default function MindMapNode({
             <ContextMenuItem 
               onClick={() => {
                 if (node.sharedLink) {
-                  navigator.clipboard.writeText(node.sharedLink).then(() => {
+                  // 상대 경로인 경우 전체 URL로 변환하여 복사
+                  const fullUrl = node.sharedLink.startsWith('http')
+                    ? node.sharedLink
+                    : `${window.location.origin}${node.sharedLink}`;
+                  navigator.clipboard.writeText(fullUrl).then(() => {
                     const toast = document.createElement('div');
                     toast.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-3 rounded-[12px] text-sm font-medium shadow-lg z-50 transition-all duration-300';
                     toast.innerHTML = `
