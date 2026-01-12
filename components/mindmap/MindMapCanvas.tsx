@@ -26,6 +26,7 @@ interface MindMapCanvasProps {
   focusNodeId?: string | null; // 포커스할 노드 ID (검색 등에서 사용)
   onTagDrop?: (nodeId: string, tag: GapTag) => void; // 태그 드롭 핸들러
   isReadOnly?: boolean; // 읽기 전용 모드
+  disableAutoSave?: boolean; // 자동 저장 비활성화 (공유 페이지 등에서 사용)
 }
 
 export default function MindMapCanvas({
@@ -49,6 +50,7 @@ export default function MindMapCanvas({
   focusNodeId,
   onTagDrop,
   isReadOnly = false,
+  disableAutoSave = false,
 }: MindMapCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -355,7 +357,8 @@ export default function MindMapCanvas({
           
           // 드래그 종료 시 실제 상태 업데이트 (isDrag=false로 전달하여 즉시 업데이트)
           onNodesChange(updatedNodes, false);
-          if (projectId) {
+          // 공유 페이지에서는 자동 저장 비활성화 (개별 노드 업데이트로 처리)
+          if (projectId && !disableAutoSave) {
             mindMapStorage.save(updatedNodes, projectId);
           }
         }
@@ -370,7 +373,7 @@ export default function MindMapCanvas({
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
     }
-  }, [draggedNodeId, dragPositions, nodeMap, nodes, onNodesChange, projectId]);
+  }, [draggedNodeId, dragPositions, nodeMap, nodes, onNodesChange, projectId, disableAutoSave]);
 
   useEffect(() => {
     if (isPanning || draggedNodeId) {
@@ -527,11 +530,14 @@ export default function MindMapCanvas({
 
     // 삭제는 드래그가 아니므로 즉시 업데이트
     onNodesChange(updatedNodes, false);
-    mindMapStorage.save(updatedNodes);
+    // 공유 페이지에서는 자동 저장 비활성화 (개별 노드 삭제로 처리)
+    if (!disableAutoSave && projectId) {
+      mindMapStorage.save(updatedNodes, projectId);
+    }
     if (selectedNodeId === nodeId) {
       onNodeSelect(null);
     }
-  }, [nodeMap, childrenMap, nodes, onNodesChange, selectedNodeId, onNodeSelect, isReadOnly]);
+  }, [nodeMap, childrenMap, nodes, onNodesChange, selectedNodeId, onNodeSelect, isReadOnly, disableAutoSave, projectId]);
 
   // 캔버스 클릭 시 선택 해제 및 편집 모드 종료
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {

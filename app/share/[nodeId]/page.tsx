@@ -497,6 +497,7 @@ export default function SharePage() {
                 projectId={sharedData.projectId}
                 centerNodeId={sharedData.node.id}
                 isReadOnly={isReadOnly}
+                disableAutoSave={true} // 공유 페이지에서는 자동 저장 비활성화 (개별 노드 업데이트로 처리)
               />
             </div>
           </div>
