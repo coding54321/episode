@@ -1535,11 +1535,77 @@ export async function saveSharedNode(sharedNode: SharedNodeData): Promise<boolea
   }
 }
 
+// 공통 재시도 함수
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 2,
+  context: string = 'unknown'
+): Promise<T | null> {
+  for (let retryCount = 0; retryCount <= maxRetries; retryCount++) {
+    try {
+      const result = await fn();
+      if (result !== undefined) {
+        return result;
+      }
+      
+      // undefined인 경우 재시도
+      if (retryCount < maxRetries) {
+        console.log(`[data.ts] ${context}: 재시도 ${retryCount + 1}/${maxRetries}`);
+        await new Promise(resolve => setTimeout(resolve, 100 * (retryCount + 1)));
+        continue;
+      }
+      
+      return null;
+    } catch (err) {
+      // AbortError인 경우 재시도
+      if (err instanceof Error && err.name === 'AbortError') {
+        if (retryCount < maxRetries) {
+          console.log(`[data.ts] ${context}: AbortError 재시도 ${retryCount + 1}/${maxRetries}`);
+          await new Promise(resolve => setTimeout(resolve, 100 * (retryCount + 1)));
+          continue;
+        }
+        console.warn(`[data.ts] ${context}: AbortError 재시도 실패`);
+        return null;
+      }
+      // 다른 에러는 즉시 반환
+      throw err;
+    }
+  }
+  return null;
+}
+
+// nodeId 형식 검증
+function isValidNodeId(nodeId: string): boolean {
+  if (!nodeId || typeof nodeId !== 'string') {
+    return false;
+  }
+  
+  const trimmed = nodeId.trim();
+  
+  // 빈 문자열 체크
+  if (trimmed.length === 0) {
+    return false;
+  }
+  
+  // 최소/최대 길이 체크 (node_1234567890_abc123def 형식)
+  if (trimmed.length < 10 || trimmed.length > 100) {
+    return false;
+  }
+  
+  // 허용 문자: 영문자, 숫자, 언더스코어, 하이픈
+  const validPattern = /^[a-zA-Z0-9_-]+$/;
+  if (!validPattern.test(trimmed)) {
+    return false;
+  }
+  
+  return true;
+}
+
 export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeData | null> {
   try {
     // 유효한 nodeId인지 먼저 검증
-    if (!nodeId || typeof nodeId !== 'string' || nodeId.trim().length === 0) {
-      console.warn('[data.ts] getSharedNodeByNodeId: 유효하지 않은 nodeId', { nodeId });
+    if (!isValidNodeId(nodeId)) {
+      console.warn('[data.ts] getSharedNodeByNodeId: 유효하지 않은 nodeId 형식', { nodeId });
       return null;
     }
 
@@ -1601,83 +1667,67 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
       projectId: data.project_id,
     });
 
-    // 노드 정보 로드 (프로젝트 관계도 함께 검증)
-    let nodeData, nodeError;
-    
-    try {
-      const result = await supabase
+    // 병렬로 노드와 프로젝트 정보 로드 (성능 최적화)
+    const [nodeResult, projectResult] = await Promise.all([
+      supabase
         .from('nodes')
         .select('*')
         .eq('id', data.node_id)
-        .single();
-      nodeData = result.data;
-      nodeError = result.error;
-    } catch (err) {
-      // AbortError는 조용히 무시 (컴포넌트 언마운트 등으로 인한 정상적인 중단)
-      if (err instanceof Error && err.name === 'AbortError') {
-        console.log('[data.ts] getSharedNodeByNodeId: 노드 조회 AbortError 무시 (정상적인 중단)', { nodeId: trimmedNodeId });
-        return null;
-      }
-      throw err;
-    }
-    
-    // AbortError 체크
-    if (nodeError && (nodeError.message?.includes('aborted') || nodeError.message?.includes('AbortError') || (nodeError as any)?.name === 'AbortError')) {
-      console.log('[data.ts] getSharedNodeByNodeId: 노드 조회 AbortError 무시', { nodeId: trimmedNodeId });
-      return null;
-    }
-    
-    // 다른 에러는 경고만 하고 null 반환
-    if (nodeError) {
-      console.warn('[data.ts] getSharedNodeByNodeId: 노드 조회 에러', {
-        nodeId: data.node_id,
-        error: nodeError.message,
-        errorCode: nodeError.code,
-      });
-      return null;
-    }
-
-    if (!nodeData) {
-      console.warn('[data.ts] getSharedNodeByNodeId: 노드 데이터 없음', {
-        nodeId: data.node_id,
-        error: nodeError ? (nodeError as any).message : undefined
-      });
-      return null;
-    }
-
-    // 프로젝트가 실제 존재하는지 검증
-    let projectData;
-    
-    try {
-      const result = await supabase
+        .single(),
+      supabase
         .from('projects')
         .select('id')
-        .eq('id', nodeData.project_id)
-        .single();
-      projectData = result.data;
-      
-      if (!projectData) {
-        console.warn('[data.ts] getSharedNodeByNodeId: 프로젝트 없음', {
+        .eq('id', data.project_id)
+        .single()
+    ]);
+
+    // 노드 데이터 검증
+    if (nodeResult.error) {
+      if (nodeResult.error.code === 'PGRST116') {
+        console.log('[data.ts] getSharedNodeByNodeId: 노드를 찾을 수 없음', { nodeId: data.node_id });
+        return null;
+      }
+      if (nodeResult.error.message?.includes('aborted') || nodeResult.error.message?.includes('AbortError')) {
+        console.log('[data.ts] getSharedNodeByNodeId: 노드 조회 AbortError 무시', { nodeId: trimmedNodeId });
+        return null;
+      }
+      console.warn('[data.ts] getSharedNodeByNodeId: 노드 조회 에러', {
+        nodeId: data.node_id,
+        error: nodeResult.error.message,
+        errorCode: nodeResult.error.code,
+      });
+      return null;
+    }
+
+    const nodeData = nodeResult.data;
+    if (!nodeData) {
+      console.warn('[data.ts] getSharedNodeByNodeId: 노드 데이터 없음', { nodeId: data.node_id });
+      return null;
+    }
+
+    // 프로젝트 데이터 검증
+    if (projectResult.error) {
+      if (projectResult.error.code === 'PGRST116') {
+        console.warn('[data.ts] getSharedNodeByNodeId: 프로젝트를 찾을 수 없음', {
           projectId: nodeData.project_id,
           nodeId: data.node_id
         });
         return null;
       }
-    } catch (err) {
-      // AbortError는 조용히 무시 (컴포넌트 언마운트 등으로 인한 정상적인 중단)
-      if (err instanceof Error && err.name === 'AbortError') {
-        console.log('[data.ts] getSharedNodeByNodeId: 프로젝트 조회 AbortError 무시 (정상적인 중단)', { nodeId: trimmedNodeId });
+      if (projectResult.error.message?.includes('aborted') || projectResult.error.message?.includes('AbortError')) {
+        console.log('[data.ts] getSharedNodeByNodeId: 프로젝트 조회 AbortError 무시', { nodeId: trimmedNodeId });
         return null;
       }
-      // 다른 에러는 경고만 하고 null 반환
       console.warn('[data.ts] getSharedNodeByNodeId: 프로젝트 조회 에러', {
         projectId: nodeData.project_id,
         nodeId: data.node_id,
-        error: err instanceof Error ? err.message : String(err),
+        error: projectResult.error.message,
+        errorCode: projectResult.error.code,
       });
       return null;
     }
 
+    const projectData = projectResult.data;
     if (!projectData) {
       console.warn('[data.ts] getSharedNodeByNodeId: 프로젝트 데이터 없음', {
         projectId: nodeData.project_id,
@@ -1821,53 +1871,22 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
       });
     }
 
-    // STAR 에셋 로드 (노드와 모든 하위 노드들의 에셋) - 재시도 로직 추가
+    // STAR 에셋 로드 (노드와 모든 하위 노드들의 에셋) - 재시도 로직 사용
     const starAssets: STARAsset[] = [];
     if (data.include_star) {
       const allNodeIds = [node.id, ...descendants.map(d => d.id)];
       
-      let starData;
-      let starRetryCount = 0;
-      const maxStarRetries = 2;
-      
-      while (starRetryCount <= maxStarRetries) {
-        try {
+      const starData = await withRetry(
+        async () => {
           const result = await supabase
             .from('star_assets')
             .select('*')
             .in('node_id', allNodeIds);
-          starData = result.data;
-          
-          if (starData !== undefined) {
-            break; // 성공
-          }
-          
-          // undefined인 경우 재시도
-          if (starRetryCount < maxStarRetries) {
-            starRetryCount++;
-            console.log(`[data.ts] getSharedNodeByNodeId: STAR 에셋 조회 실패, 재시도 ${starRetryCount}/${maxStarRetries}`, { nodeId: trimmedNodeId });
-            await new Promise(resolve => setTimeout(resolve, 100 * starRetryCount));
-            continue;
-          }
-          
-          starData = null;
-          break;
-        } catch (err) {
-          // AbortError인 경우 재시도
-          if (err instanceof Error && err.name === 'AbortError') {
-            if (starRetryCount < maxStarRetries) {
-              starRetryCount++;
-              console.log(`[data.ts] getSharedNodeByNodeId: STAR 에셋 조회 AbortError, 재시도 ${starRetryCount}/${maxStarRetries}`, { nodeId: trimmedNodeId });
-              await new Promise(resolve => setTimeout(resolve, 100 * starRetryCount));
-              continue;
-            }
-            console.warn('[data.ts] getSharedNodeByNodeId: STAR 에셋 조회 AbortError 재시도 실패, 빈 배열로 계속 진행', { nodeId: trimmedNodeId });
-            starData = null;
-            break;
-          }
-          throw err;
-        }
-      }
+          return result.data || null;
+        },
+        2,
+        'getSharedNodeByNodeId: STAR 에셋 조회'
+      );
       
       if (starData) {
         starAssets.push(...starData.map((a) => ({
@@ -1888,67 +1907,34 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
       }
     }
     
-    // 공유한 사용자 정보 가져오기 (실패해도 계속 진행, 재시도 로직 추가)
+    // 공유한 사용자 정보 가져오기 (실패해도 계속 진행, 재시도 로직 사용)
     let createdByUser: { id: string; name: string; email?: string } | null = null;
     if (data.created_by) {
-      let userRetryCount = 0;
-      const maxUserRetries = 2;
-      
-      while (userRetryCount <= maxUserRetries) {
-        try {
-          const result: any = await supabase
+      const createdById = data.created_by; // null 체크 후 변수에 저장
+      const userData = await withRetry(
+        async () => {
+          const result = await supabase
             .from('users')
             .select('id, name, email')
-            .eq('id', data.created_by)
+            .eq('id', createdById)
             .maybeSingle();
           
           if (result.data) {
-            createdByUser = {
+            return {
               id: result.data.id,
               name: result.data.name,
               email: result.data.email || undefined,
             };
-            break; // 성공
           }
           
-          // 데이터가 없으면 재시도 불필요
-          if (result.data === null) {
-            break;
-          }
-          
-          // 에러가 있으면 재시도
-          if (result.error) {
-            if (result.error.message?.includes('aborted') || result.error.message?.includes('AbortError')) {
-              if (userRetryCount < maxUserRetries) {
-                userRetryCount++;
-                console.log(`[data.ts] getSharedNodeByNodeId: 사용자 정보 조회 AbortError, 재시도 ${userRetryCount}/${maxUserRetries}`, { nodeId: trimmedNodeId });
-                await new Promise(resolve => setTimeout(resolve, 100 * userRetryCount));
-                continue;
-              }
-              console.warn('[data.ts] getSharedNodeByNodeId: 사용자 정보 조회 AbortError 재시도 실패', { nodeId: trimmedNodeId });
-              break; // 재시도 실패해도 계속 진행
-            }
-            // 다른 에러는 무시하고 계속 진행
-            break;
-          }
-          
-          break;
-        } catch (err) {
-          // AbortError인 경우 재시도
-          if (err instanceof Error && err.name === 'AbortError') {
-            if (userRetryCount < maxUserRetries) {
-              userRetryCount++;
-              console.log(`[data.ts] getSharedNodeByNodeId: 사용자 정보 조회 예외 AbortError, 재시도 ${userRetryCount}/${maxUserRetries}`, { nodeId: trimmedNodeId });
-              await new Promise(resolve => setTimeout(resolve, 100 * userRetryCount));
-              continue;
-            }
-            console.warn('[data.ts] getSharedNodeByNodeId: 사용자 정보 조회 예외 AbortError 재시도 실패', { nodeId: trimmedNodeId });
-            break; // 재시도 실패해도 계속 진행
-          }
-          // 다른 에러는 무시하고 계속 진행
-          break;
-        }
-      }
+          // 데이터가 없으면 null 반환 (재시도 불필요)
+          return null;
+        },
+        2,
+        'getSharedNodeByNodeId: 사용자 정보 조회'
+      );
+      
+      createdByUser = userData;
     }
 
     const result = {

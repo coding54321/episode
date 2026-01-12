@@ -361,12 +361,21 @@ export default function SharePage() {
   }
 
   if (!sharedData) {
+    // nodeId 검증 실패 여부 확인
+    const isInvalidNodeId = !nodeId || typeof nodeId !== 'string' || nodeId.trim().length === 0 || 
+                            nodeId.trim().length < 10 || nodeId.trim().length > 100 ||
+                            !/^[a-zA-Z0-9_-]+$/.test(nodeId.trim());
+    
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <Card className="p-8 text-center max-w-md border border-gray-200 rounded-[16px] shadow-sm">
-          <h1 className="text-2xl font-bold mb-4 text-gray-900">공유된 노드를 찾을 수 없습니다</h1>
+          <h1 className="text-2xl font-bold mb-4 text-gray-900">
+            {isInvalidNodeId ? '잘못된 공유 링크입니다' : '공유된 노드를 찾을 수 없습니다'}
+          </h1>
           <p className="text-gray-600 mb-6">
-            공유 링크가 만료되었거나 잘못된 링크일 수 있습니다.
+            {isInvalidNodeId 
+              ? '공유 링크 형식이 올바르지 않습니다. 링크를 다시 확인해주세요.'
+              : '공유 링크가 만료되었거나 삭제된 링크일 수 있습니다.'}
           </p>
           <Link href="/">
             <Button className="bg-gray-900 hover:bg-gray-800 text-white rounded-[12px] h-12 px-6 font-semibold shadow-sm">
