@@ -34,14 +34,9 @@ export default function FloatingHeader() {
           <div className="flex items-center gap-8">
             {/* 로고 */}
             <Link href="/" className="flex items-center gap-2">
-              <Image
-                src="/new_logo.png"
-                alt="Episode Logo"
-                width={90}
-                height={30}
-                className="object-contain"
-                priority
-              />
+              <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+                episode
+              </span>
             </Link>
 
           </div>

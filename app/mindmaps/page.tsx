@@ -223,7 +223,7 @@ export default function MindMapsPage() {
     return (
       <div className="min-h-screen bg-white dark:bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-12 h-12 border-4 border-[#5B6EFF] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-600 dark:text-[#a0a0a0]">로딩 중...</p>
         </div>
       </div>
@@ -248,19 +248,19 @@ export default function MindMapsPage() {
               <TabsList className="bg-transparent rounded-none p-0 h-auto w-auto justify-start">
                 <TabsTrigger 
                   value="all" 
-                  className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                  className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
                 >
                   전체
                 </TabsTrigger>
                 <TabsTrigger 
                   value="personal"
-                  className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                  className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
                 >
                   개인 마인드맵
                 </TabsTrigger>
                 <TabsTrigger 
                   value="shared"
-                  className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                  className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
                 >
                   공동 마인드맵
                 </TabsTrigger>
@@ -286,7 +286,7 @@ export default function MindMapsPage() {
             </p>
             <Button
               onClick={handleCreateNew}
-              className="h-14 px-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base rounded-[16px] shadow-sm hover:shadow-md transition-all duration-200"
+              className="h-14 px-8 bg-[#5B6EFF] hover:bg-[#4B5EEF] text-white font-semibold text-base rounded-[16px] shadow-sm hover:shadow-md transition-all duration-200"
             >
               <Plus className="h-5 w-5 mr-2" />
               마인드맵 만들기
@@ -299,7 +299,7 @@ export default function MindMapsPage() {
               <div className="flex items-center gap-3">
               <Button
                 onClick={handleCreateNew}
-                className="h-12 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-[12px] shadow-sm hover:shadow-md transition-all duration-200"
+                className="h-12 px-6 bg-[#5B6EFF] hover:bg-[#4B5EEF] text-white font-semibold rounded-[12px] shadow-sm hover:shadow-md transition-all duration-200"
               >
                 <Plus className="h-5 w-5 mr-2" />
                 새 마인드맵
@@ -342,7 +342,7 @@ export default function MindMapsPage() {
                 >
                   <Card className={`h-full p-6 hover:shadow-lg dark:hover:shadow-gray-700/20 transition-all duration-200 cursor-pointer border rounded-[20px] group bg-white dark:bg-[#1a1a1a] flex flex-col card-hover ${
                     selectedProjects.has(project.id)
-                      ? 'border-blue-500 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-900/20'
+                      ? 'border-[#5B6EFF] dark:border-[#5B6EFF] bg-[#5B6EFF]/10/50 dark:bg-[#5B6EFF]/20'
                       : 'border-gray-200 dark:border-[#2a2a2a]'
                   }`}>
                     <Link href={`/mindmap/${project.id}`} className="flex-1 flex flex-col">
@@ -356,7 +356,7 @@ export default function MindMapsPage() {
                               onKeyDown={(e) => handleEditKeyDown(e, project.id)}
                               onBlur={() => handleEditSave(project.id)}
                               autoFocus
-                              className="flex-1 text-xl font-bold text-gray-900 dark:text-[#e5e5e5] border-b-2 border-blue-600 bg-transparent focus:outline-none px-1"
+                              className="flex-1 text-xl font-bold text-gray-900 dark:text-[#e5e5e5] border-b-2 border-[#5B6EFF] bg-transparent focus:outline-none px-1"
                             />
                             <Button
                               variant="ghost"
@@ -410,8 +410,8 @@ export default function MindMapsPage() {
                               }}
                               className={`flex-shrink-0 p-1.5 rounded-lg transition-all duration-200 ${
                                 selectedProjects.has(project.id)
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-transparent text-gray-400 dark:text-[#606060] border border-gray-300 dark:border-[#404040] hover:border-blue-500'
+                                  ? 'bg-[#5B6EFF] text-white'
+                                  : 'bg-transparent text-gray-400 dark:text-[#606060] border border-gray-300 dark:border-[#404040] hover:border-[#5B6EFF]'
                               }`}
                             >
                               {selectedProjects.has(project.id) ? (
@@ -445,7 +445,7 @@ export default function MindMapsPage() {
                           return (
                             <span
                               key={badge}
-                              className="text-xs font-medium px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full"
+                              className="text-xs font-medium px-3 py-1.5 bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/30 text-[#4B5EEF] dark:text-[#7B8FFF] rounded-full"
                             >
                               {badgeLabels[badge] || badge}
                             </span>

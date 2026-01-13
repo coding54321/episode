@@ -106,7 +106,7 @@ function GapTagCard({ tag, onRemove, onShowQuestions }: { tag: GapTag; onRemove:
                   e.stopPropagation();
                   onShowQuestions(tag);
                 }}
-                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                className="text-xs text-[#5B6EFF] dark:text-[#7B8FFF] hover:text-[#4B5EEF] dark:hover:text-[#8B9FFF] font-medium"
               >
                 관련 질문 {tag.questions.length}개 보기
               </button>
@@ -701,7 +701,7 @@ export default function UnifiedSidebar({
     >
       {/* 리사이즈 핸들 */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 transition-colors z-10"
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[#5B6EFF] transition-colors z-10"
         onMouseDown={(e) => {
           e.preventDefault();
           setIsResizing(true);
@@ -743,7 +743,7 @@ export default function UnifiedSidebar({
                 <div className="grid grid-cols-1 gap-3">
                   {isGapLoading ? (
                     <div className="text-center py-8">
-                      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                      <div className="w-8 h-8 border-4 border-[#5B6EFF] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                       <p className="text-sm text-gray-600 dark:text-[#a0a0a0]">로딩 중...</p>
                     </div>
                   ) : (
@@ -751,10 +751,10 @@ export default function UnifiedSidebar({
                       <button
                         key={company.id}
                         onClick={() => handleCompanySelect(company)}
-                        className="p-4 rounded-xl border border-gray-200 dark:border-[#2a2a2a] hover:border-blue-600 dark:hover:border-[#60A5FA] hover:shadow-sm transition-all text-left group bg-white dark:bg-[#1a1a1a] card-hover"
+                        className="p-4 rounded-xl border border-gray-200 dark:border-[#2a2a2a] hover:border-[#5B6EFF] dark:hover:border-[#7B8FFF] hover:shadow-sm transition-all text-left group bg-white dark:bg-[#1a1a1a] card-hover"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-white dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center border border-gray-100 dark:border-[#3a3a3a] group-hover:border-blue-100 dark:group-hover:border-[#60A5FA] transition-colors overflow-hidden flex-shrink-0">
+                          <div className="w-12 h-12 bg-white dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center border border-gray-100 dark:border-[#3a3a3a] group-hover:border-blue-100 dark:group-hover:border-[#7B8FFF] transition-colors overflow-hidden flex-shrink-0">
                             {company.logo_url ? (
                               <Image
                                 src={company.logo_url}
@@ -764,14 +764,14 @@ export default function UnifiedSidebar({
                                 className="w-full h-full object-contain p-1.5"
                               />
                             ) : (
-                              <Building2 className="w-6 h-6 text-gray-600 dark:text-[#a0a0a0] group-hover:text-blue-600 dark:group-hover:text-[#60A5FA]" />
+                              <Building2 className="w-6 h-6 text-gray-600 dark:text-[#a0a0a0] group-hover:text-blue-600 dark:group-hover:text-[#7B8FFF]" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-gray-900 dark:text-[#e5e5e5] truncate">{company.name}</h3>
                             <p className="text-sm text-gray-500 dark:text-[#a0a0a0] truncate">{company.industry}</p>
                           </div>
-                          <ChevronRight className="w-5 h-5 text-gray-400 dark:text-[#606060] group-hover:text-blue-600 dark:group-hover:text-[#60A5FA] flex-shrink-0" />
+                          <ChevronRight className="w-5 h-5 text-gray-400 dark:text-[#606060] group-hover:text-blue-600 dark:group-hover:text-[#7B8FFF] flex-shrink-0" />
                         </div>
                       </button>
                     ))
@@ -791,7 +791,7 @@ export default function UnifiedSidebar({
                   </button>
                   {isGapLoading ? (
                     <div className="text-center py-8">
-                      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                      <div className="w-8 h-8 border-4 border-[#5B6EFF] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                       <p className="text-sm text-gray-600 dark:text-[#a0a0a0]">로딩 중...</p>
                     </div>
                   ) : (
@@ -805,7 +805,7 @@ export default function UnifiedSidebar({
                             <button
                               key={job.id}
                               onClick={() => handleJobSelect(job)}
-                              className="p-4 rounded-xl border border-gray-200 dark:border-[#2a2a2a] hover:border-gray-900 dark:hover:border-[#60A5FA] hover:shadow-sm transition-all text-left group bg-white dark:bg-[#1a1a1a] card-hover"
+                              className="p-4 rounded-xl border border-gray-200 dark:border-[#2a2a2a] hover:border-gray-900 dark:hover:border-[#7B8FFF] hover:shadow-sm transition-all text-left group bg-white dark:bg-[#1a1a1a] card-hover"
                             >
                               <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1">
@@ -835,7 +835,7 @@ export default function UnifiedSidebar({
                   </button>
                   {isGapLoading ? (
                     <div className="text-center py-8">
-                      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                      <div className="w-8 h-8 border-4 border-[#5B6EFF] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                       <p className="text-sm text-gray-600 dark:text-[#a0a0a0]">문항을 불러오는 중...</p>
                     </div>
                   ) : questions.length === 0 ? (
@@ -844,8 +844,8 @@ export default function UnifiedSidebar({
                     </div>
                   ) : (
                     <>
-                      <div className="bg-blue-50 dark:bg-blue-900/30 rounded-xl p-4">
-                        <p className="text-sm text-blue-900 dark:text-[#e5e5e5]">
+                      <div className="bg-[#5B6EFF]/10 dark:bg-blue-900/30 rounded-xl p-4">
+                        <p className="text-sm text-[#4B5EEF] dark:text-[#e5e5e5]">
                           <strong>{selectedCompany?.name} {selectedJob?.job_title}</strong> 직무의 최근 5년간 기출 문항입니다.
                           각 문항에 대해 작성할 소재가 있는지 체크해주세요.
                         </p>
@@ -856,11 +856,11 @@ export default function UnifiedSidebar({
                         return (
                           <div key={yearHalfKey} className="space-y-3">
                             <div className="flex items-center gap-2 px-1">
-                              <div className="h-px flex-1 bg-gradient-to-r from-blue-200 to-transparent"></div>
-                              <h3 className="text-sm font-bold text-gray-900 dark:text-[#e5e5e5] px-3 py-1 bg-blue-50 dark:bg-blue-900/30 rounded-full">
+                              <div className="h-px flex-1 bg-gradient-to-r from-[#5B6EFF]/30 to-transparent"></div>
+                              <h3 className="text-sm font-bold text-gray-900 dark:text-[#e5e5e5] px-3 py-1 bg-[#5B6EFF]/10 dark:bg-blue-900/30 rounded-full">
                                 {yearHalfKey}
                               </h3>
-                              <div className="h-px flex-1 bg-gradient-to-l from-blue-200 to-transparent"></div>
+                              <div className="h-px flex-1 bg-gradient-to-l from-[#5B6EFF]/30 to-transparent"></div>
                             </div>
                             
                             <div className="space-y-2">
@@ -872,7 +872,7 @@ export default function UnifiedSidebar({
                                   <div className="flex gap-4">
                                     <div className="flex-1">
                                       <div className="flex items-start gap-2 mb-3">
-                                        <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-[#60A5FA] rounded-full text-xs font-semibold flex-shrink-0">
+                                        <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 bg-[#5B6EFF]/10 dark:bg-blue-900/30 text-blue-600 dark:text-[#7B8FFF] rounded-full text-xs font-semibold flex-shrink-0">
                                           {q.question_no}
                                         </span>
                                         <p className="text-sm text-gray-900 dark:text-[#e5e5e5] leading-relaxed">{q.content}</p>
@@ -886,7 +886,7 @@ export default function UnifiedSidebar({
                                         onClick={() => handleResponseToggle(q.id, true)}
                                         className={`w-20 h-10 rounded-lg font-medium text-sm transition-all ${
                                           responses[q.id] === true
-                                            ? 'bg-blue-600 text-white'
+                                            ? 'bg-[#5B6EFF] text-white'
                                             : 'bg-gray-100 dark:bg-[#2a2a2a] text-gray-600 dark:text-[#e5e5e5] hover:bg-gray-200 dark:hover:bg-[#3a3a3a]'
                                         }`}
                                       >
@@ -919,7 +919,7 @@ export default function UnifiedSidebar({
               {gapStep === 'result' && (
                 <div className="space-y-6">
                   <div className="text-center py-6">
-                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <div className="w-16 h-16 bg-[#5B6EFF]/10 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Check className="w-8 h-8 text-blue-600" />
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-2">분석 완료</h3>
@@ -968,7 +968,7 @@ export default function UnifiedSidebar({
                     <Button
                       onClick={handleAnalyze}
                       disabled={Object.keys(responses).length !== questions.length}
-                      className="bg-blue-600 hover:bg-blue-700"
+                      className="bg-[#5B6EFF] hover:bg-[#4B5EEF]"
                     >
                       분석하기
                     </Button>
@@ -981,7 +981,7 @@ export default function UnifiedSidebar({
                         const allTags = await gapTagStorage.load();
                         setGapTags(allTags);
                       }}
-                      className="bg-blue-600 hover:bg-blue-700"
+                      className="bg-[#5B6EFF] hover:bg-[#4B5EEF]"
                     >
                       추가 경험 정리하기
                     </Button>
@@ -996,14 +996,14 @@ export default function UnifiedSidebar({
             {gapTags.length === 0 ? (
               <div className="flex-1 flex items-center justify-center px-6 py-12 min-h-0">
                 <div className="text-center">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-[20px] flex items-center justify-center mx-auto mb-5">
+                  <div className="w-20 h-20 bg-gradient-to-br from-[#5B6EFF]/10 to-[#5B6EFF]/20 rounded-[20px] flex items-center justify-center mx-auto mb-5">
                     <Sparkles className="w-10 h-10 text-blue-600" />
                   </div>
                   <p className="font-bold text-lg text-gray-900 dark:text-[#e5e5e5] mb-2">추천 인벤토리가 비어있습니다</p>
                   <p className="text-sm text-gray-500 dark:text-[#a0a0a0] mb-6">공백 진단을 통해 추천을 받아보세요</p>
                   <Button
                     onClick={() => setGapSubTab('analysis')}
-                    className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 h-12 px-6 rounded-[12px] font-semibold shadow-sm"
+                    className="bg-gradient-to-br from-[#5B6EFF]/100 to-[#6B7EFF] hover:from-[#4B5EEF] hover:to-[#5B6EFF] h-12 px-6 rounded-[12px] font-semibold shadow-sm"
                   >
                     공백 진단하기
                   </Button>
@@ -1011,10 +1011,10 @@ export default function UnifiedSidebar({
               </div>
             ) : (
               <div className="flex-1 flex flex-col min-h-0">
-                <div className="mx-6 mt-4 p-5 rounded-[16px] bg-gradient-to-br from-blue-50 to-blue-100/30 dark:from-blue-900/30 dark:to-blue-800/30 border border-blue-100 dark:border-blue-800 flex-shrink-0">
+                <div className="mx-6 mt-4 p-5 rounded-[16px] bg-gradient-to-br from-[#5B6EFF]/10 to-[#5B6EFF]/20/30 dark:from-[#5B6EFF]/30 dark:to-[#5B6EFF]/20 border border-[#5B6EFF]/20 dark:border-[#5B6EFF]/30 flex-shrink-0">
                   <div className="flex items-start gap-4">
                     <div className="w-10 h-10 bg-white dark:bg-[#2a2a2a] rounded-[12px] flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <Sparkles className="h-5 w-5 text-blue-600 dark:text-[#60A5FA]" />
+                      <Sparkles className="h-5 w-5 text-blue-600 dark:text-[#7B8FFF]" />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-bold text-gray-900 dark:text-[#e5e5e5] mb-1.5">
@@ -1071,7 +1071,7 @@ export default function UnifiedSidebar({
               {episodeNodes.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center py-12">
                   <div className="text-center">
-                    <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-[20px] flex items-center justify-center mx-auto mb-5">
+                    <div className="w-20 h-20 bg-gradient-to-br from-[#5B6EFF]/10 to-[#5B6EFF]/20 rounded-[20px] flex items-center justify-center mx-auto mb-5">
                       <FileText className="w-10 h-10 text-blue-600" />
                     </div>
                     <p className="font-bold text-lg text-gray-900 dark:text-[#e5e5e5] mb-2">에피소드가 없습니다</p>
@@ -1217,7 +1217,7 @@ export default function UnifiedSidebar({
                           variant={starEditorTags.includes(keyword) ? "default" : "outline"}
                           className={`cursor-pointer transition-all ${
                             starEditorTags.includes(keyword)
-                              ? 'bg-blue-600 text-white hover:bg-blue-700'
+                              ? 'bg-[#5B6EFF] text-white hover:bg-[#4B5EEF]'
                               : 'hover:bg-gray-100 dark:hover:bg-[#2a2a2a] border-gray-200 dark:border-[#2a2a2a] text-gray-700 dark:text-[#e5e5e5]'
                           }`}
                           onClick={() => {
@@ -1324,7 +1324,7 @@ export default function UnifiedSidebar({
                       
                       toast.success('저장되었습니다');
                     }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    className="bg-[#5B6EFF] hover:bg-[#4B5EEF] text-white"
                   >
                     <Save className="h-4 w-4 mr-2" />
                     저장하기
@@ -1354,10 +1354,10 @@ export default function UnifiedSidebar({
           </div>
 
           {!selectedNodeId && (
-            <div className="mx-6 mt-4 p-5 rounded-[16px] bg-gradient-to-br from-blue-50 to-blue-100/30 dark:from-blue-900/30 dark:to-blue-800/30 border border-blue-100 dark:border-blue-800 flex-shrink-0">
+            <div className="mx-6 mt-4 p-5 rounded-[16px] bg-gradient-to-br from-[#5B6EFF]/10 to-[#5B6EFF]/20/30 dark:from-[#5B6EFF]/30 dark:to-[#5B6EFF]/20 border border-[#5B6EFF]/20 dark:border-[#5B6EFF]/30 flex-shrink-0">
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 bg-white dark:bg-[#2a2a2a] rounded-[12px] flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <Sparkles className="h-5 w-5 text-blue-600 dark:text-[#60A5FA]" />
+                  <Sparkles className="h-5 w-5 text-blue-600 dark:text-[#7B8FFF]" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-bold text-gray-900 dark:text-[#e5e5e5] mb-1.5">노드를 선택해보세요</p>
@@ -1381,7 +1381,7 @@ export default function UnifiedSidebar({
                   <div
                     className={`max-w-[80%] rounded-[20px] px-5 py-3.5 ${
                       message.role === 'user'
-                        ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-sm'
+                        ? 'bg-gradient-to-br from-[#5B6EFF]/100 to-[#6B7EFF] text-white shadow-sm'
                         : 'bg-gray-50 dark:bg-[#1a1a1a] text-gray-900 dark:text-[#e5e5e5]'
                     }`}
                   >
@@ -1417,12 +1417,12 @@ export default function UnifiedSidebar({
                 }}
                 placeholder="메시지를 입력하세요..."
                 disabled={!selectedNodeId || isTyping}
-                className="flex-1 h-12 rounded-[12px] border-gray-200 dark:border-[#2a2a2a] focus:border-blue-500 dark:focus:border-[#60A5FA] focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 bg-gray-50 dark:bg-[#1a1a1a] focus:bg-white dark:focus:bg-[#2a2a2a] transition-colors text-gray-900 dark:text-[#e5e5e5]"
+                className="flex-1 h-12 rounded-[12px] border-gray-200 dark:border-[#2a2a2a] focus:border-[#5B6EFF] dark:focus:border-[#7B8FFF] focus:ring-2 focus:ring-[#5B6EFF]/20 dark:focus:ring-[#5B6EFF]/30 bg-gray-50 dark:bg-[#1a1a1a] focus:bg-white dark:focus:bg-[#2a2a2a] transition-colors text-gray-900 dark:text-[#e5e5e5]"
               />
               <Button
                 onClick={handleSend}
                 disabled={!input.trim() || !selectedNodeId || isTyping}
-                className="h-12 w-12 p-0 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-[12px] shadow-sm disabled:opacity-50"
+                className="h-12 w-12 p-0 bg-gradient-to-br from-[#5B6EFF]/100 to-[#6B7EFF] hover:from-[#4B5EEF] hover:to-[#5B6EFF] rounded-[12px] shadow-sm disabled:opacity-50"
                 size="icon"
               >
                 <Send className="h-5 w-5" />
@@ -1451,14 +1451,14 @@ export default function UnifiedSidebar({
             
             <div className="space-y-3">
               <div className="flex items-center gap-2 mb-4">
-                <FileText className="w-5 h-5 text-blue-600 dark:text-[#60A5FA]" />
+                <FileText className="w-5 h-5 text-blue-600 dark:text-[#7B8FFF]" />
                 <h4 className="font-semibold text-gray-900 dark:text-[#e5e5e5]">답변하기 어려웠던 질문 ({selectedTagForQuestions.questions.length}개)</h4>
               </div>
               {selectedTagForQuestions.questions.map((question, index) => (
                 <div key={index} className="p-4 rounded-[12px] bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a]">
                   <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-xs font-semibold text-blue-600 dark:text-[#60A5FA]">{index + 1}</span>
+                    <div className="w-6 h-6 bg-[#5B6EFF]/20 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs font-semibold text-blue-600 dark:text-[#7B8FFF]">{index + 1}</span>
                     </div>
                     <div className="flex-1">
                       <p className="text-sm text-gray-900 dark:text-[#e5e5e5] leading-relaxed mb-1">

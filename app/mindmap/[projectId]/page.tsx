@@ -1016,7 +1016,7 @@ export default function MindMapProjectPage() {
                     onKeyDown={handleTitleKeyDown}
                     onBlur={handleTitleSave}
                     autoFocus
-                    className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5] border-b-2 border-blue-600 dark:border-[#60A5FA] bg-transparent focus:outline-none px-1"
+                    className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5] border-b-2 border-[#5B6EFF] dark:border-[#7B8FFF] bg-transparent focus:outline-none px-1"
                     style={{ width: `${Math.max(editedTitle.length * 10, 100)}px` }}
                   />
                   <Button
@@ -1064,7 +1064,7 @@ export default function MindMapProjectPage() {
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200">
                 {saveStatus === 'saving' && (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600 dark:text-blue-400" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#5B6EFF] dark:text-[#7B8FFF]" />
                     <span className="text-gray-600 dark:text-gray-400">저장 중...</span>
                   </>
                 )}
@@ -1106,7 +1106,7 @@ export default function MindMapProjectPage() {
               }}
               className={`px-3 py-2 gap-2 transition-all duration-200 ${
                 isSidebarOpen && sidebarMainTab === 'gap'
-                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                  ? 'bg-[#5B6EFF] text-white hover:bg-[#4B5EEF]' 
                   : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] border border-gray-300 dark:border-[#2a2a2a]'
               }`}
               title={isSidebarOpen && sidebarMainTab === 'gap' ? '공백 진단하기 닫기' : '공백 진단하기 열기'}
@@ -1136,7 +1136,7 @@ export default function MindMapProjectPage() {
               }}
               className={`px-3 py-2 gap-2 transition-all duration-200 ${
                 isSidebarOpen && sidebarMainTab === 'star'
-                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                  ? 'bg-[#5B6EFF] text-white hover:bg-[#4B5EEF]' 
                   : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
               }`}
               title={isSidebarOpen && sidebarMainTab === 'star' ? 'STAR 정리하기 닫기' : 'STAR 정리하기 열기'}
@@ -1166,7 +1166,7 @@ export default function MindMapProjectPage() {
               }}
               className={`px-3 py-2 gap-2 transition-all duration-200 ${
                 isSidebarOpen && sidebarMainTab === 'assistant'
-                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                  ? 'bg-[#5B6EFF] text-white hover:bg-[#4B5EEF]' 
                   : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
               }`}
               title={isSidebarOpen && sidebarMainTab === 'assistant' ? '어시스턴트 닫기' : '어시스턴트 열기'}
@@ -1180,11 +1180,11 @@ export default function MindMapProjectPage() {
 
       {/* 읽기 전용 모드 배너 */}
       {isReadOnly && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 px-5 py-3">
+        <div className="bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/20 border-b border-[#5B6EFF]/20 dark:border-[#5B6EFF]/30 px-5 py-3">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
-                <Lock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <div className="w-8 h-8 rounded-full bg-[#5B6EFF]/20 dark:bg-[#5B6EFF]/30 flex items-center justify-center flex-shrink-0">
+                <Lock className="h-4 w-4 text-[#5B6EFF] dark:text-[#7B8FFF]" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
@@ -1197,7 +1197,7 @@ export default function MindMapProjectPage() {
             </div>
             <Button
               onClick={() => router.push('/login')}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-[12px] px-4 py-2 text-sm font-semibold shadow-sm flex-shrink-0"
+              className="bg-[#5B6EFF] hover:bg-[#4B5EEF] text-white rounded-[12px] px-4 py-2 text-sm font-semibold shadow-sm flex-shrink-0"
             >
               로그인하여 편집하기
             </Button>
@@ -1222,14 +1222,14 @@ export default function MindMapProjectPage() {
               <div className="space-y-2">
                 {activeEditors.map((editor) => (
                   <div key={editor.id} className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 flex items-center justify-center text-xs font-semibold">
+                    <div className="h-6 w-6 rounded-full bg-[#5B6EFF]/20 dark:bg-[#5B6EFF]/30 text-[#4B5EEF] dark:text-[#7B8FFF] flex items-center justify-center text-xs font-semibold">
                       {(editor.userName || editor.userEmail || 'U').charAt(0).toUpperCase()}
                     </div>
                     <span className="text-xs text-gray-700 dark:text-gray-300 truncate flex-1">
                       {editor.userName || editor.userEmail || '익명 사용자'}
                     </span>
                     {editor.userId === user?.id && (
-                      <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 rounded-full">
+                      <span className="text-xs px-2 py-0.5 bg-[#5B6EFF]/20 dark:bg-[#5B6EFF]/30 text-[#4B5EEF] dark:text-[#7B8FFF] rounded-full">
                         나
                       </span>
                     )}
@@ -1555,7 +1555,7 @@ export default function MindMapProjectPage() {
                     </p>
                     <div className="flex items-center gap-2 pt-2">
                       <span className="text-sm text-gray-500 dark:text-[#a0a0a0]">관련 역량:</span>
-                      <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-[#60A5FA] border-blue-200 dark:border-blue-600 text-xs font-medium">
+                      <Badge variant="outline" className="bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/30 text-[#4B5EEF] dark:text-[#7B8FFF] border-[#5B6EFF]/20 dark:border-[#5B6EFF] text-xs font-medium">
                         {droppedTag.tag.category}
                       </Badge>
                     </div>
@@ -1681,7 +1681,7 @@ export default function MindMapProjectPage() {
                       onClick={() => setOnboardingStep(step)}
                       className={`w-2.5 h-2.5 rounded-full transition-all ${
                         onboardingStep === step
-                          ? 'bg-blue-600 dark:bg-blue-500'
+                          ? 'bg-[#5B6EFF] dark:bg-[#6B7EFF]'
                           : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'
                       }`}
                     />
@@ -1788,7 +1788,7 @@ export default function MindMapProjectPage() {
               </div>
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="h-9 w-9 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 flex items-center justify-center font-semibold">
+                  <div className="h-9 w-9 rounded-full bg-[#5B6EFF]/20 text-[#4B5EEF] dark:bg-[#5B6EFF]/30 dark:text-[#7B8FFF] flex items-center justify-center font-semibold">
                     {(user?.name || user?.email || '나').slice(0, 1).toUpperCase()}
                   </div>
                   <div>

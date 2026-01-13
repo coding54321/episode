@@ -194,14 +194,9 @@ export default function Header({
         {/* 로고 */}
         <Link href="/">
           <button className="flex items-center hover:opacity-80 transition-opacity">
-            <Image
-              src="/new_logo.png"
-              alt="episode"
-              width={70}
-              height={24}
-              className="h-6 w-auto"
-              priority
-            />
+            <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+              episode
+            </span>
           </button>
         </Link>
 

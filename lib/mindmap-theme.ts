@@ -23,11 +23,11 @@ export const colorThemes: Record<ColorTheme, ThemeColors> = {
   default: {
     line: '#2a2a2a',
     lineShared: '#22c55e',
-    center: { background: '#3b82f6', text: '#ffffff', border: '#3b82f6' },
-    category: { background: '#ffffff', text: '#1d4ed8', border: '#93c5fd' },
-    experience: { background: '#ffffff', text: '#7c3aed', border: '#c4b5fd' },
-    episode: { background: '#ffffff', text: '#059669', border: '#6ee7b7' },
-    detail: { background: '#ffffff', text: '#374151', border: '#e5e7eb' },
+    center: { background: '#5B6EFF', text: '#ffffff', border: '#5B6EFF' }, // 메인 인디고 블루
+    category: { background: '#ffffff', text: '#4B5EEF', border: '#7B8FFF' }, // 배지 노드 - 약간 어두운 인디고
+    experience: { background: '#ffffff', text: '#6B7EFF', border: '#8B9FFF' }, // 경험 노드 - 중간 밝기 인디고
+    episode: { background: '#ffffff', text: '#8B9FFF', border: '#ABAFFF' }, // 에피소드 노드 - 밝은 인디고
+    detail: { background: '#ffffff', text: '#ABAFFF', border: '#CBCFFF' }, // 세부 노드 - 매우 밝은 인디고
   },
   pastel: {
     line: '#d4a5a5',
@@ -63,11 +63,11 @@ export const darkColorThemes: Record<ColorTheme, ThemeColors> = {
   default: {
     line: '#2a2a2a',
     lineShared: '#22c55e',
-    center: { background: '#1e40af', text: '#e0e7ff', border: '#3b82f6' },
-    category: { background: '#1e293b', text: '#60a5fa', border: '#1e40af' },
-    experience: { background: '#1e1b4b', text: '#c4b5fd', border: '#6d28d9' },
-    episode: { background: '#064e3b', text: '#6ee7b7', border: '#059669' },
-    detail: { background: '#1f2937', text: '#d1d5db', border: '#374151' },
+    center: { background: '#4B5EEF', text: '#ffffff', border: '#5B6EFF' }, // 메인 인디고 블루 (다크모드)
+    category: { background: '#1a1a1a', text: '#7B8FFF', border: '#5B6EFF' }, // 배지 노드 - 밝은 인디고 텍스트
+    experience: { background: '#1e1e1e', text: '#8B9FFF', border: '#6B7EFF' }, // 경험 노드 - 더 밝은 인디고
+    episode: { background: '#222222', text: '#ABAFFF', border: '#8B9FFF' }, // 에피소드 노드 - 매우 밝은 인디고
+    detail: { background: '#262626', text: '#CBCFFF', border: '#ABAFFF' }, // 세부 노드 - 가장 밝은 인디고
   },
   pastel: {
     line: '#8b7a85',

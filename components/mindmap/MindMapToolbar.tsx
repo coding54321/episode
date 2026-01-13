@@ -80,7 +80,7 @@ export default function MindMapToolbar({
             size="sm"
             onClick={onToggleGrid}
             className={`h-9 w-9 p-0 bg-white dark:bg-[#1a1a1a] shadow-lg border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg ${
-              showGrid ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500' : ''
+              showGrid ? 'bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/20 border-[#5B6EFF]' : ''
             }`}
           >
             <Grid3x3 className="h-4 w-4" />
