@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { MindMapNode, MindMapProject, GapTag, NodeType, LayoutType, LayoutConfig, MindMapSettings } from '@/types';
-import { mindMapProjectStorage, currentProjectStorage, sharedNodeStorage, assetStorage, mindMapOnboardingStorage } from '@/lib/storage';
+import { mindMapProjectStorage, currentProjectStorage, assetStorage, mindMapOnboardingStorage } from '@/lib/storage';
 import { useUnifiedAuth } from '@/lib/auth/unified-auth-context';
 import MindMapCanvas, { MindMapCanvasHandle } from '@/components/mindmap/MindMapCanvas';
 import MindMapTabs, { Tab } from '@/components/mindmap/MindMapTabs';
@@ -15,14 +15,23 @@ import MindMapSettingsDialog from '@/components/mindmap/MindMapSettingsDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, MessageSquare, Check, X, BarChart3, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import { ChevronLeft, MessageSquare, Check, X, BarChart3, FileText, CheckCircle2, AlertCircle, Loader2, Share2, Link2, Copy, Users } from 'lucide-react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { saveNodes, updateNode, updateProject } from '@/lib/supabase/data';
+import { saveNodes, updateNode, updateProject, getSharedProject, updateActiveEditor, getActiveEditors, removeActiveEditor, type ActiveEditor } from '@/lib/supabase/data';
 import { applyLayout, applyAutoLayoutForNewNode, applyAutoLayoutAfterDelete } from '@/lib/layouts';
+import { Lock } from 'lucide-react';
 
 export default function MindMapProjectPage() {
   const router = useRouter();
@@ -30,6 +39,10 @@ export default function MindMapProjectPage() {
   const searchParams = useSearchParams();
   const projectId = params.projectId as string;
   const nodeId = useMemo(() => searchParams.get('nodeId'), [searchParams]);
+  const shareUrl = useMemo(
+    () => `${typeof window !== 'undefined' ? window.location.origin : ''}/mindmap/${projectId}`,
+    [projectId]
+  );
   const { user, loading: authLoading } = useUnifiedAuth(); // 전역 상태에서 사용자 정보 가져오기
   
   const [project, setProject] = useState<MindMapProject | null>(null);
@@ -66,9 +79,21 @@ export default function MindMapProjectPage() {
     lineStyle: 'straight',
     showGrid: false,
   });
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [isShareProcessing, setIsShareProcessing] = useState(false);
+  const [shareCopyState, setShareCopyState] = useState<'idle' | 'copied'>('idle');
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [isSharingUpdate, setIsSharingUpdate] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(false);
+  const [activeEditors, setActiveEditors] = useState<ActiveEditor[]>([]);
+  const [isOwner, setIsOwner] = useState(false);
 
   // DB 업데이트 디바운싱을 위한 ref
   const supabaseUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // 편집자 추적을 위한 interval ref
+  const editorTrackingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const editorPollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   // 드래그 중인지 추적하는 ref
   const isDraggingRef = useRef(false);
   // 상태 업데이트 디바운싱을 위한 ref
@@ -84,21 +109,40 @@ export default function MindMapProjectPage() {
       return;
     }
 
-    // 로그인 확인 (전역 상태 사용)
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
     const loadProject = async () => {
       try {
+        let loadedProject: MindMapProject | null = null;
+        let isSharedAccess = false;
 
-        // Supabase에서 최신 프로젝트 로드
-        const { getProject } = await import('@/lib/supabase/data');
-        const loadedProject = await getProject(projectId, user.id);
+        // 먼저 로그인된 사용자의 프로젝트로 시도
+        if (user) {
+          const { getProject } = await import('@/lib/supabase/data');
+          loadedProject = await getProject(projectId, user.id);
+          if (loadedProject) {
+            setIsOwner(true);
+            setIsReadOnly(false);
+          }
+        }
+
+        // 로그인된 사용자의 프로젝트가 아니면 공유된 프로젝트인지 확인
         if (!loadedProject) {
-          console.warn('[mindmap/page] 프로젝트를 찾을 수 없음', { projectId, userId: user.id });
-          router.push('/mindmaps');
+          const { getSharedProject } = await import('@/lib/supabase/data');
+          loadedProject = await getSharedProject(projectId);
+          if (loadedProject) {
+            isSharedAccess = true;
+            setIsOwner(false);
+            // 로그인 안 된 경우 읽기 전용
+            setIsReadOnly(!user);
+          }
+        }
+
+        if (!loadedProject) {
+          console.warn('[mindmap/page] 프로젝트를 찾을 수 없음', { projectId, userId: user?.id });
+          if (user) {
+            router.push('/mindmaps');
+          } else {
+            router.push('/login');
+          }
           return;
         }
 
@@ -168,8 +212,73 @@ export default function MindMapProjectPage() {
         clearTimeout(stateUpdateTimeoutRef.current);
         stateUpdateTimeoutRef.current = null;
       }
+      // 편집자 추적 정리
+      if (editorTrackingIntervalRef.current) {
+        clearInterval(editorTrackingIntervalRef.current);
+        editorTrackingIntervalRef.current = null;
+      }
+      if (editorPollingIntervalRef.current) {
+        clearInterval(editorPollingIntervalRef.current);
+        editorPollingIntervalRef.current = null;
+      }
+      // 페이지 떠날 때 편집자에서 제거
+      if (user && projectId) {
+        removeActiveEditor(projectId, user.id).catch(console.error);
+      }
     };
   }, [projectId, router, user, authLoading]);
+
+  // 편집자 추적 (로그인된 사용자만)
+  useEffect(() => {
+    if (!user || !project || isReadOnly) {
+      return;
+    }
+
+    // 즉시 등록
+    const registerEditor = async () => {
+      await updateActiveEditor(projectId, user.id, user.name || undefined, user.email || undefined);
+    };
+    registerEditor();
+
+    // 30초마다 last_seen 업데이트
+    editorTrackingIntervalRef.current = setInterval(() => {
+      updateActiveEditor(projectId, user.id, user.name || undefined, user.email || undefined).catch(console.error);
+    }, 30000);
+
+    // 페이지 떠날 때 정리
+    return () => {
+      if (editorTrackingIntervalRef.current) {
+        clearInterval(editorTrackingIntervalRef.current);
+        editorTrackingIntervalRef.current = null;
+      }
+      removeActiveEditor(projectId, user.id).catch(console.error);
+    };
+  }, [user, project, projectId, isReadOnly]);
+
+  // 활성 편집자 목록 폴링 (공유된 프로젝트인 경우)
+  useEffect(() => {
+    if (!project?.isShared) {
+      return;
+    }
+
+    const pollActiveEditors = async () => {
+      const editors = await getActiveEditors(projectId);
+      setActiveEditors(editors);
+    };
+
+    // 즉시 조회
+    pollActiveEditors();
+
+    // 5초마다 폴링
+    editorPollingIntervalRef.current = setInterval(pollActiveEditors, 5000);
+
+    return () => {
+      if (editorPollingIntervalRef.current) {
+        clearInterval(editorPollingIntervalRef.current);
+        editorPollingIntervalRef.current = null;
+      }
+    };
+  }, [project?.isShared, projectId]);
 
   // 페이지 떠나기 전 저장되지 않은 변경사항 처리
   useEffect(() => {
@@ -319,8 +428,28 @@ export default function MindMapProjectPage() {
   const selectedNode = selectedNodeId ? nodeMap.get(selectedNodeId) : null;
   const activeTab = tabs.find(t => t.id === activeTabId);
   const isNodeView = activeTab?.nodeId !== null;
+  const getRootNode = (): MindMapNode | null => {
+    if (!nodes || nodes.length === 0) return null;
+    const centerByLevel = nodes.find((n) => n.level === 0);
+    if (centerByLevel) return centerByLevel;
+    const centerByParent = nodes.find((n) => !n.parentId);
+    return centerByParent || nodes[0];
+  };
+
+  useEffect(() => {
+    if (project?.isShared && typeof window !== 'undefined') {
+      setShareLink(`${window.location.origin}/mindmap/${projectId}`);
+    } else {
+      setShareLink('');
+    }
+  }, [project?.isShared, projectId]);
 
   const handleNodesChange = async (newNodes: MindMapNode[], isDrag = false) => {
+    // 읽기 전용 모드에서는 저장하지 않음
+    if (isReadOnly) {
+      return;
+    }
+
     // 드래그 중이면 상태 업데이트도 디바운싱 (16ms = ~60fps)
     if (isDrag) {
       isDraggingRef.current = true;
@@ -418,6 +547,14 @@ export default function MindMapProjectPage() {
   };
 
   const handleNodeEdit = async (nodeId: string, label: string) => {
+    // 읽기 전용 모드에서는 편집 불가
+    if (isReadOnly) {
+      if (!user) {
+        router.push('/login');
+      }
+      return;
+    }
+
     // 인덱스 맵 사용하여 더 효율적으로 업데이트
     const node = nodeMap.get(nodeId);
     if (!node) return;
@@ -486,6 +623,14 @@ export default function MindMapProjectPage() {
   };
 
   const handleNodeAddChild = (parentId: string, direction: 'right' | 'left' | 'top' | 'bottom' = 'right') => {
+    // 읽기 전용 모드에서는 추가 불가
+    if (isReadOnly) {
+      if (!user) {
+        router.push('/login');
+      }
+      return;
+    }
+
     // 인덱스 맵 사용
     const parent = nodeMap.get(parentId);
     if (!parent || !project) return;
@@ -549,145 +694,87 @@ export default function MindMapProjectPage() {
     setIsSTAREditorOpen(true);
   };
 
-  const handleNodeShare = async (nodeId: string) => {
-    // 1. 공유할 노드 찾기 (인덱스 맵 사용)
-    const node = nodeMap.get(nodeId);
-    if (!node) return;
-
-    // 2. 하위 노드들 모두 가져오기 (재귀적으로, 인덱스 맵 사용)
-    const getDescendants = (id: string): MindMapNode[] => {
-      const current = nodeMap.get(id);
-      if (!current) return [];
-      
-      const children = nodes.filter(n => n.parentId === id);
-      const allDescendants: MindMapNode[] = [...children];
-      
-      children.forEach(child => {
-        allDescendants.push(...getDescendants(child.id));
-      });
-      
-      return allDescendants;
-    };
-
-    const descendants = getDescendants(nodeId);
-
-    // 3. 관련 STAR 에셋 가져오기 (노드와 하위 노드들의 에셋)
-    const allAssets = await assetStorage.load();
-    const nodeIds = [nodeId, ...descendants.map(d => d.id)];
-    const relatedAssets = allAssets.filter(asset => nodeIds.includes(asset.nodeId));
-
-    // 4. 공유 데이터 생성
-    const sharedData = {
-      id: nodeId,
-      nodeId: nodeId,
-      projectId: projectId,
-      node: { ...node, isShared: true },
-      descendants: descendants,
-      starAssets: relatedAssets,
-      includeSTAR: relatedAssets.length > 0, // STAR 에셋이 있으면 포함
-      createdAt: Date.now(),
-      createdBy: user?.id,
-    };
-
-    // 5. 공유 스토리지에 저장
-    await sharedNodeStorage.add(sharedData);
-
-    // 6. 노드의 isShared 상태 업데이트 및 DB 저장
-    // 상대 경로만 저장하여 환경에 관계없이 작동하도록 함
-    const updatedNodes = nodes.map(n => 
-      n.id === nodeId 
-        ? { ...n, isShared: true, sharedLink: `/share/${nodeId}` }
-        : n
-    );
-    handleNodesChange(updatedNodes);
-
-    // 8. 공유 링크 복사 및 토스트 표시
-    // 복사 시에는 현재 환경의 전체 URL 생성
-    const shareUrl = `${window.location.origin}/share/${nodeId}`;
-    
-    // 클립보드 복사 (에러 처리 포함)
-    try {
-      // 문서 포커스 확인 및 사용자 상호작용 보장
-      if (document.hasFocus()) {
-        await navigator.clipboard.writeText(shareUrl);
-      } else {
-        // 포커스가 없으면 fallback 방법 사용
-        const textArea = document.createElement('textarea');
-        textArea.value = shareUrl;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-      }
-    } catch (error) {
-      // 클립보드 복사 실패 시 fallback
-      console.warn('Clipboard copy failed, using fallback:', error);
-      const textArea = document.createElement('textarea');
-      textArea.value = shareUrl;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      try {
-        document.execCommand('copy');
-      } catch (e) {
-        console.error('Fallback copy also failed:', e);
-      }
-      document.body.removeChild(textArea);
+  const handleOpenShareDialog = () => {
+    if (project?.isShared && typeof window !== 'undefined') {
+      setShareLink(`${window.location.origin}/mindmap/${projectId}`);
     }
-    
-    // 토스트 표시
-    const toast = document.createElement('div');
-    toast.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-3 rounded-[12px] text-sm font-medium shadow-lg z-50 transition-all duration-300';
-    toast.innerHTML = `
-      <div class="flex items-center gap-2">
-        <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-        </svg>
-        <span>공유 링크가 복사되었어요</span>
-      </div>
-    `;
-    document.body.appendChild(toast);
-
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      setTimeout(() => document.body.removeChild(toast), 300);
-    }, 2000);
+    setIsShareDialogOpen(true);
   };
 
-  const handleNodeUnshare = async (nodeId: string) => {
-    // 1. 공유 스토리지에서 삭제
-    await sharedNodeStorage.remove(nodeId);
+  const handleProjectShare = async () => {
+    if (!project) {
+      alert('공유할 프로젝트를 찾지 못했습니다.');
+      return;
+    }
+    if (!user) {
+      router.push('/login');
+      return;
+    }
 
-    // 2. 노드의 isShared 상태 업데이트 및 DB 저장
-    const updatedNodes = nodes.map(n => 
-      n.id === nodeId 
-        ? { ...n, isShared: false, sharedLink: undefined }
-        : n
-    );
-    handleNodesChange(updatedNodes);
+    setIsShareProcessing(true);
+    try {
+      const updatedProject: MindMapProject = {
+        ...project,
+        isShared: true,
+        sharedBy: user.id,
+        sharedByUser: { id: user.id, name: user.name || user.email || 'user' },
+        updatedAt: Date.now(),
+      };
+      await updateProject(projectId, {
+        isShared: true,
+        sharedBy: user.id,
+        sharedByUser: { id: user.id, name: user.name || user.email || 'user' },
+      });
+      await mindMapProjectStorage.update(projectId, updatedProject);
+      setProject(updatedProject);
+      if (typeof window !== 'undefined') {
+        setShareLink(`${window.location.origin}/mindmap/${projectId}`);
+      }
+    } catch (error) {
+      console.error('[mindmap/page] 프로젝트 공유 실패', error);
+    } finally {
+      setIsShareProcessing(false);
+    }
+  };
 
-    // 4. 토스트 표시
-    const toast = document.createElement('div');
-    toast.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-3 rounded-[12px] text-sm font-medium shadow-lg z-50 transition-all duration-300';
-    toast.innerHTML = `
-      <div class="flex items-center gap-2">
-        <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-        </svg>
-        <span>공유가 중지되었어요</span>
-      </div>
-    `;
-    document.body.appendChild(toast);
+  const handleProjectUnshare = async () => {
+    if (!project) {
+      return;
+    }
 
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      setTimeout(() => document.body.removeChild(toast), 300);
-    }, 2000);
+    setIsShareProcessing(true);
+    try {
+      const updatedProject: MindMapProject = {
+        ...project,
+        isShared: false,
+        sharedBy: undefined,
+        sharedByUser: undefined,
+        updatedAt: Date.now(),
+      };
+      await updateProject(projectId, {
+        isShared: false,
+        sharedBy: undefined,
+        sharedByUser: undefined,
+      });
+      await mindMapProjectStorage.update(projectId, updatedProject);
+      setProject(updatedProject);
+      setShareLink('');
+    } catch (error) {
+      console.error('[mindmap/page] 프로젝트 공유 해제 실패', error);
+    } finally {
+      setIsShareProcessing(false);
+    }
+  };
+
+  const handleCopyShareLink = async () => {
+    if (!shareLink) return;
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setShareCopyState('copied');
+      setTimeout(() => setShareCopyState('idle'), 1500);
+    } catch (error) {
+      console.error('[mindmap/page] 공유 링크 복사 실패', error);
+    }
   };
 
   const handleNodeOpenInNewTab = (nodeId: string) => {
@@ -953,9 +1040,9 @@ export default function MindMapProjectPage() {
               ) : (
                 <div>
                   <h1 
-                    className={`text-lg font-bold text-gray-900 dark:text-[#e5e5e5] ${!isNodeView ? 'cursor-pointer hover:text-blue-600 dark:hover:text-[#60A5FA] transition-colors' : ''}`}
-                    onClick={!isNodeView ? handleTitleEdit : undefined}
-                    title={!isNodeView ? '클릭하여 제목 수정' : ''}
+                    className={`text-lg font-bold text-gray-900 dark:text-[#e5e5e5] ${!isNodeView && !isReadOnly ? 'cursor-pointer hover:text-blue-600 dark:hover:text-[#60A5FA] transition-colors' : ''}`}
+                    onClick={!isNodeView && !isReadOnly ? handleTitleEdit : undefined}
+                    title={!isNodeView && !isReadOnly ? '클릭하여 제목 수정' : isReadOnly ? '편집하려면 로그인이 필요합니다' : ''}
                   >
                     {isNodeView && activeTab ? activeTab.label : project.name}
                   </h1>
@@ -1003,7 +1090,14 @@ export default function MindMapProjectPage() {
             <Button
               variant={isSidebarOpen && sidebarMainTab === 'gap' ? "default" : "outline"}
               size="sm"
+              disabled={isReadOnly}
               onClick={() => {
+                if (isReadOnly) {
+                  if (!user) {
+                    router.push('/login');
+                  }
+                  return;
+                }
                 if (isSidebarOpen && sidebarMainTab === 'gap') {
                   setIsSidebarOpen(false);
                 } else {
@@ -1026,7 +1120,14 @@ export default function MindMapProjectPage() {
             <Button
               variant={isSidebarOpen && sidebarMainTab === 'star' ? "default" : "ghost"}
               size="sm"
+              disabled={isReadOnly}
               onClick={() => {
+                if (isReadOnly) {
+                  if (!user) {
+                    router.push('/login');
+                  }
+                  return;
+                }
                 if (isSidebarOpen && sidebarMainTab === 'star') {
                   setIsSidebarOpen(false);
                 } else {
@@ -1049,7 +1150,14 @@ export default function MindMapProjectPage() {
             <Button
               variant={isSidebarOpen && sidebarMainTab === 'assistant' ? "default" : "ghost"}
               size="sm"
+              disabled={isReadOnly}
               onClick={() => {
+                if (isReadOnly) {
+                  if (!user) {
+                    router.push('/login');
+                  }
+                  return;
+                }
                 if (isSidebarOpen && sidebarMainTab === 'assistant') {
                   setIsSidebarOpen(false);
                 } else {
@@ -1071,10 +1179,66 @@ export default function MindMapProjectPage() {
         </div>
       </div>
 
+      {/* 읽기 전용 모드 배너 */}
+      {isReadOnly && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 px-5 py-3">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
+                <Lock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                  읽기 전용 모드
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  마인드맵을 조회할 수 있습니다. 편집하려면 로그인이 필요합니다.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => router.push('/login')}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-[12px] px-4 py-2 text-sm font-semibold shadow-sm flex-shrink-0"
+            >
+              로그인하여 편집하기
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* 메인 영역 */}
       <div className="flex-1 relative overflow-hidden flex">
         {/* 마인드맵 캔버스 영역 */}
         <div className="flex-1 relative overflow-hidden">
+
+          {/* 활성 편집자 표시 (피그마 스타일) */}
+          {project?.isShared && activeEditors.length > 0 && (
+            <div className="absolute top-20 right-4 z-20 bg-white dark:bg-[#1a1a1a] rounded-[12px] border border-gray-200 dark:border-[#2a2a2a] shadow-lg p-3 min-w-[200px]">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="h-4 w-4 text-gray-500" />
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  현재 편집 중 ({activeEditors.length})
+                </span>
+              </div>
+              <div className="space-y-2">
+                {activeEditors.map((editor) => (
+                  <div key={editor.id} className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 flex items-center justify-center text-xs font-semibold">
+                      {(editor.userName || editor.userEmail || 'U').charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-xs text-gray-700 dark:text-gray-300 truncate flex-1">
+                      {editor.userName || editor.userEmail || '익명 사용자'}
+                    </span>
+                    {editor.userId === user?.id && (
+                      <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 rounded-full">
+                        나
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {/* 플로팅 툴바 */}
           {!isNodeView && (
             <MindMapToolbar
@@ -1118,11 +1282,14 @@ export default function MindMapProjectPage() {
                   alert('내보내기에 실패했습니다. 다시 시도해주세요.');
                 }
               }}
-              onShare={() => {
-                // TODO: 공유 기능 구현
-                console.log('공유 기능 구현 필요');
-              }}
+              onShare={isReadOnly ? undefined : handleOpenShareDialog}
               onSettings={() => {
+                if (isReadOnly) {
+                  if (!user) {
+                    router.push('/login');
+                  }
+                  return;
+                }
                 setShowSettingsDialog(true);
               }}
             />
@@ -1137,6 +1304,7 @@ export default function MindMapProjectPage() {
             showGrid={showGrid}
             colorTheme={settings.colorTheme}
             lineStyle={settings.lineStyle}
+            isReadOnly={isReadOnly}
             onNodesChange={(newNodes) => {
             if (isNodeView && activeTab?.nodeId) {
               // 노드 중심 뷰에서는 "좌표만" 원래 좌표계로 되돌리고,
@@ -1184,30 +1352,28 @@ export default function MindMapProjectPage() {
             setSelectedNodeId(nodeId);
           }}
           onNodeOpenSTAREditor={async (nodeId) => {
-            // STAR 에디터 열기
-            setSelectedNodeId(nodeId);
-            // 인덱스 맵 사용
-            const node = nodeMap.get(nodeId);
-            if (node) {
-              // 기존 STAR 데이터 로드
-              const existingAsset = await assetStorage.getByNodeId(nodeId);
-              if (existingAsset) {
-                setStarData({
-                  situation: existingAsset.situation,
-                  task: existingAsset.task,
-                  action: existingAsset.action,
-                  result: existingAsset.result,
-                });
-              } else {
-                setStarData(null);
+            // 읽기 전용 모드에서는 STAR 에디터 열기 불가
+            if (isReadOnly) {
+              if (!user) {
+                router.push('/login');
               }
-              setIsSTAREditorOpen(true);
+              return;
             }
+            // 해당 노드 선택
+            setSelectedNodeId(nodeId);
+            // 사이드바 열기 및 STAR 탭 활성화
+            setSidebarMainTab('star');
+            setIsSidebarOpen(true);
           }}
           onNodeEdit={handleNodeEdit}
           onNodeAddChild={handleNodeAddChild}
           onNodeDelete={(nodeId) => {
-            if (!project) return;
+            if (!project || isReadOnly) {
+              if (!user) {
+                router.push('/login');
+              }
+              return;
+            }
             
             // 하위 노드까지 재귀적으로 삭제 (인덱스 맵 사용)
             const deleteNodeAndChildren = (id: string): string[] => {
@@ -1247,8 +1413,6 @@ export default function MindMapProjectPage() {
               handleTabClose(tabToClose.id);
             }
           }}
-          onNodeShare={handleNodeShare}
-          onNodeUnshare={handleNodeUnshare}
           onNodeOpenInNewTab={handleNodeOpenInNewTab}
           onStartEdit={setEditingNodeId}
           onEndEdit={() => setEditingNodeId(null)}
@@ -1578,6 +1742,99 @@ export default function MindMapProjectPage() {
         </div>
       )}
 
+      {/* 공유 다이얼로그 */}
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent className="w-full max-w-[520px] sm:max-w-[640px] p-0 overflow-hidden">
+          <div className="p-6 space-y-6">
+            <DialogHeader className="space-y-2">
+              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                <Share2 className="h-5 w-5 text-blue-600" />
+                마인드맵 공유
+              </DialogTitle>
+              <DialogDescription className="text-sm text-gray-600 dark:text-gray-400">
+                피그마처럼 링크로 팀원에게 공유하고 함께 편집하세요.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="rounded-[16px] border border-gray-200 dark:border-[#2a2a2a] bg-gray-50/70 dark:bg-[#111111] p-4 space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">링크 액세스</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    링크가 있는 누구나 내용을 볼 수 있고 로그인 시 편집할 수 있어요.
+                  </p>
+                </div>
+                <Button
+                  onClick={project?.isShared ? handleProjectUnshare : handleProjectShare}
+                  disabled={isShareProcessing}
+                  className="rounded-[12px] w-full sm:w-auto"
+                >
+                  {project?.isShared ? '공유 해제' : '공유 켜기'}
+                </Button>
+              </div>
+
+              {project?.isShared ? (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-[12px] bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] text-sm text-gray-800 dark:text-gray-100 max-w-full">
+                    <Link2 className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                    <span className="block truncate text-xs max-w-[260px] sm:max-w-[320px]">
+                      {shareLink || '링크를 불러오는 중...'}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleCopyShareLink}
+                    className="rounded-[12px] px-3"
+                  >
+                    {shareCopyState === 'copied' ? (
+                      <span className="flex items-center gap-1 text-green-600">
+                        <Check className="h-4 w-4" />
+                        복사됨
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <Copy className="h-4 w-4" />
+                        링크 복사
+                      </span>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  공유를 켜면 링크가 생성되고 /mindmap/&lt;projectId&gt; 경로로 접근할 수 있어요.
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-[16px] border border-gray-200 dark:border-[#2a2a2a] p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                <Users className="h-4 w-4 text-blue-600" />
+                공동 작업자
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="h-9 w-9 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 flex items-center justify-center font-semibold">
+                    {(user?.name || user?.email || '나').slice(0, 1).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">{user?.name || '나'}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      {project?.isShared ? '편집 가능 (로그인 시)' : '공유 비활성화'}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs px-3 py-1 rounded-full bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] text-gray-600 dark:text-gray-300">
+                  소유자
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                링크가 있는 누구나 열람 가능하며, 로그인하면 편집이 허용됩니다.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* 설정 다이얼로그 */}
       <MindMapSettingsDialog
         isOpen={showSettingsDialog}
@@ -1599,6 +1856,88 @@ export default function MindMapProjectPage() {
           }
         }}
       />
+
+      {/* 공유 다이얼로그 */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent className="w-full max-w-[520px] sm:max-w-[640px]">
+          <DialogHeader>
+            <DialogTitle>공유</DialogTitle>
+            <DialogDescription>링크를 켜고 복사해서 팀원과 함께 보거나 편집하세요.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#111]">
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">프로젝트 공유</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">토글을 켜면 /mindmaps의 ‘공동 마인드맵’에 표시됩니다.</p>
+              </div>
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-blue-600"
+                checked={project?.isShared || false}
+                disabled={isSharingUpdate || !project}
+                onChange={async (e) => {
+                  const checked = e.target.checked;
+                  if (!project) return;
+                  setIsSharingUpdate(true);
+                  try {
+                    const updated: MindMapProject = {
+                      ...project,
+                      isShared: checked,
+                      sharedBy: checked ? user?.id : undefined,
+                      sharedByUser: checked && user ? { id: user.id, name: user.name || user.email || 'user' } : undefined,
+                      updatedAt: Date.now(),
+                    };
+                    await updateProject(projectId, updated);
+                    setProject(updated);
+                    if (typeof window !== 'undefined') {
+                      setShareLink(checked ? `${window.location.origin}/mindmap/${projectId}` : '');
+                    }
+                  } catch (error) {
+                    console.error('공유 상태 업데이트 실패', error);
+                    alert('공유 상태를 변경하지 못했습니다. 다시 시도해주세요.');
+                  } finally {
+                    setIsSharingUpdate(false);
+                  }
+                }}
+              />
+            </div>
+
+              <div className="space-y-2">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">링크 복사</p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-[12px] bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] text-sm text-gray-800 dark:text-gray-100 max-w-full">
+                  <Link2 className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                  <span className="block truncate text-xs max-w-[260px] sm:max-w-[320px]">
+                    {shareUrl || '링크를 불러오는 중...'}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    const url = shareUrl;
+                    try {
+                      await navigator.clipboard.writeText(url);
+                    } catch {
+                      const textarea = document.createElement('textarea');
+                      textarea.value = url;
+                      document.body.appendChild(textarea);
+                      textarea.select();
+                      document.execCommand('copy');
+                      document.body.removeChild(textarea);
+                    }
+                    alert('링크가 복사되었습니다.');
+                  }}
+                >
+                  링크 복사
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">공유가 켜진 상태에서 접속한 사용자는 보기/편집이 가능합니다.</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
     </DndProvider>
   );

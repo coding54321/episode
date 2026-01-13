@@ -163,6 +163,40 @@ export default function UnifiedSidebar({
   useEffect(() => {
     setMainTab(defaultMainTab);
   }, [defaultMainTab]);
+
+  // selectedNodeId가 에피소드 노드이고 STAR 탭이 활성화되어 있으면 자동으로 편집 화면 표시
+  useEffect(() => {
+    if (mainTab === 'star' && selectedNodeId) {
+      const selectedNode = nodes.find(n => n.id === selectedNodeId);
+      const isEpisodeNode = selectedNode && (selectedNode.nodeType === 'episode' || selectedNode.level === 3);
+      
+      if (isEpisodeNode && selectedNode) {
+        // 에피소드 노드이면 자동으로 편집 화면 표시
+        const loadStarData = async () => {
+          setSelectedEpisodeNodeId(selectedNode.id);
+          setStarEditorTitle(selectedNode.label);
+          
+          // 기존 STAR 데이터 로드
+          const existingAsset = await assetStorage.getByNodeId(selectedNode.id);
+          if (existingAsset) {
+            setStarEditorSituation(existingAsset.situation || '');
+            setStarEditorTask(existingAsset.task || '');
+            setStarEditorAction(existingAsset.action || '');
+            setStarEditorResult(existingAsset.result || '');
+            setStarEditorTags(existingAsset.tags ? [...existingAsset.tags] : []);
+          } else {
+            setStarEditorSituation('');
+            setStarEditorTask('');
+            setStarEditorAction('');
+            setStarEditorResult('');
+            setStarEditorTags([]);
+          }
+        };
+        
+        loadStarData();
+      }
+    }
+  }, [mainTab, selectedNodeId, nodes]);
   
   // 어시스턴트 탭 상태 (대화)
   const [assistantTab, setAssistantTab] = useState<'chat'>('chat');

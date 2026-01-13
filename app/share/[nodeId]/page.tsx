@@ -491,7 +491,6 @@ export default function SharePage() {
                 onNodeEdit={handleNodeEdit}
                 onNodeAddChild={handleNodeAddChild}
                 onNodeDelete={handleNodeDelete}
-                onNodeShare={() => {}} // 공유 노드에서는 공유 기능 비활성화
                 onStartEdit={setEditingNodeId}
                 onEndEdit={() => setEditingNodeId(null)}
                 projectId={sharedData.projectId}

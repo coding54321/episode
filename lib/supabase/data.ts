@@ -111,6 +111,59 @@ export async function getProject(projectId: string, userId: string): Promise<Min
   }
 }
 
+/**
+ * 공유된 프로젝트 조회 (로그인 없이도 접근 가능)
+ */
+export async function getSharedProject(projectId: string): Promise<MindMapProject | null> {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id' as any, projectId as any)
+      .eq('is_shared' as any, true as any)
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === 'PGRST116' || error.message?.includes('no rows')) {
+        return null;
+      }
+      throw error;
+    }
+
+    if (!data) return null;
+
+    // 노드 로드
+    const nodes = await getNodes(projectId);
+
+    const projectData = data as any;
+
+    return {
+      id: projectData.id,
+      name: projectData.name,
+      description: projectData.description || '',
+      badges: (projectData.badges as BadgeType[]) || [],
+      nodes,
+      nodeCount: nodes.length,
+      layoutType: projectData.layout_type || 'radial',
+      layoutConfig: projectData.layout_config || { autoLayout: true, spacing: { horizontal: 150, vertical: 120, radial: 160 } },
+      createdAt: new Date(projectData.created_at || '').getTime(),
+      updatedAt: new Date(projectData.updated_at || '').getTime(),
+      isDefault: projectData.is_default || false,
+      isFavorite: projectData.is_favorite || false,
+      isShared: projectData.is_shared || false,
+      sharedBy: projectData.shared_by || undefined,
+      sharedByUser: projectData.shared_by_user || undefined,
+    };
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log('Shared project query aborted');
+      return null;
+    }
+    console.error('Failed to get shared project:', error);
+    return null;
+  }
+}
+
 export async function createProject(
   project: Omit<MindMapProject, 'createdAt' | 'updatedAt'> & { userId?: string }
 ): Promise<MindMapProject | null> {
@@ -221,6 +274,9 @@ export async function updateProject(
     if (updates.isFavorite !== undefined) updateData.is_favorite = updates.isFavorite;
     if (updates.layoutType !== undefined) updateData.layout_type = updates.layoutType;
     if (updates.layoutConfig !== undefined) updateData.layout_config = updates.layoutConfig;
+    if (updates.isShared !== undefined) updateData.is_shared = updates.isShared;
+    if (updates.sharedBy !== undefined) updateData.shared_by = updates.sharedBy;
+    if (updates.sharedByUser !== undefined) updateData.shared_by_user = updates.sharedByUser;
 
     const { error } = await supabase
       .from('projects')
@@ -2178,3 +2234,98 @@ async function getCurrentUserId(): Promise<string | null> {
   }
 }
 
+// ==================== Active Editors ====================
+
+export interface ActiveEditor {
+  id: string;
+  projectId: string;
+  userId: string;
+  userName: string | null;
+  userEmail: string | null;
+  lastSeen: number;
+}
+
+/**
+ * 현재 사용자를 활성 편집자로 등록/업데이트
+ */
+export async function updateActiveEditor(projectId: string, userId: string, userName?: string, userEmail?: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('active_editors')
+      .upsert({
+        project_id: projectId,
+        user_id: userId,
+        user_name: userName || null,
+        user_email: userEmail || null,
+        last_seen: new Date().toISOString(),
+      }, {
+        onConflict: 'project_id,user_id',
+      });
+
+    if (error) {
+      console.error('Failed to update active editor:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Failed to update active editor:', error);
+    return false;
+  }
+}
+
+/**
+ * 프로젝트의 활성 편집자 목록 조회
+ */
+export async function getActiveEditors(projectId: string): Promise<ActiveEditor[]> {
+  try {
+    const { data, error } = await supabase
+      .from('active_editors')
+      .select('*')
+      .eq('project_id' as any, projectId as any)
+      .gte('last_seen' as any, new Date(Date.now() - 5 * 60 * 1000).toISOString() as any) // 5분 이내 활동만
+      .order('last_seen', { ascending: false });
+
+    if (error) {
+      console.error('Failed to get active editors:', error);
+      return [];
+    }
+
+    if (!data) return [];
+
+    return (data as any[]).map((e: any) => ({
+      id: e.id,
+      projectId: e.project_id,
+      userId: e.user_id,
+      userName: e.user_name || null,
+      userEmail: e.user_email || null,
+      lastSeen: new Date(e.last_seen).getTime(),
+    }));
+  } catch (error) {
+    console.error('Failed to get active editors:', error);
+    return [];
+  }
+}
+
+/**
+ * 현재 사용자를 활성 편집자에서 제거
+ */
+export async function removeActiveEditor(projectId: string, userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('active_editors')
+      .delete()
+      .eq('project_id' as any, projectId as any)
+      .eq('user_id' as any, userId as any);
+
+    if (error) {
+      console.error('Failed to remove active editor:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Failed to remove active editor:', error);
+    return false;
+  }
+}

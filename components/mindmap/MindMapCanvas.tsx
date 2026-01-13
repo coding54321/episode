@@ -27,8 +27,6 @@ interface MindMapCanvasProps {
   onNodeEdit: (nodeId: string, label: string) => void;
   onNodeAddChild: (nodeId: string, direction?: 'right' | 'left' | 'top' | 'bottom') => void;
   onNodeDelete: (nodeId: string) => void;
-  onNodeShare: (nodeId: string) => void;
-  onNodeUnshare?: (nodeId: string) => void;
   onNodeOpenInNewTab?: (nodeId: string) => void;
   onNodeOpenSTAREditor?: (nodeId: string) => void; // STAR 에디터 열기
   onStartEdit: (nodeId: string) => void;
@@ -55,8 +53,6 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
   onNodeEdit,
   onNodeAddChild,
   onNodeDelete,
-  onNodeShare,
-  onNodeUnshare,
   onNodeOpenInNewTab,
   onNodeOpenSTAREditor,
   onStartEdit,
@@ -944,8 +940,6 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
                 onEdit={onNodeEdit}
                 onAddChild={handleAddChild}
                 onDelete={handleDelete}
-                onShare={onNodeShare}
-                onUnshare={onNodeUnshare}
                 onOpenInNewTab={onNodeOpenInNewTab}
                 onOpenSTAREditor={onNodeOpenSTAREditor}
                 onDragStart={handleNodeDragStart}

@@ -465,7 +465,7 @@ export default function MindMapsPage() {
                           {project.isShared && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
                               <Users className="h-3 w-3" />
-                              공유받음
+                              공동 작업
                             </span>
                           )}
                         <span className="font-medium">

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MindMapNode as NodeType, GapTag, ColorTheme } from '@/types';
 import { getNodeColors } from '@/lib/mindmap-theme';
-import { Plus, Share2, ExternalLink, XCircle, Copy, FileText } from 'lucide-react';
+import { Plus, ExternalLink, FileText } from 'lucide-react';
 import { useDrop } from 'react-dnd';
 import {
   ContextMenu,
@@ -21,8 +21,6 @@ interface MindMapNodeProps {
   onEdit: (nodeId: string, label: string) => void;
   onAddChild: (nodeId: string, direction?: 'right' | 'left' | 'top' | 'bottom') => void;
   onDelete: (nodeId: string) => void;
-  onShare: (nodeId: string) => void;
-  onUnshare?: (nodeId: string) => void;
   onOpenInNewTab?: (nodeId: string) => void;
   onOpenSTAREditor?: (nodeId: string) => void; // STAR 에디터 열기
   onDragStart: (nodeId: string, e: React.MouseEvent) => void;
@@ -47,8 +45,6 @@ export default function MindMapNode({
   onEdit,
   onAddChild,
   onDelete,
-  onShare,
-  onUnshare,
   onOpenInNewTab,
   onOpenSTAREditor,
   onDragStart,
@@ -91,8 +87,6 @@ export default function MindMapNode({
   const isEpisodeNode = node.level === 3 || node.nodeType === 'episode';
   const isDetailNode = node.level >= 4 || node.nodeType === 'detail';
   
-  // 공유 배지는 최상단 노드(isShared=true)에만 표시
-  const sharedBadge = node.isShared;
   // 공유 경로 스타일은 isSharedPath 또는 node.isShared일 때 적용
   const isInSharedPath = isSharedPath || node.isShared;
   
@@ -257,17 +251,6 @@ export default function MindMapNode({
               >
                 {typeof node.label === 'string' ? node.label : '노드'}
               </div>
-            )}
-
-            {/* 공유 표시 아이콘 */}
-            {sharedBadge && (
-              <div className="absolute -top-2 -right-2 px-2 py-1 text-[10px] font-semibold bg-green-500 text-white rounded-full shadow-sm flex items-center gap-1">
-                <Share2 className="w-3 h-3" />
-                공유
-              </div>
-            )}
-            {sharedBadge && !isRootNode && (
-              <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-green-500 shadow" />
             )}
 
             {/* 4방향 추가 버튼들 (모든 노드에서 가능) - 읽기 전용이면 숨김 */}
@@ -440,53 +423,6 @@ export default function MindMapNode({
           <ContextMenuItem onClick={() => onOpenSTAREditor(node.id)}>
             <FileText className="w-4 h-4 mr-2" />
             STAR 정리하기
-          </ContextMenuItem>
-        )}
-        {node.isShared ? (
-          <>
-            <ContextMenuItem 
-              onClick={() => {
-                if (node.sharedLink) {
-                  // 상대 경로인 경우 전체 URL로 변환하여 복사
-                  const fullUrl = node.sharedLink.startsWith('http')
-                    ? node.sharedLink
-                    : `${window.location.origin}${node.sharedLink}`;
-                  navigator.clipboard.writeText(fullUrl).then(() => {
-                    const toast = document.createElement('div');
-                    toast.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-3 rounded-[12px] text-sm font-medium shadow-lg z-50 transition-all duration-300';
-                    toast.innerHTML = `
-                      <div class="flex items-center gap-2">
-                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                        </svg>
-                        <span>링크가 복사되었어요</span>
-                      </div>
-                    `;
-                    document.body.appendChild(toast);
-                    setTimeout(() => {
-                      toast.style.opacity = '0';
-                      setTimeout(() => document.body.removeChild(toast), 300);
-                    }, 2000);
-                  });
-                }
-              }}
-              className="text-blue-600"
-            >
-              <Copy className="w-4 h-4 mr-2" />
-              링크 복사하기
-            </ContextMenuItem>
-            <ContextMenuItem 
-              onClick={() => onUnshare?.(node.id)}
-              className="text-orange-600"
-            >
-              <XCircle className="w-4 h-4 mr-2" />
-              공유 중지
-            </ContextMenuItem>
-          </>
-        ) : (
-          <ContextMenuItem onClick={() => onShare(node.id)}>
-            <Share2 className="w-4 h-4 mr-2" />
-            공유하기
           </ContextMenuItem>
         )}
         {onOpenInNewTab && (

@@ -190,12 +190,58 @@ export type Database = {
           },
         ]
       }
+      active_editors: {
+        Row: {
+          created_at: string
+          id: string
+          last_seen: string
+          project_id: string
+          user_email: string | null
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_seen?: string
+          project_id: string
+          user_email?: string | null
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_seen?: string
+          project_id?: string
+          user_email?: string | null
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "active_editors_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "active_editors_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nodes: {
         Row: {
           badge_type: string | null
           created_at: number
           custom_label: string | null
           id: string
+          is_manually_positioned: boolean | null
           is_shared: boolean | null
           label: string
           level: number
@@ -212,6 +258,7 @@ export type Database = {
           created_at: number
           custom_label?: string | null
           id: string
+          is_manually_positioned?: boolean | null
           is_shared?: boolean | null
           label: string
           level?: number
@@ -228,6 +275,7 @@ export type Database = {
           created_at?: number
           custom_label?: string | null
           id?: string
+          is_manually_positioned?: boolean | null
           is_shared?: boolean | null
           label?: string
           level?: number
@@ -263,8 +311,13 @@ export type Database = {
           description: string | null
           id: string
           is_default: boolean | null
-          is_favorite: boolean | null
+          is_favorite: boolean
+          is_shared: boolean | null
+          layout_config: Json | null
+          layout_type: string | null
           name: string
+          shared_by: string | null
+          shared_by_user: Json | null
           updated_at: string | null
           user_id: string
         }
@@ -274,8 +327,13 @@ export type Database = {
           description?: string | null
           id?: string
           is_default?: boolean | null
-          is_favorite?: boolean | null
+          is_favorite?: boolean
+          is_shared?: boolean | null
+          layout_config?: Json | null
+          layout_type?: string | null
           name: string
+          shared_by?: string | null
+          shared_by_user?: Json | null
           updated_at?: string | null
           user_id: string
         }
@@ -285,8 +343,13 @@ export type Database = {
           description?: string | null
           id?: string
           is_default?: boolean | null
-          is_favorite?: boolean | null
+          is_favorite?: boolean
+          is_shared?: boolean | null
+          layout_config?: Json | null
+          layout_type?: string | null
           name?: string
+          shared_by?: string | null
+          shared_by_user?: Json | null
           updated_at?: string | null
           user_id?: string
         }
