@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Brain, MessageSquare, FileText, Sparkles, ChevronDown, User, Map, LogOut, Archive } from 'lucide-react';
+import { User, Map, LogOut, Archive } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef } from 'react';
 import { useUnifiedAuth } from '@/lib/auth/unified-auth-context';
@@ -13,7 +13,6 @@ import { ThemeToggle } from '@/components/theme-toggle';
 export default function FloatingHeader() {
   const router = useRouter();
   const { user, loading, signOut } = useUnifiedAuth();
-  const [isFeaturesOpen, setIsFeaturesOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -31,7 +30,7 @@ export default function FloatingHeader() {
     >
       <div className="bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-xl rounded-full shadow-lg border border-gray-200/50 dark:border-[#2a2a2a]/50 px-6 py-3 glow-subtle">
         <div className="flex items-center justify-between">
-          {/* 왼쪽: 로고 + 네비게이션 */}
+          {/* 왼쪽: 로고 */}
           <div className="flex items-center gap-8">
             {/* 로고 */}
             <Link href="/" className="flex items-center gap-2">
@@ -45,82 +44,6 @@ export default function FloatingHeader() {
               />
             </Link>
 
-            {/* 네비게이션 */}
-            <nav className="hidden md:flex items-center gap-8">
-              {/* 기능 드롭다운 */}
-              <div 
-                className="relative"
-                onMouseEnter={() => setIsFeaturesOpen(true)}
-                onMouseLeave={() => setIsFeaturesOpen(false)}
-              >
-                <button className="flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-[#e5e5e5] hover:text-gray-900 dark:hover:text-white transition-colors">
-                  기능
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isFeaturesOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                <AnimatePresence>
-                  {isFeaturesOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute top-full left-1/2 -translate-x-1/2 mt-4 w-[280px] glass-card rounded-[20px] shadow-2xl p-3"
-                    >
-                      <div className="flex flex-col gap-1">
-                        <Link href="/features/mindmap" className="p-3 rounded-xl hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 transition-colors group">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-blue-50 dark:bg-[#1e3a8a]/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <Brain className="w-5 h-5 text-blue-600 dark:text-[#60A5FA]" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-sm text-gray-900 dark:text-[#e5e5e5] group-hover:text-blue-600 dark:group-hover:text-[#60A5FA] transition-colors">
-                                마인드맵
-                              </h3>
-                              <p className="text-xs text-gray-600 dark:text-[#a0a0a0] leading-snug truncate">
-                                경험을 시각적으로 구조화
-                              </p>
-                            </div>
-                          </div>
-                        </Link>
-
-                        <Link href="/features/gap-diagnosis" className="p-3 rounded-xl hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 transition-colors group">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-orange-50 dark:bg-[#1e3a8a]/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <Sparkles className="w-5 h-5 text-orange-600 dark:text-[#60A5FA]" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-sm text-gray-900 dark:text-[#e5e5e5] group-hover:text-orange-600 dark:group-hover:text-[#60A5FA] transition-colors">
-                                공백 진단
-                              </h3>
-                              <p className="text-xs text-gray-600 dark:text-[#a0a0a0] leading-snug truncate">
-                                기출 자소서 문항 기반 약점 분석
-                              </p>
-                            </div>
-                          </div>
-                        </Link>
-
-                        <Link href="/features/archive" className="p-3 rounded-xl hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 transition-colors group">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-green-50 dark:bg-[#1e3a8a]/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                              <Archive className="w-5 h-5 text-green-600 dark:text-[#60A5FA]" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-sm text-gray-900 dark:text-[#e5e5e5] group-hover:text-green-600 dark:group-hover:text-[#60A5FA] transition-colors">
-                                에피소드 아카이브
-                              </h3>
-                              <p className="text-xs text-gray-600 dark:text-[#a0a0a0] leading-snug truncate">
-                                STAR 기법으로 경험 정리
-                              </p>
-                            </div>
-                          </div>
-                        </Link>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </nav>
           </div>
 
           {/* 오른쪽: 테마 토글 + 로그인/가입 버튼 또는 사용자 정보 */}

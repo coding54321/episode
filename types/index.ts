@@ -189,13 +189,9 @@ export interface LayoutConfig {
 // 색상 테마 타입
 export type ColorTheme = 'default' | 'pastel' | 'vivid' | 'monochrome';
 
-// 연결선 스타일 타입
-export type LineStyle = 'straight' | 'curved';
-
 // 마인드맵 설정
 export interface MindMapSettings {
   colorTheme: ColorTheme;
-  lineStyle: LineStyle;
   showGrid?: boolean;
 }
 

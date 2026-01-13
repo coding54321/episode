@@ -4,16 +4,13 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Maximize2,
-  Layout,
   Grid3x3,
   Undo2,
   Redo2,
   Download,
   Share2,
   Settings,
-  RotateCcw,
 } from 'lucide-react';
-import { LayoutType } from '@/types';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,9 +27,6 @@ import {
 
 interface MindMapToolbarProps {
   onFitToScreen: () => void;
-  onAutoLayout: () => void;
-  currentLayout: LayoutType;
-  onLayoutChange: (layout: LayoutType) => void;
   onToggleGrid: () => void;
   showGrid: boolean;
   onUndo?: () => void;
@@ -46,9 +40,6 @@ interface MindMapToolbarProps {
 
 export default function MindMapToolbar({
   onFitToScreen,
-  onAutoLayout,
-  currentLayout,
-  onLayoutChange,
   onToggleGrid,
   showGrid,
   onUndo,
@@ -59,7 +50,6 @@ export default function MindMapToolbar({
   onShare,
   onSettings,
 }: MindMapToolbarProps) {
-  const [showLayoutSelector, setShowLayoutSelector] = useState(false);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -81,71 +71,6 @@ export default function MindMapToolbar({
           </TooltipContent>
         </Tooltip>
 
-        {/* 자동 정렬 */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onAutoLayout}
-              className="h-9 w-9 p-0 bg-white dark:bg-[#1a1a1a] shadow-lg border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            <p>자동 정렬</p>
-          </TooltipContent>
-        </Tooltip>
-
-      {/* 레이아웃 선택 */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DropdownMenu open={showLayoutSelector} onOpenChange={setShowLayoutSelector}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-9 w-9 p-0 bg-white dark:bg-[#1a1a1a] shadow-lg border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg ${
-                  showLayoutSelector ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500' : ''
-                }`}
-              >
-                <Layout className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
-          {[
-            { type: 'radial' as LayoutType, label: '원형 레이아웃', description: '중심 노드를 기준으로 원형 배치 (XMind 스타일)' },
-            { type: 'tree' as LayoutType, label: '트리형 레이아웃', description: '좌우 대칭 트리 구조 배치' },
-          ].map((option) => (
-            <DropdownMenuItem
-              key={option.type}
-              onClick={() => {
-                onLayoutChange(option.type);
-                setShowLayoutSelector(false);
-              }}
-              className={`flex items-start gap-3 p-3 ${
-                currentLayout === option.type ? 'bg-blue-50 dark:bg-blue-900/30' : ''
-              }`}
-            >
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm">{option.label}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  {option.description}
-                </div>
-              </div>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-        </TooltipTrigger>
-        <TooltipContent side="right">
-          <p>레이아웃 변경</p>
-        </TooltipContent>
-      </Tooltip>
-
-      {/* 구분선 */}
-      <div className="h-px bg-gray-200 dark:bg-[#2a2a2a] my-1" />
 
       {/* 그리드 토글 */}
       <Tooltip>

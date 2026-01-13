@@ -76,7 +76,6 @@ export default function MindMapProjectPage() {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [settings, setSettings] = useState<MindMapSettings>({
     colorTheme: 'default',
-    lineStyle: 'straight',
     showGrid: false,
   });
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
@@ -1243,26 +1242,6 @@ export default function MindMapProjectPage() {
           {!isNodeView && (
             <MindMapToolbar
               onFitToScreen={() => canvasRef.current?.fitToScreen()}
-              onAutoLayout={async () => {
-                if (!project) return;
-                const layoutConfig = project.layoutConfig || { autoLayout: true };
-                const layoutedNodes = applyLayout(nodes, project.layoutType || 'radial', layoutConfig);
-                handleNodesChange(layoutedNodes, false);
-              }}
-              currentLayout={project?.layoutType || 'radial'}
-              onLayoutChange={async (newLayout: LayoutType) => {
-                if (!project || !user) return;
-                const updatedProject = {
-                  ...project,
-                  layoutType: newLayout,
-                  updatedAt: Date.now(),
-                };
-                const layoutConfig = project.layoutConfig || { autoLayout: true };
-                const layoutedNodes = applyLayout(nodes, newLayout, layoutConfig);
-                await updateProject(projectId, updatedProject);
-                setProject(updatedProject);
-                handleNodesChange(layoutedNodes, false);
-              }}
               onToggleGrid={() => setShowGrid(!showGrid)}
               showGrid={showGrid}
               onExport={async (type: 'image' | 'pdf') => {
@@ -1303,7 +1282,6 @@ export default function MindMapProjectPage() {
             focusNodeId={!isNodeView ? focusNodeId : null}
             showGrid={showGrid}
             colorTheme={settings.colorTheme}
-            lineStyle={settings.lineStyle}
             isReadOnly={isReadOnly}
             onNodesChange={(newNodes) => {
             if (isNodeView && activeTab?.nodeId) {
@@ -1751,9 +1729,6 @@ export default function MindMapProjectPage() {
                 <Share2 className="h-5 w-5 text-blue-600" />
                 마인드맵 공유
               </DialogTitle>
-              <DialogDescription className="text-sm text-gray-600 dark:text-gray-400">
-                피그마처럼 링크로 팀원에게 공유하고 함께 편집하세요.
-              </DialogDescription>
             </DialogHeader>
 
             <div className="rounded-[16px] border border-gray-200 dark:border-[#2a2a2a] bg-gray-50/70 dark:bg-[#111111] p-4 space-y-3">
@@ -1840,6 +1815,19 @@ export default function MindMapProjectPage() {
         isOpen={showSettingsDialog}
         onClose={() => setShowSettingsDialog(false)}
         settings={settings}
+        currentLayout={project?.layoutType || 'radial'}
+        onLayoutChange={async (newLayout: LayoutType) => {
+          if (!project || !user) return;
+          const updatedProject = {
+            ...project,
+            layoutType: newLayout,
+            updatedAt: Date.now(),
+          };
+          await updateProject(projectId, { layoutType: newLayout });
+          await mindMapProjectStorage.update(projectId, updatedProject);
+          setProject(updatedProject);
+          applyLayout(nodes, newLayout, project.layoutConfig || {});
+        }}
         onSettingsChange={async (newSettings) => {
           setSettings(newSettings);
           setShowGrid(newSettings.showGrid || false);

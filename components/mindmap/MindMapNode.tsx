@@ -81,7 +81,7 @@ export default function MindMapNode({
   }), [node.id, onTagDrop]);
 
   // 노드 타입별 스타일 결정
-  const isRootNode = node.id === 'center' || node.nodeType === 'center';
+  const isRootNode = node.nodeType === 'center' || node.level === 0;
   const isBadgeNode = node.level === 1 || node.nodeType === 'category';
   const isExperienceNode = node.level === 2 || node.nodeType === 'experience';
   const isEpisodeNode = node.level === 3 || node.nodeType === 'episode';
@@ -411,7 +411,7 @@ export default function MindMapNode({
               <Plus className="w-4 h-4 mr-2" />
               하위 노드 추가
             </ContextMenuItem>
-            {node.id !== 'center' && (
+            {(node.nodeType !== 'center' && node.level !== 0) && (
               <ContextMenuItem onClick={() => onStartEdit(node.id)}>
                 이름 변경
               </ContextMenuItem>

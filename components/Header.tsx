@@ -85,7 +85,7 @@ export default function Header({
           // 프로젝트 또는 노드가 매칭되면 결과에 추가
           if (projectMatches || nodeMatches) {
             // 중앙 노드와 배지 노드는 제외
-            if (node.id === 'center' || node.id.startsWith('badge_')) {
+            if ((node.nodeType === 'center' || node.level === 0) || (node.id.startsWith(`${project.id}_badge_`) || node.nodeType === 'category')) {
               continue;
             }
 
@@ -126,7 +126,7 @@ export default function Header({
     while (currentNode) {
       const label = typeof currentNode.label === 'string' ? currentNode.label : '노드';
       // center와 배지 노드는 경로에서 제외
-      if (currentNode.id !== 'center' && !currentNode.id.startsWith('badge_')) {
+      if ((currentNode.nodeType !== 'center' && currentNode.level !== 0) && currentNode.nodeType !== 'category') {
         path.unshift(label);
       }
       

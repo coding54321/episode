@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { MindMapNode as NodeType, GapTag, ColorTheme, LineStyle } from '@/types';
+import { MindMapNode as NodeType, GapTag, ColorTheme } from '@/types';
 import { mindMapStorage } from '@/lib/storage';
 import MindMapNode from './MindMapNode';
 import ZoomControl from './ZoomControl';
@@ -41,7 +41,6 @@ interface MindMapCanvasProps {
   showGrid?: boolean; // 그리드 표시 여부
   onZoomChange?: (zoom: number) => void; // 줌 변경 콜백
   colorTheme?: ColorTheme; // 색상 테마
-  lineStyle?: LineStyle; // 연결선 스타일
 }
 
 const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(function MindMapCanvas({
@@ -67,7 +66,6 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
   showGrid = false,
   onZoomChange,
   colorTheme = 'default',
-  lineStyle = 'straight',
 }, ref) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -166,9 +164,11 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
             y: centerY,
           });
         } else {
-          // 메인 뷰: center 노드(id === 'center')를 화면 중앙에 맞춤
+          // 메인 뷰: center 노드(nodeType === 'center' 또는 level === 0)를 화면 중앙에 맞춤
           // 인덱스 맵 사용
-          const centerNode = nodeMap.get('center');
+          const centerNode = Array.from(nodeMap.values()).find(
+            node => node.nodeType === 'center' || node.level === 0
+          );
           if (centerNode) {
             // center 노드의 절대 좌표를 화면 중앙으로 이동시키기 위한 pan 계산
             // 노드 좌표 * zoom + pan = 화면 중앙 좌표
@@ -350,9 +350,9 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
         const centerY = rect.height / 2;
         const currentZoom = 1; // zoom은 이미 1로 설정됨
         
-        // 메인 뷰: center 노드(id === 'center')를 화면 중앙에 맞춤 (초기 로드 시와 동일)
+        // 메인 뷰: center 노드(nodeType === 'center' 또는 level === 0)를 화면 중앙에 맞춤 (초기 로드 시와 동일)
         // nodes 배열에서 직접 찾기 (nodeMap은 아직 초기화되지 않았을 수 있음)
-        const centerNode = nodes.find(node => node.id === 'center');
+        const centerNode = nodes.find(node => node.nodeType === 'center' || node.level === 0);
         if (centerNode) {
           // center 노드의 절대 좌표를 화면 중앙으로 이동시키기 위한 pan 계산
           // 노드 좌표 * zoom + pan = 화면 중앙 좌표
@@ -869,29 +869,7 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
             const x2 = nodeX - canvasBounds.minX;
             const y2 = nodeY - canvasBounds.minY;
 
-            // 곡선 스타일일 경우 베지어 곡선 경로 생성
-            if (lineStyle === 'curved') {
-              const dx = x2 - x1;
-              const dy = y2 - y1;
-              const cx1 = x1 + dx * 0.5;
-              const cy1 = y1;
-              const cx2 = x1 + dx * 0.5;
-              const cy2 = y2;
-              const path = `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
-
-              return (
-                <path
-                  key={`line_${node.id}`}
-                  d={path}
-                  stroke={isSharedLine ? themeColors.lineShared : themeColors.line}
-                  strokeWidth={isSharedLine ? 2.6 : 2}
-                  strokeLinecap="round"
-                  fill="none"
-                />
-              );
-            }
-
-            // 직선 스타일
+            // 직선으로 연결 (연결선 스타일 기능 제거됨)
             return (
               <line
                 key={`line_${node.id}`}

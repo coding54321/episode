@@ -78,9 +78,10 @@ export default function BadgeSelectionPage() {
       'other': '기타',
     };
 
-    // 중앙 노드 생성
+    // 중앙 노드 생성 (프로젝트별 고유 ID)
+    const centerNodeId = `${projectId}_center`;
     const centerNode: MindMapNode = {
-      id: 'center',
+      id: centerNodeId,
       label: user.name || '나',
       parentId: null,
       children: [],
@@ -94,7 +95,7 @@ export default function BadgeSelectionPage() {
 
     // 배지 노드들 생성 (임시 좌표, 자동 레이아웃에서 재계산됨)
     const badgeNodes: MindMapNode[] = selectedBadges.map((badgeId, index) => {
-      const nodeId = `badge_${badgeId}_${index}`;
+      const nodeId = `${projectId}_badge_${badgeId}_${index}`;
       
       centerNode.children.push(nodeId);
       
@@ -106,7 +107,7 @@ export default function BadgeSelectionPage() {
       return {
         id: nodeId,
         label: displayLabel,
-        parentId: 'center',
+        parentId: centerNodeId,
         children: [],
         x: 500, // 임시 좌표 (자동 레이아웃에서 재계산됨)
         y: 300,
@@ -160,9 +161,10 @@ export default function BadgeSelectionPage() {
     const projectId = crypto.randomUUID();
     const projectName = `${user.name}의 경험 맵`;
 
-    // 중앙 노드만 생성
+    // 중앙 노드만 생성 (프로젝트별 고유 ID)
+    const centerNodeId = `${projectId}_center`;
     const centerNode: MindMapNode = {
-      id: 'center',
+      id: centerNodeId,
       label: user.name || '나',
       parentId: null,
       children: [],

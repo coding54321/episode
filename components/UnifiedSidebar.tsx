@@ -1154,7 +1154,7 @@ export default function UnifiedSidebar({
                   </div>
 
                   {/* STAR 구성 요소 */}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-[#e5e5e5] mb-2">
                         <Badge variant="outline" className="mr-2">S</Badge>

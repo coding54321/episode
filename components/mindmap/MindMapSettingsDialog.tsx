@@ -1,6 +1,6 @@
 'use client';
 
-import { ColorTheme, LineStyle, MindMapSettings } from '@/types';
+import { ColorTheme, MindMapSettings, LayoutType } from '@/types';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { colorThemes as lightThemes } from '@/lib/mindmap-theme';
@@ -10,6 +10,8 @@ interface MindMapSettingsDialogProps {
   onClose: () => void;
   settings: MindMapSettings;
   onSettingsChange: (settings: MindMapSettings) => void;
+  currentLayout: LayoutType;
+  onLayoutChange: (layout: LayoutType) => void;
 }
 
 const colorThemes: { value: ColorTheme; label: string; description: string; preview: string[] }[] = [
@@ -59,16 +61,16 @@ const colorThemes: { value: ColorTheme; label: string; description: string; prev
   },
 ];
 
-const lineStyles: { value: LineStyle; label: string; description: string }[] = [
+const layoutOptions: { value: LayoutType; label: string; description: string }[] = [
   {
-    value: 'straight',
-    label: '직선',
-    description: '깔끔하고 명확한 연결',
+    value: 'radial',
+    label: '원형 레이아웃',
+    description: '중심 노드를 기준으로 원형 배치',
   },
   {
-    value: 'curved',
-    label: '곡선',
-    description: '부드럽고 자연스러운 연결',
+    value: 'tree',
+    label: '트리형 레이아웃',
+    description: '좌우 대칭 트리 구조 배치',
   },
 ];
 
@@ -77,6 +79,8 @@ export default function MindMapSettingsDialog({
   onClose,
   settings,
   onSettingsChange,
+  currentLayout,
+  onLayoutChange,
 }: MindMapSettingsDialogProps) {
   if (!isOpen) return null;
 
@@ -84,8 +88,8 @@ export default function MindMapSettingsDialog({
     onSettingsChange({ ...settings, colorTheme: theme });
   };
 
-  const handleLineStyleChange = (lineStyle: LineStyle) => {
-    onSettingsChange({ ...settings, lineStyle });
+  const handleLayoutChange = (layout: LayoutType) => {
+    onLayoutChange(layout);
   };
 
   return (
@@ -158,58 +162,32 @@ export default function MindMapSettingsDialog({
           </div>
         </div>
 
-        {/* 연결선 스타일 설정 */}
+        {/* 레이아웃 설정 */}
         <div className="mb-8">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5] mb-4">연결선 스타일</h3>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5] mb-4">레이아웃</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {lineStyles.map((style) => (
+            {layoutOptions.map((option) => (
               <button
-                key={style.value}
-                onClick={() => handleLineStyleChange(style.value)}
+                key={option.value}
+                onClick={() => handleLayoutChange(option.value)}
                 className={`p-4 rounded-[16px] border-2 transition-all text-left ${
-                  settings.lineStyle === style.value
+                  currentLayout === option.value
                     ? 'border-blue-600 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                     : 'border-gray-200 dark:border-[#2a2a2a] hover:border-gray-300 dark:hover:border-[#3a3a3a] bg-white dark:bg-[#0a0a0a]'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  {/* 스타일 프리뷰 */}
-                  <div className="w-16 h-12 bg-gray-100 dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center">
-                    {style.value === 'straight' ? (
-                      <svg width="40" height="24" viewBox="0 0 40 24">
-                        <line
-                          x1="4"
-                          y1="12"
-                          x2="36"
-                          y2="12"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          className="text-gray-600 dark:text-[#a0a0a0]"
-                        />
-                      </svg>
-                    ) : (
-                      <svg width="40" height="24" viewBox="0 0 40 24">
-                        <path
-                          d="M 4 12 Q 20 4, 36 12"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          fill="none"
-                          className="text-gray-600 dark:text-[#a0a0a0]"
-                        />
-                      </svg>
-                    )}
-                  </div>
+                <div className="flex items-start gap-3">
                   <div className="flex-1">
                     <div className="font-semibold text-gray-900 dark:text-[#e5e5e5] mb-1">
-                      {style.label}
-                      {settings.lineStyle === style.value && (
+                      {option.label}
+                      {currentLayout === option.value && (
                         <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
                           ✓ 적용됨
                         </span>
                       )}
                     </div>
                     <div className="text-xs text-gray-600 dark:text-[#a0a0a0]">
-                      {style.description}
+                      {option.description}
                     </div>
                   </div>
                 </div>

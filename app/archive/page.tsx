@@ -10,7 +10,13 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Filter, Download, Edit, Plus, Save, X } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Search, Filter, Download, Edit, Plus, Save, X, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import FloatingHeader from '@/components/FloatingHeader';
 
@@ -46,6 +52,8 @@ export default function ArchivePage() {
   const [selectedCategory, setSelectedCategory] = useState<BadgeType | 'all'>('all');
   const [selectedTag, setSelectedTag] = useState<string | 'all'>('all');
   const [allTags, setAllTags] = useState<string[]>([]);
+  const [projects, setProjects] = useState<MindMapProject[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | 'all'>('all');
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{
     situation: string;
@@ -78,11 +86,17 @@ export default function ArchivePage() {
     try {
       setIsLoading(true);
       
-      const projects = await mindMapProjectStorage.load();
+      const projectsList = await mindMapProjectStorage.load();
+      console.log('[archive/page] 프로젝트 목록 로드 시작', { 
+        projectsListCount: projectsList.length,
+        projectsList: projectsList.map(p => ({ id: p.id, name: p.name }))
+      });
+      
       const items: ArchiveItem[] = [];
       const tagsSet = new Set<string>();
+      const projectsData: MindMapProject[] = [];
 
-      for (const projectSummary of projects) {
+      for (const projectSummary of projectsList) {
       // 각 프로젝트의 전체 데이터(노드 포함)를 Supabase에서 로드
       const project = await mindMapProjectStorage.get(projectSummary.id);
       if (!project) {
@@ -90,15 +104,23 @@ export default function ArchivePage() {
         continue;
       }
 
-      console.log('[archive/page] 프로젝트 로드', {
+      // 프로젝트 정보 저장 (center 노드가 없어도 드롭다운에 표시하기 위해 먼저 추가)
+      projectsData.push(project);
+
+      console.log('[archive/page] 프로젝트 로드 완료', {
         projectId: project.id,
         projectName: project.name,
         nodeCount: project.nodes.length,
+        hasCenterNode: project.nodes.some(n => n.level === 0 || n.nodeType === 'center'),
       });
 
       // 중심 노드만 있는 경우 (레벨 0만 있는 경우)
-      const centerNode = project.nodes.find(n => n.level === 0);
-      if (!centerNode) continue;
+      const centerNode = project.nodes.find(n => n.level === 0 || n.nodeType === 'center');
+      if (!centerNode) {
+        // center 노드가 없어도 프로젝트는 드롭다운에 표시되므로 계속 진행
+        console.log('[archive/page] center 노드 없음, 프로젝트만 드롭다운에 표시', { projectId: project.id });
+        continue;
+      }
 
       // 노드를 레벨별로 그룹화
       const nodesByLevel = groupNodesByLevel(project.nodes);
@@ -220,6 +242,28 @@ export default function ArchivePage() {
       setArchiveItems(items);
       setFilteredItems(items);
       setAllTags(Array.from(tagsSet).sort());
+      
+      // 프로젝트 목록 저장 (중복 제거)
+      const uniqueProjects = projectsData.filter((project, index, self) =>
+        index === self.findIndex((p) => p.id === project.id)
+      );
+      
+      console.log('[archive/page] 프로젝트 데이터 저장 직전', {
+        projectsDataCount: projectsData.length,
+        uniqueProjectsCount: uniqueProjects.length,
+        projectNames: uniqueProjects.map(p => p.name),
+        projectIds: uniqueProjects.map(p => p.id),
+      });
+      
+      setProjects(uniqueProjects);
+      
+      console.log('[archive/page] 데이터 로드 완료', {
+        totalItems: items.length,
+        totalProjects: uniqueProjects.length,
+        projectNames: uniqueProjects.map(p => p.name),
+        projectIds: uniqueProjects.map(p => p.id),
+      });
+      
       setIsLoading(false);
     } catch (error) {
       console.error('Failed to load archive data:', error);
@@ -242,6 +286,11 @@ export default function ArchivePage() {
   // 필터링 및 검색
   useEffect(() => {
     let filtered = [...archiveItems];
+
+    // 프로젝트 필터
+    if (selectedProjectId !== 'all') {
+      filtered = filtered.filter((item) => item.projectId === selectedProjectId);
+    }
 
     // 카테고리 필터
     if (selectedCategory !== 'all') {
@@ -270,7 +319,7 @@ export default function ArchivePage() {
     }
 
     setFilteredItems(filtered);
-  }, [searchQuery, selectedCategory, selectedTag, archiveItems]);
+  }, [searchQuery, selectedCategory, selectedTag, selectedProjectId, archiveItems]);
 
   const handleStartEdit = (item: ArchiveItem) => {
     // 에피소드가 없는 경우 (episodeName이 '-'인 경우) 편집 불가
@@ -469,6 +518,68 @@ export default function ArchivePage() {
 
           {/* 필터 */}
           <div className="flex flex-wrap items-center gap-3">
+            {/* 프로젝트 선택 드롭다운 */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={`h-9 px-4 rounded-full border-2 justify-between ${
+                    selectedProjectId !== 'all'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-[#60A5FA] text-blue-700 dark:text-[#60A5FA]'
+                      : 'bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-900 dark:text-[#e5e5e5] hover:bg-gray-50 dark:hover:bg-[#2a2a2a]'
+                  }`}
+                >
+                  <span className="font-semibold text-sm">
+                    {selectedProjectId === 'all'
+                      ? '전체 마인드맵'
+                      : projects.find(p => p.id === selectedProjectId)?.name || '마인드맵 선택'}
+                  </span>
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-[280px] max-h-[400px] overflow-y-auto">
+                <DropdownMenuItem
+                  onClick={() => {
+                    console.log('[archive/page] 전체 마인드맵 선택');
+                    setSelectedProjectId('all');
+                  }}
+                  className={`cursor-pointer ${
+                    selectedProjectId === 'all' ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                  }`}
+                >
+                  <span className="font-semibold">전체 마인드맵</span>
+                </DropdownMenuItem>
+                {projects.length > 0 ? (
+                  <>
+                    <div className="h-px bg-gray-200 dark:bg-[#2a2a2a] my-1" />
+                    {projects.map((project) => {
+                      console.log('[archive/page] 드롭다운 프로젝트 렌더링', { projectId: project.id, projectName: project.name });
+                      return (
+                        <DropdownMenuItem
+                          key={project.id}
+                          onClick={() => {
+                            console.log('[archive/page] 프로젝트 선택', { projectId: project.id, projectName: project.name });
+                            setSelectedProjectId(project.id);
+                          }}
+                          className={`cursor-pointer ${
+                            selectedProjectId === project.id ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                          }`}
+                        >
+                          <span className={selectedProjectId === project.id ? 'font-semibold' : ''}>
+                            {project.name}
+                          </span>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <DropdownMenuItem disabled className="text-gray-400 dark:text-[#606060]">
+                    {isLoading ? '로딩 중...' : '프로젝트가 없습니다'}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-gray-500 dark:text-[#a0a0a0]" />
               <span className="text-sm font-medium text-gray-700 dark:text-[#e5e5e5]">필터:</span>

@@ -1,4 +1,4 @@
-import { supabase } from './client';
+ import { supabase } from './client';
 import { MindMapProject, MindMapNode, STARAsset, GapTag, SharedNodeData, BadgeType } from '@/types';
 import type { Database } from './types';
 
@@ -976,6 +976,7 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
           const { error: deleteError } = await supabase
             .from('nodes')
             .delete()
+            .eq('project_id' as any, projectId as any)
             .in('id' as any, levelNodeIds as any);
 
           if (deleteError) {
@@ -1033,6 +1034,137 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
 
   saveNodesInProgress.set(projectId, savePromise);
   return await savePromise;
+}
+
+/**
+ * 기존 프로젝트의 center 노드 ID를 프로젝트별 고유 ID로 마이그레이션
+ * 이 함수는 한 번만 실행하면 됩니다 (기존 데이터 마이그레이션용)
+ */
+export async function migrateCenterNodeIds(): Promise<{ migrated: number; errors: number }> {
+  try {
+    // 모든 프로젝트 조회
+    const { data: projects, error: projectsError } = await supabase
+      .from('projects')
+      .select('id');
+
+    if (projectsError) {
+      console.error('[data.ts] migrateCenterNodeIds: 프로젝트 조회 실패', projectsError);
+      return { migrated: 0, errors: 0 };
+    }
+
+    if (!projects || projects.length === 0) {
+      console.log('[data.ts] migrateCenterNodeIds: 마이그레이션할 프로젝트 없음');
+      return { migrated: 0, errors: 0 };
+    }
+
+    let migrated = 0;
+    let errors = 0;
+
+    for (const project of projects) {
+      try {
+        // 프로젝트의 center 노드 찾기 (id가 'center'이거나 nodeType이 'center'이거나 level이 0)
+        const { data: centerNodes, error: nodesError } = await supabase
+          .from('nodes')
+          .select('*')
+          .eq('project_id' as any, project.id)
+          .or('id.eq.center,node_type.eq.center,level.eq.0')
+          .limit(1);
+
+        if (nodesError) {
+          console.error(`[data.ts] migrateCenterNodeIds: 프로젝트 ${project.id} 노드 조회 실패`, nodesError);
+          errors++;
+          continue;
+        }
+
+        if (!centerNodes || centerNodes.length === 0) {
+          continue; // center 노드가 없으면 스킵
+        }
+
+        const centerNode = centerNodes[0];
+        const newCenterId = `${project.id}_center`;
+
+        // 이미 마이그레이션된 경우 스킵
+        if (centerNode.id === newCenterId) {
+          continue;
+        }
+
+        // 1. 새 ID로 노드 업데이트
+        const { error: updateError } = await supabase
+          .from('nodes')
+          .update({ id: newCenterId })
+          .eq('id' as any, centerNode.id)
+          .eq('project_id' as any, project.id);
+
+        if (updateError) {
+          console.error(`[data.ts] migrateCenterNodeIds: 프로젝트 ${project.id} center 노드 업데이트 실패`, updateError);
+          errors++;
+          continue;
+        }
+
+        // 2. 이 center 노드를 parent로 가진 모든 노드들의 parent_id 업데이트
+        const { error: updateChildrenError } = await supabase
+          .from('nodes')
+          .update({ parent_id: newCenterId })
+          .eq('parent_id' as any, centerNode.id)
+          .eq('project_id' as any, project.id);
+
+        if (updateChildrenError) {
+          console.error(`[data.ts] migrateCenterNodeIds: 프로젝트 ${project.id} 자식 노드 업데이트 실패`, updateChildrenError);
+          errors++;
+          continue;
+        }
+
+        // 3. badge 노드들도 마이그레이션 (id가 'badge_'로 시작하는 경우)
+        const { data: badgeNodes, error: badgeError } = await supabase
+          .from('nodes')
+          .select('id')
+          .eq('project_id' as any, project.id)
+          .like('id' as any, 'badge_%');
+
+        if (!badgeError && badgeNodes) {
+          for (const badgeNode of badgeNodes) {
+            // 이미 프로젝트 ID가 포함된 경우 스킵
+            if (badgeNode.id.startsWith(`${project.id}_`)) {
+              continue;
+            }
+
+            const newBadgeId = `${project.id}_${badgeNode.id}`;
+
+            // badge 노드 ID 업데이트
+            const { error: badgeUpdateError } = await supabase
+              .from('nodes')
+              .update({ id: newBadgeId })
+              .eq('id' as any, badgeNode.id)
+              .eq('project_id' as any, project.id);
+
+            if (badgeUpdateError) {
+              console.error(`[data.ts] migrateCenterNodeIds: 프로젝트 ${project.id} badge 노드 ${badgeNode.id} 업데이트 실패`, badgeUpdateError);
+              // badge 노드 업데이트 실패는 에러로 카운트하지 않음 (선택적)
+            } else {
+              // badge 노드를 parent로 가진 노드들의 parent_id 업데이트
+              await supabase
+                .from('nodes')
+                .update({ parent_id: newBadgeId })
+                .eq('parent_id' as any, badgeNode.id)
+                .eq('project_id' as any, project.id);
+            }
+          }
+        }
+
+        migrated++;
+        console.log(`[data.ts] migrateCenterNodeIds: 프로젝트 ${project.id} 마이그레이션 완료`);
+      } catch (error) {
+        console.error(`[data.ts] migrateCenterNodeIds: 프로젝트 ${project.id} 마이그레이션 중 예외`, error);
+        errors++;
+      }
+    }
+
+    console.log(`[data.ts] migrateCenterNodeIds: 마이그레이션 완료 - 성공: ${migrated}, 실패: ${errors}`);
+    return { migrated, errors };
+  } catch (error) {
+    console.error('[data.ts] migrateCenterNodeIds: 마이그레이션 실패', error);
+    return { migrated: 0, errors: 0 };
+  }
 }
 
 // ==================== STAR Assets ====================

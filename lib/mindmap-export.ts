@@ -32,7 +32,7 @@ export function generateMindMapSVG(nodes: MindMapNode[]): string {
 
   // 노드 스타일 정의
   const getNodeStyle = (node: MindMapNode) => {
-    if (node.id === 'center') {
+    if (node.nodeType === 'center' || node.level === 0) {
       return {
         fill: '#3b82f6',
         stroke: '#2563eb',
