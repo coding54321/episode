@@ -187,7 +187,7 @@ export default function MindMapNode({
           onMouseDown={(e) => onDragStart(node.id, e)}
           onDoubleClick={handleDoubleClick}
           onClick={handleClick}
-          className="group"
+          className="group mindmap-node"
         >
           <div
             style={{

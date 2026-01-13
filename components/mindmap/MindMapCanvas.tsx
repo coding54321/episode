@@ -6,6 +6,13 @@ import { mindMapStorage } from '@/lib/storage';
 import MindMapNode from './MindMapNode';
 import ZoomControl from './ZoomControl';
 import { getThemeColors } from '@/lib/mindmap-theme';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
+import { Plus } from 'lucide-react';
 
 export interface MindMapCanvasHandle {
   zoomIn: () => void;
@@ -82,6 +89,8 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [snapTargetNodeId, setSnapTargetNodeId] = useState<string | null>(null); // 스냅 연결 대상 노드 ID
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null); // 우클릭 위치 저장
+  const lastContextMenuEventRef = useRef<MouseEvent | null>(null); // 마지막 우클릭 이벤트 저장
 
   // 다크모드 감지
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -163,7 +172,7 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
           // 노드 중심 뷰: 중심 노드는 (0, 0)에 있으므로 화면 중앙으로 pan 조정
           // 노드는 left: 0, top: 0, transform: translate(-50%, -50%)로 배치되므로
           // 노드의 중심점이 캔버스 좌표 (0, 0)에 위치합니다.
-          // 컨테이너 transform: scale(zoom) translate(pan.x, pan.y)
+          // 컨테이너 transform: translate(pan.x, pan.y) scale(zoom)
           // 노드 중심점의 화면 좌표 = (0, 0) * zoom + pan = pan
           // 화면 중앙에 오려면: pan = (centerX, centerY)
           setPan({
@@ -274,16 +283,35 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
 
   // 마우스 다운 (팬 시작)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // 편집 중이면 팬 모드 비활성화
+    if (editingNodeId) return;
+
+    const target = e.target as HTMLElement;
+    const isCanvasClick = target === canvasRef.current || target.closest('.canvas-container');
+    
+    // 노드 추가 모드일 때는 팬 모드 비활성화 (노드 추가가 우선)
+    if (isAddNodeMode) return;
+
+    // 노드나 버튼을 클릭한 경우가 아닌 빈 공간 클릭인지 확인
+    const isNodeOrButton = target.closest('.mindmap-node') || 
+                           target.tagName === 'BUTTON' ||
+                           target.closest('button') ||
+                           target.tagName === 'SVG' ||
+                           target.tagName === 'path';
+
     if (e.button === 1) { // 마우스 중간 버튼
       e.preventDefault();
       setIsPanning(true);
       setPanStart({ x: e.clientX, y: e.clientY });
-    } else if (e.button === 0 && spacePressed) {
-      setIsPanning(true);
-      setPanStart({ x: e.clientX, y: e.clientY });
-      e.preventDefault();
+    } else if (e.button === 0) {
+      // 스페이스바를 누른 경우 또는 빈 공간 클릭인 경우
+      if (spacePressed || (isCanvasClick && !isNodeOrButton)) {
+        setIsPanning(true);
+        setPanStart({ x: e.clientX, y: e.clientY });
+        e.preventDefault();
+      }
     }
-  }, [spacePressed]);
+  }, [spacePressed, editingNodeId, isAddNodeMode]);
 
   // 줌 인 함수
   const handleZoomIn = useCallback(() => {
@@ -596,47 +624,53 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
     }
   }, []);
 
-  // 휠로 확대/축소 (마우스 커서 위치 중심)
+  // 휠로 확대/축소 (마우스 커서 위치 중심) - 피그마 방식
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    // Ctrl/Cmd 키로 브라우저 확대/축소 방지
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      return;
-    }
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
 
-    // Alt 키를 눌렀을 때만 줌 (또는 Alt 없이도 작동하게 할 수 있음)
-    if (e.altKey) {
+    // 트랙패드 핀치 줌 (Ctrl/Cmd 키 + 휠) 또는 Alt 키 + 휠
+    if (e.ctrlKey || e.metaKey || e.altKey) {
       e.preventDefault();
       
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
+      // 마우스 위치 (캔버스 뷰포트 기준)
+      const viewportMouseX = e.clientX - rect.left;
+      const viewportMouseY = e.clientY - rect.top;
 
-      // 마우스 위치 (캔버스 기준)
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+      // canvasContainerRef의 실제 위치 가져오기
+      const containerRect = canvasContainerRef.current?.getBoundingClientRect();
+      if (!containerRect) return;
 
-      // 줌 변경 전 마우스가 가리키는 월드 좌표
-      const worldXBefore = (mouseX - pan.x) / zoom;
-      const worldYBefore = (mouseY - pan.y) / zoom;
+      // 컨테이너 기준 마우스 좌표 계산 (컨테이너의 실제 위치 기준)
+      const containerMouseX = viewportMouseX - (containerRect.left - rect.left);
+      const containerMouseY = viewportMouseY - (containerRect.top - rect.top);
+
+      // 줌 변경 전 마우스가 가리키는 월드 좌표 계산
+      // transform: translate(pan.x, pan.y) scale(zoom)
+      // 월드 좌표 → 화면 좌표: screenX = worldX * zoom + pan.x
+      // 화면 좌표 → 월드 좌표: worldX = (screenX - pan.x) / zoom
+      const worldX = (containerMouseX - pan.x) / zoom;
+      const worldY = (containerMouseY - pan.y) / zoom;
 
       // 새로운 줌 레벨 계산
+      // 트랙패드 핀치 줌은 deltaY가 더 크므로 속도 조정
       const delta = -e.deltaY;
-      const zoomSpeed = 0.001;
+      const zoomSpeed = (e.ctrlKey || e.metaKey) ? 0.01 : 0.001; // 트랙패드는 더 빠르게
       const newZoom = Math.min(Math.max(zoom + delta * zoomSpeed, 0.25), 3);
 
       // 줌 변경 후 같은 월드 좌표가 마우스 위치에 오도록 pan 조정
-      const worldXAfter = (mouseX - pan.x) / newZoom;
-      const worldYAfter = (mouseY - pan.y) / newZoom;
-
+      // 새로운 화면 좌표 = worldX * newZoom + newPan.x = containerMouseX (유지)
+      // 따라서: newPan.x = containerMouseX - worldX * newZoom
       const newPan = {
-        x: pan.x + (worldXAfter - worldXBefore) * newZoom,
-        y: pan.y + (worldYAfter - worldYBefore) * newZoom,
+        x: containerMouseX - worldX * newZoom,
+        y: containerMouseY - worldY * newZoom,
       };
 
       setZoom(newZoom);
       setPan(newPan);
+      onZoomChange?.(newZoom);
     }
-  }, [zoom, pan]);
+  }, [zoom, pan, onZoomChange]);
 
   // 노드 드래그 시작
   const handleNodeDragStart = useCallback((nodeId: string, e: React.MouseEvent) => {
@@ -844,22 +878,73 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
     };
   }, [nodes, draggedNodeId, dragPositions]);
 
+  // 전역 우클릭 이벤트 리스너 - 마지막 우클릭 위치 추적
+  useEffect(() => {
+    const handleGlobalContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const isNodeOrButton = target.closest('.mindmap-node') || 
+                             target.tagName === 'BUTTON' ||
+                             target.closest('button') ||
+                             target.tagName === 'SVG' ||
+                             target.tagName === 'path' ||
+                             target.closest('svg');
+
+      // 빈 공간 우클릭인 경우에만 위치 저장
+      if (!isNodeOrButton) {
+        lastContextMenuEventRef.current = e;
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (rect && !isReadOnly && onCanvasAddNode) {
+          setContextMenuPosition({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
+        }
+      } else {
+        // 노드 위에서 우클릭한 경우 위치 초기화
+        lastContextMenuEventRef.current = null;
+        setContextMenuPosition(null);
+      }
+    };
+
+    document.addEventListener('contextmenu', handleGlobalContextMenu);
+    return () => {
+      document.removeEventListener('contextmenu', handleGlobalContextMenu);
+    };
+  }, [isReadOnly, onCanvasAddNode]);
+
+  // 우클릭 메뉴에서 노드 추가 실행
+  const handleContextMenuAddNode = useCallback(() => {
+    if (!contextMenuPosition || !onCanvasAddNode) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    // 저장된 우클릭 위치를 캔버스 좌표로 변환
+    const canvasX = (contextMenuPosition.x - pan.x) / zoom;
+    const canvasY = (contextMenuPosition.y - pan.y) / zoom;
+    
+    onCanvasAddNode(canvasX, canvasY);
+    setContextMenuPosition(null);
+  }, [contextMenuPosition, onCanvasAddNode, pan, zoom]);
+
   return (
-    <div
-      ref={canvasRef}
-      className={`w-full h-full overflow-hidden bg-gray-50 dark:bg-[#0a0a0a] relative transition-all duration-200 ${
-        spacePressed || isPanning
-          ? 'cursor-grab active:cursor-grabbing'
-          : isAddNodeMode
-            ? 'cursor-crosshair'
-            : draggedNodeId
-              ? 'cursor-move'
-              : 'cursor-default'
-      }`}
-      onMouseDown={handleMouseDown}
-      onWheel={handleWheel}
-      onClick={handleCanvasClick}
-    >
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          ref={canvasRef}
+          className={`w-full h-full overflow-hidden bg-gray-50 dark:bg-[#0a0a0a] relative transition-all duration-200 ${
+            spacePressed || isPanning
+              ? 'cursor-grab active:cursor-grabbing'
+              : isAddNodeMode
+                ? 'cursor-crosshair'
+                : draggedNodeId
+                  ? 'cursor-move'
+                  : 'cursor-grab'
+          }`}
+          onMouseDown={handleMouseDown}
+          onWheel={handleWheel}
+          onClick={handleCanvasClick}
+        >
       {/* 그리드 배경 - 라이트 모드 */}
       {showGrid && (
         <div
@@ -903,8 +988,8 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
           top: `${canvasBounds.minY}px`,
           width: `${canvasBounds.width}px`,
           height: `${canvasBounds.height}px`,
-          transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
-          transformOrigin: 'top left',
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: '0 0',
         }}
       >
         {/* 연결선 렌더링 */}
@@ -1040,7 +1125,17 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
 
       {/* 줌 컨트롤 */}
       <ZoomControl zoom={zoom} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
-    </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        {contextMenuPosition && !isReadOnly && onCanvasAddNode && (
+          <ContextMenuItem onClick={handleContextMenuAddNode}>
+            <Plus className="w-4 h-4 mr-2" />
+            노드 추가
+          </ContextMenuItem>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 });
 
