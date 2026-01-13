@@ -37,7 +37,7 @@ export default function GapDiagnosisPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-900">
       <FloatingHeader />
       <GapDiagnosis
         isOpen={isOpen}

@@ -71,7 +71,7 @@ function GapTagCard({ tag, onRemove, onShowQuestions }: { tag: GapTag; onRemove:
     <div 
       ref={drag as any}
       onClick={handleCardClick}
-      className={`group relative p-5 rounded-[16px] bg-white border-2 border-gray-100 hover:border-blue-400 hover:shadow-lg transition-all duration-200 cursor-move ${
+      className={`group relative p-5 rounded-[16px] bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-lg transition-all duration-200 cursor-move ${
         isDragging ? 'opacity-50 scale-95' : ''
       } ${tag.questions && tag.questions.length > 0 ? 'cursor-pointer' : ''}`}
     >
@@ -82,9 +82,9 @@ function GapTagCard({ tag, onRemove, onShowQuestions }: { tag: GapTag; onRemove:
           </Badge>
           {/* category와 label이 같으면 label은 표시하지 않음 */}
           {tag.category !== tag.label && (
-            <h4 className="font-bold text-base text-gray-900 mb-2 leading-tight">{tag.label}</h4>
+            <h4 className="font-bold text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight">{tag.label}</h4>
           )}
-          <p className="text-sm text-gray-500">{tag.source}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{tag.source}</p>
           {tag.questions && tag.questions.length > 0 && (
             <p className="text-xs text-blue-600 mt-2 font-medium">클릭하여 질문 보기 ({tag.questions.length}개)</p>
           )}
@@ -448,7 +448,7 @@ export default function AIChatbot({
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 400, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="absolute right-0 w-96 bg-white shadow-2xl z-[55] flex flex-col border-l border-gray-200"
+      className="absolute right-0 w-96 bg-white dark:bg-gray-900 shadow-2xl z-[55] flex flex-col border-l border-gray-200 dark:border-gray-800"
       style={{ 
         top: 0,
         bottom: 0,
@@ -458,15 +458,15 @@ export default function AIChatbot({
             {/* 탭과 닫기 버튼 */}
             <div className="flex items-center gap-3 px-6 pt-4 pb-2 flex-shrink-0">
               <TabsList className="flex-1 bg-gray-100 p-1 rounded-[12px] h-auto">
-                <TabsTrigger value="chat" className="flex-1 h-10 rounded-[8px] data-[state=active]:bg-white data-[state=active]:shadow-sm font-semibold">대화</TabsTrigger>
-                <TabsTrigger value="inventory" className="flex-1 h-10 rounded-[8px] data-[state=active]:bg-white data-[state=active]:shadow-sm font-semibold">추천 인벤토리</TabsTrigger>
+                <TabsTrigger value="chat" className="flex-1 h-10 rounded-[8px] data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-sm font-semibold">대화</TabsTrigger>
+                <TabsTrigger value="inventory" className="flex-1 h-10 rounded-[8px] data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-sm font-semibold">추천 인벤토리</TabsTrigger>
               </TabsList>
               <button
                 onClick={onClose}
                 className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
                 title="닫기 (ESC)"
               >
-                <ChevronRight className="h-5 w-5 text-gray-600" />
+                <ChevronRight className="h-5 w-5 text-gray-600 dark:text-gray-400" />
               </button>
             </div>
 
@@ -476,12 +476,12 @@ export default function AIChatbot({
               {!selectedNodeId && (
                 <div className="mx-6 mt-4 p-5 rounded-[16px] bg-gradient-to-br from-blue-50 to-blue-100/30 border border-blue-100 flex-shrink-0">
                   <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 bg-white rounded-[12px] flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <div className="w-10 h-10 bg-white dark:bg-gray-700 rounded-[12px] flex items-center justify-center flex-shrink-0 shadow-sm">
                       <Sparkles className="h-5 w-5 text-blue-600" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-bold text-gray-900 mb-1.5">노드를 선택해보세요</p>
-                      <p className="text-xs text-gray-600 leading-relaxed">
+                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1.5">노드를 선택해보세요</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
                         마인드맵에서 경험 노드를 선택하면<br />AI가 STAR 기법으로 경험을 구조화합니다.
                       </p>
                     </div>
@@ -503,7 +503,7 @@ export default function AIChatbot({
                         className={`max-w-[80%] rounded-[20px] px-5 py-3.5 ${
                           message.role === 'user'
                             ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-sm'
-                            : 'bg-gray-50 text-gray-900'
+                            : 'bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                         }`}
                       >
                         <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
@@ -526,7 +526,7 @@ export default function AIChatbot({
               </ScrollArea>
 
               {/* 입력 영역 (토스 스타일) */}
-              <div className="px-6 py-5 border-t border-gray-100 flex-shrink-0 bg-white">
+              <div className="px-6 py-5 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 bg-white dark:bg-gray-900">
                 <div className="flex gap-3">
                   <Input
                     value={input}
@@ -539,7 +539,7 @@ export default function AIChatbot({
                     }}
                     placeholder="메시지를 입력하세요..."
                     disabled={!selectedNodeId || isTyping}
-                    className="flex-1 h-12 rounded-[12px] border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white transition-colors"
+                    className="flex-1 h-12 rounded-[12px] border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 bg-gray-50 dark:bg-gray-800 focus:bg-white dark:focus:bg-gray-700 transition-colors"
                   />
                   <Button
                     onClick={handleSend}
@@ -560,8 +560,8 @@ export default function AIChatbot({
                     <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-[20px] flex items-center justify-center mx-auto mb-5">
                       <Sparkles className="w-10 h-10 text-blue-600" />
                     </div>
-                    <p className="font-bold text-lg text-gray-900 mb-2">추천 인벤토리가 비어있습니다</p>
-                    <p className="text-sm text-gray-500 mb-6">공백 진단을 통해 추천을 받아보세요</p>
+                    <p className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-2">추천 인벤토리가 비어있습니다</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">공백 진단을 통해 추천을 받아보세요</p>
                     {onOpenGapDiagnosis && (
                       <Button
                         onClick={onOpenGapDiagnosis}
@@ -577,11 +577,11 @@ export default function AIChatbot({
                     {/* 가이드 메시지 (토스 스타일) */}
                     <div className="mx-6 mt-4 p-5 rounded-[16px] bg-gradient-to-br from-blue-50 to-blue-100/30 border border-blue-100 flex-shrink-0">
                       <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 bg-white rounded-[12px] flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <div className="w-10 h-10 bg-white dark:bg-gray-700 rounded-[12px] flex items-center justify-center flex-shrink-0 shadow-sm">
                           <Sparkles className="h-5 w-5 text-blue-600" />
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm font-bold text-gray-900 mb-1.5">
+                          <p className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1.5">
                             태그를 드래그하여 추가하세요
                           </p>
                           <p className="text-xs text-gray-600 leading-relaxed">
@@ -615,11 +615,11 @@ export default function AIChatbot({
       {/* 질문 리스트 모달 */}
       {selectedTagForQuestions && selectedTagForQuestions.questions && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70]" onClick={() => setSelectedTagForQuestions(null)}>
-          <div className="bg-white rounded-[24px] p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-[24px] p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{selectedTagForQuestions.label}</h3>
-                <p className="text-sm text-gray-500">{selectedTagForQuestions.source}</p>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">{selectedTagForQuestions.label}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{selectedTagForQuestions.source}</p>
               </div>
               <button
                 onClick={() => setSelectedTagForQuestions(null)}
@@ -632,20 +632,20 @@ export default function AIChatbot({
             <div className="space-y-3">
               <div className="flex items-center gap-2 mb-4">
                 <FileText className="w-5 h-5 text-blue-600" />
-                <h4 className="font-semibold text-gray-900">답변하기 어려웠던 질문 ({selectedTagForQuestions.questions.length}개)</h4>
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100">답변하기 어려웠던 질문 ({selectedTagForQuestions.questions.length}개)</h4>
               </div>
               {selectedTagForQuestions.questions.map((question, index) => (
-                <div key={index} className="p-4 rounded-[12px] bg-gray-50 border border-gray-200">
+                <div key={index} className="p-4 rounded-[12px] bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                       <span className="text-xs font-semibold text-blue-600">{index + 1}</span>
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm text-gray-900 leading-relaxed mb-1">
+                      <p className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed mb-1">
                         {typeof question === 'string' ? question : question.content}
                       </p>
                       {typeof question === 'object' && question.year && question.half && (
-                        <p className="text-xs text-gray-500 font-medium">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                           {question.year}년 {question.half}
                         </p>
                       )}

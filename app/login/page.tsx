@@ -66,12 +66,12 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="safe-area-top bg-white" />
-      <div className="flex-1 bg-white px-5 py-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] flex flex-col">
+      <div className="safe-area-top bg-white dark:bg-[#0a0a0a]" />
+      <div className="flex-1 bg-white dark:bg-[#0a0a0a] px-5 py-6">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 mb-8"
+          className="flex items-center gap-2 text-gray-600 dark:text-[#a0a0a0] mb-8"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
@@ -84,15 +84,15 @@ function LoginContent() {
             className="w-full max-w-sm"
           >
             <div className="text-center mb-12">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-4">
                 안녕하세요!
               </h1>
-              <p className="text-lg text-gray-600 leading-relaxed">
+              <p className="text-lg text-gray-600 dark:text-[#a0a0a0] leading-relaxed">
                 Episode와 함께
                 <br />경험을 체계적으로 정리해보세요
               </p>
               {(error || authError) && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
                   {authError?.userMessage || error || '로그인에 실패했습니다. 다시 시도해주세요.'}
                 </div>
               )}
@@ -123,7 +123,7 @@ function LoginContent() {
 
             </div>
 
-            <p className="text-sm text-gray-500 text-center mt-8 leading-relaxed px-4">
+            <p className="text-sm text-gray-500 dark:text-[#a0a0a0] text-center mt-8 leading-relaxed px-4">
               로그인하면 개인정보 처리방침 및 이용약관에 동의하게 됩니다
             </p>
           </motion.div>
@@ -136,10 +136,10 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">로딩 중...</p>
+          <p className="text-gray-600 dark:text-[#a0a0a0]">로딩 중...</p>
         </div>
       </div>
     }>

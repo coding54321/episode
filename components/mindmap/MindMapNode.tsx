@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MindMapNode as NodeType, GapTag } from '@/types';
+import { MindMapNode as NodeType, GapTag, ColorTheme } from '@/types';
+import { getNodeColors } from '@/lib/mindmap-theme';
 import { Plus, Share2, ExternalLink, XCircle, Copy, FileText } from 'lucide-react';
 import { useDrop } from 'react-dnd';
 import {
@@ -33,6 +34,8 @@ interface MindMapNodeProps {
   originalNode?: NodeType; // 원본 노드 데이터 (좌표 변환 전)
   onTagDrop?: (nodeId: string, tag: GapTag) => void; // 태그 드롭 핸들러
   isReadOnly?: boolean; // 읽기 전용 모드
+  colorTheme?: ColorTheme; // 색상 테마
+  isDarkMode?: boolean; // 다크모드 여부
 }
 
 export default function MindMapNode({
@@ -57,6 +60,8 @@ export default function MindMapNode({
   originalNode,
   onTagDrop,
   isReadOnly = false,
+  colorTheme = 'default',
+  isDarkMode = false,
 }: MindMapNodeProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isButtonHovered, setIsButtonHovered] = useState(false);
@@ -147,6 +152,14 @@ export default function MindMapNode({
     onSelect(node.id);
   };
 
+  // 노드 레벨별 테마 색상 가져오기
+  const nodeColors = getNodeColors(
+    colorTheme,
+    isDarkMode,
+    node.nodeType || 'detail',
+    node.level
+  );
+
   return (
     <ContextMenu>
       <ContextMenuTrigger>
@@ -181,21 +194,38 @@ export default function MindMapNode({
           className="group"
         >
           <div
-            className={`
-              relative min-w-[120px] text-center select-none transition-all duration-200
-              ${isRootNode
-                ? 'bg-blue-600 text-white border-2 border-blue-600 px-6 py-4 rounded-2xl shadow-lg font-bold'
+            style={{
+              backgroundColor: isRootNode
+                ? nodeColors.background
                 : isInSharedPath
-                  ? 'bg-green-50 text-green-800 border-2 border-green-400 hover:border-green-500 px-4 py-3 rounded-xl shadow-sm ring-2 ring-green-100'
+                  ? undefined // 공유 경로는 기존 Tailwind 스타일 유지
+                  : nodeColors.background,
+              color: isRootNode
+                ? nodeColors.text
+                : isInSharedPath
+                  ? undefined // 공유 경로는 기존 Tailwind 스타일 유지
+                  : nodeColors.text,
+              borderColor: isRootNode
+                ? nodeColors.border
+                : isInSharedPath
+                  ? undefined // 공유 경로는 기존 Tailwind 스타일 유지
+                  : nodeColors.border,
+            }}
+            className={`
+              relative min-w-[120px] text-center select-none transition-all duration-200 border-2
+              ${isRootNode
+                ? 'px-6 py-4 rounded-2xl shadow-lg font-bold'
+                : isInSharedPath
+                  ? 'px-4 py-3 rounded-xl shadow-sm ring-2 ring-green-100 bg-green-50 text-green-800 border-green-400 hover:border-green-500'
                   : isBadgeNode
-                    ? 'bg-white text-blue-700 border-2 border-blue-300 hover:border-blue-400 px-4 py-3 rounded-xl shadow-sm font-semibold'
+                    ? 'px-4 py-3 rounded-xl shadow-sm font-semibold hover:brightness-95'
                     : isExperienceNode
-                      ? 'bg-white text-purple-700 border-2 border-purple-300 hover:border-purple-400 px-4 py-3 rounded-xl shadow-sm'
+                      ? 'px-4 py-3 rounded-xl shadow-sm hover:brightness-95'
                       : isEpisodeNode
-                        ? 'bg-white text-green-700 border-2 border-green-300 hover:border-green-400 px-4 py-3 rounded-xl shadow-sm font-medium'
+                        ? 'px-4 py-3 rounded-xl shadow-sm font-medium hover:brightness-95'
                         : isDetailNode
-                          ? 'bg-white text-gray-700 border-2 border-gray-200 hover:border-gray-300 px-3 py-2 rounded-lg shadow-sm'
-                          : 'bg-white text-gray-800 border-2 border-gray-200 hover:border-gray-300 px-4 py-3 rounded-xl shadow-sm'}
+                          ? 'px-3 py-2 rounded-lg shadow-sm hover:brightness-95'
+                          : 'px-4 py-3 rounded-xl shadow-sm hover:brightness-95'}
               ${
                 isSelected
                   ? 'ring-4 ring-blue-200 ring-opacity-60'

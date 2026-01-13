@@ -82,7 +82,7 @@ export function UnifiedAuthProvider({ children }: { children: React.ReactNode })
       const { data: existingUser } = await supabase
         .from('users')
         .select('id')
-        .eq('id', supabaseUser.id)
+        .eq('id' as any, supabaseUser.id as any)
         .maybeSingle()
 
       if (existingUser) {
@@ -93,19 +93,19 @@ export function UnifiedAuthProvider({ children }: { children: React.ReactNode })
             name: appUser.name,
             email: appUser.email,
             updated_at: new Date().toISOString(),
-          })
-          .eq('id', supabaseUser.id)
+          } as any)
+          .eq('id' as any, supabaseUser.id as any)
       } else {
         // 없으면 생성
         await supabase
           .from('users')
           .insert({
             id: supabaseUser.id,
-            provider: appUser.provider,
+            provider: 'kakao',
             provider_user_id: supabaseUser.id,
             name: appUser.name,
             email: appUser.email,
-          })
+          } as any)
       }
     } catch (err) {
       // 에러는 로그만 남기고 계속 진행 (사용자 경험 우선)

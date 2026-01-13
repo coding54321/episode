@@ -10,6 +10,7 @@ import { mindMapProjectStorage } from '@/lib/storage';
 import { MindMapNode, MindMapProject } from '@/types';
 import { supabase } from '@/lib/supabase/client';
 import { useUnifiedAuth } from '@/lib/auth/unified-auth-context';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 interface SearchResult {
   nodeId: string;
@@ -167,7 +168,7 @@ export default function Header({
       <>
         {parts.map((part, index) => 
           part.toLowerCase() === query.toLowerCase() ? (
-            <mark key={index} className="bg-yellow-200 text-gray-900">
+            <mark key={index} className="bg-yellow-200 dark:bg-yellow-600 text-gray-900 dark:text-gray-100">
               {part}
             </mark>
           ) : (
@@ -188,7 +189,7 @@ export default function Header({
   const isHomePage = pathname === '/';
 
   return (
-    <header className={`bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between z-[60] ${isHomePage ? '' : 'sticky top-0'}`}>
+    <header className={`bg-white dark:bg-[#0a0a0a] border-b border-gray-200 dark:border-[#2a2a2a] px-5 py-4 flex items-center justify-between z-[60] transition-colors ${isHomePage ? '' : 'sticky top-0'}`}>
       <div className="flex items-center gap-6">
         {/* 로고 */}
         <Link href="/">
@@ -219,27 +220,27 @@ export default function Header({
                   setShowSearchResults(true);
                 }
               }}
-              className="h-9 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+              className="h-9 pl-10 pr-4 bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg text-sm text-gray-900 dark:text-[#e5e5e5] placeholder-gray-500 dark:placeholder-[#606060] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64 transition-colors"
             />
             
             {/* 검색 결과 드롭다운 */}
             {showSearchResults && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-y-auto z-50">
+              <div className="absolute top-full left-0 right-0 mt-2 glass-card rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
                 {searchResults.map((result, index) => (
                   <button
                     key={`${result.projectId}-${result.nodeId}-${index}`}
                     onClick={() => handleSearchResultClick(result)}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
+                    className="w-full px-4 py-3 text-left hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 transition-colors border-b border-gray-100 dark:border-[#2a2a2a] last:border-b-0"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         {/* 노드 이름 */}
-                        <div className="font-medium text-sm text-gray-900 truncate">
+                        <div className="font-medium text-sm text-gray-900 dark:text-[#e5e5e5] truncate">
                           {highlightText(result.nodeLabel, searchQuery)}
                         </div>
                         
                         {/* 경로 */}
-                        <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
+                        <div className="flex items-center gap-1 mt-1 text-xs text-gray-500 dark:text-[#a0a0a0]">
                           <span className="truncate">
                             {highlightText(result.projectName, searchQuery)}
                           </span>
@@ -261,8 +262,8 @@ export default function Header({
 
             {/* 검색 결과 없음 */}
             {showSearchResults && searchQuery.trim() && searchResults.length === 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-4 z-50">
-                <p className="text-sm text-gray-500 text-center">
+              <div className="absolute top-full left-0 right-0 mt-2 glass-card rounded-lg shadow-lg p-4 z-50">
+                <p className="text-sm text-gray-500 dark:text-[#a0a0a0] text-center">
                   검색 결과가 없습니다
                 </p>
               </div>
@@ -272,6 +273,9 @@ export default function Header({
       </div>
 
       <div className="flex items-center gap-3">
+        {/* 테마 토글 버튼 */}
+        <ThemeToggle />
+
         {/* 모바일 검색 버튼 */}
         {user && showSearch && (
           <Button
@@ -287,7 +291,7 @@ export default function Header({
         {/* 로그인 버튼 또는 사용자 메뉴 */}
         {!user ? (
           <Link href="/login">
-            <Button variant="ghost" className="text-gray-700">
+            <Button variant="ghost" className="text-gray-700 dark:text-[#e5e5e5] hover:text-gray-900 dark:hover:text-white">
               로그인/회원가입
             </Button>
           </Link>
@@ -297,25 +301,25 @@ export default function Header({
               variant="ghost"
               size="sm"
               onClick={() => setShowMenu(!showMenu)}
-              className="flex items-center gap-2 h-9 px-3 hover:bg-gray-100 rounded-lg"
+              className="flex items-center gap-2 h-9 px-3 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg transition-colors"
             >
               <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
                 <UserIcon className="w-4 h-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-gray-700">{user.name}님</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-[#e5e5e5]">{user.name}님</span>
             </Button>
             {showMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-[80]">
+              <div className="absolute right-0 mt-2 w-48 glass-card rounded-lg shadow-lg z-[80]">
                 {/* 사용자 정보 */}
-                <div className="px-4 py-3 border-b border-gray-200">
-                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                  <p className="text-xs text-gray-500 mt-1">{user.email}</p>
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-[#2a2a2a]">
+                  <p className="text-sm font-medium text-gray-900 dark:text-[#e5e5e5]">{user.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-[#a0a0a0] mt-1">{user.email}</p>
                 </div>
                 {/* 메뉴 항목 */}
                 <div className="py-1">
                   <Link
                     href="/mindmaps"
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 flex items-center gap-2 transition-colors"
                     onClick={() => setShowMenu(false)}
                   >
                     <Map className="w-4 h-4" />
@@ -323,7 +327,7 @@ export default function Header({
                   </Link>
                   <Link
                     href="/archive"
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 flex items-center gap-2 transition-colors"
                     onClick={() => setShowMenu(false)}
                   >
                     <Archive className="w-4 h-4" />
@@ -331,7 +335,7 @@ export default function Header({
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 flex items-center gap-2 transition-colors"
                   >
                     <LogOut className="w-4 h-4" />
                     로그아웃
@@ -345,29 +349,29 @@ export default function Header({
 
       {/* 모바일 검색 모달 */}
       {showMobileSearch && (
-        <div className="fixed inset-0 bg-white z-50 md:hidden">
+        <div className="fixed inset-0 bg-white dark:bg-[#0a0a0a] z-50 md:hidden">
           <div className="flex flex-col h-full">
             {/* 헤더 */}
-            <div className="flex items-center gap-3 p-4 border-b border-gray-200">
+            <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
               <button
                 onClick={() => {
                   setShowMobileSearch(false);
                   setSearchQuery('');
                   setShowSearchResults(false);
                 }}
-                className="text-gray-600"
+                className="text-gray-600 dark:text-[#a0a0a0]"
               >
                 ← 뒤로
               </button>
               <div className="flex-1 relative">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Search className="w-4 h-4 text-gray-400 dark:text-[#606060] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   ref={mobileSearchInputRef}
                   type="text"
                   placeholder="경험 검색..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+                  className="h-10 pl-10 pr-4 bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg text-sm text-gray-900 dark:text-[#e5e5e5] placeholder-gray-500 dark:placeholder-[#606060] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full transition-colors"
                 />
               </div>
             </div>
@@ -375,22 +379,22 @@ export default function Header({
             {/* 검색 결과 */}
             <div className="flex-1 overflow-y-auto">
               {searchQuery.trim() && searchResults.length > 0 ? (
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-gray-100 dark:divide-[#2a2a2a]">
                   {searchResults.map((result, index) => (
                     <button
                       key={`${result.projectId}-${result.nodeId}-${index}`}
                       onClick={() => handleSearchResultClick(result)}
-                      className="w-full px-4 py-4 text-left active:bg-gray-50 transition-colors"
+                      className="w-full px-4 py-4 text-left active:bg-gray-50 dark:active:bg-[#2a2a2a] transition-colors"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           {/* 노드 이름 */}
-                          <div className="font-medium text-sm text-gray-900 truncate">
+                          <div className="font-medium text-sm text-gray-900 dark:text-[#e5e5e5] truncate">
                             {highlightText(result.nodeLabel, searchQuery)}
                           </div>
                           
                           {/* 경로 */}
-                          <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
+                          <div className="flex items-center gap-1 mt-1 text-xs text-gray-500 dark:text-[#a0a0a0]">
                             <span className="truncate">
                               {highlightText(result.projectName, searchQuery)}
                             </span>
@@ -404,22 +408,22 @@ export default function Header({
                             )}
                           </div>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" />
+                        <ChevronRight className="w-4 h-4 text-gray-400 dark:text-[#606060] flex-shrink-0 mt-1" />
                       </div>
                     </button>
                   ))}
                 </div>
               ) : searchQuery.trim() && searchResults.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
-                  <div className="text-center text-gray-500">
-                    <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <div className="text-center text-gray-500 dark:text-[#a0a0a0]">
+                    <Search className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-[#404040]" />
                     <p className="text-sm">검색 결과가 없습니다</p>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <div className="text-center text-gray-500">
-                    <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <div className="text-center text-gray-500 dark:text-[#a0a0a0]">
+                    <Search className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-[#404040]" />
                     <p className="text-sm">프로젝트와 노드를 검색해보세요</p>
                   </div>
                 </div>

@@ -27,11 +27,11 @@ export function ErrorMessage({
     ['NETWORK_ERROR', 'DATABASE_ERROR'].includes(error.code)
 
   return (
-    <div className={`bg-red-50 border border-red-200 rounded-lg p-4 ${className}`}>
+    <div className={`bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 ${className}`}>
       <div className="flex items-start">
-        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+        <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
         <div className="ml-3 flex-1">
-          <p className="text-sm text-red-800 font-medium">
+          <p className="text-sm text-red-800 dark:text-red-300 font-medium">
             {errorMessage}
           </p>
 
@@ -40,7 +40,7 @@ export function ErrorMessage({
               variant="outline"
               size="sm"
               onClick={onRetry}
-              className="mt-3 border-red-300 text-red-700 hover:bg-red-100"
+              className="mt-3 border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
             >
               <RefreshCcw className="w-4 h-4 mr-2" />
               다시 시도
@@ -51,7 +51,7 @@ export function ErrorMessage({
         {onDismiss && (
           <button
             onClick={onDismiss}
-            className="text-red-400 hover:text-red-600 ml-2"
+            className="text-red-400 dark:text-red-500 hover:text-red-600 dark:hover:text-red-400 ml-2"
           >
             <X className="w-4 h-4" />
           </button>

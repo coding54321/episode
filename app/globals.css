@@ -82,38 +82,39 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.04 0 0);
+  --foreground: oklch(0.92 0 0);
+  --card: oklch(0.1 0 0);
+  --card-foreground: oklch(0.92 0 0);
+  --popover: oklch(0.1 0 0);
+  --popover-foreground: oklch(0.92 0 0);
+  --primary: oklch(0.9 0 0);
+  --primary-foreground: oklch(0.1 0 0);
+  --secondary: oklch(0.15 0 0);
+  --secondary-foreground: oklch(0.9 0 0);
+  --muted: oklch(0.15 0 0);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.2 0 0);
+  --accent-foreground: oklch(0.9 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.2 0 0);
+  --input: oklch(0.15 0 0);
+  --ring: oklch(0.5 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.1 0 0);
+  --sidebar-foreground: oklch(0.9 0 0);
+  --sidebar-primary: oklch(0.9 0 0);
+  --sidebar-primary-foreground: oklch(0.1 0 0);
+  --sidebar-accent: oklch(0.15 0 0);
+  --sidebar-accent-foreground: oklch(0.9 0 0);
+  --sidebar-border: oklch(0.2 0 0);
+  --sidebar-ring: oklch(0.5 0 0);
 }
+
 
 @layer base {
   * {
@@ -125,6 +126,167 @@
     font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
     letter-spacing: -0.05em;
+  }
+  
+  /* 다크 모드 순수 블랙 배경 */
+  .dark body {
+    background-color: #0a0a0a;
+    background-image: none;
+    color: #e5e5e5;
+  }
+
+  /* 다크모드 미세한 그리드 패턴 */
+  .dark .grid-bg {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* 다크모드 전체 배경에 그리드 적용 (옵션) */
+  .dark body.grid-bg {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-color: #0a0a0a;
+  }
+
+  /* 다크모드 서브틀 글로우 효과 */
+  .dark .glow-effect {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.03),
+                0 0 40px rgba(255, 255, 255, 0.01);
+  }
+
+  /* 다크모드 모노크롬 그라디언트 */
+  .dark .gradient-accent {
+    background: linear-gradient(135deg,
+      #1a1a1a 0%,
+      #262626 50%,
+      #1f1f1f 100%);
+  }
+
+  /* 다크모드 카드 hover 효과 */
+  .dark .card-hover:hover {
+    background-color: #1a1a1a;
+    border-color: #404040;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+    transition: all 0.2s ease-in-out;
+  }
+
+  /* 다크모드 카드 기본 스타일 */
+  .dark .dark-card {
+    background-color: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 0.75rem;
+  }
+
+  /* 다크모드 사이드바 스타일 */
+  .dark .dark-sidebar {
+    background-color: #1a1a1a;
+    border-right: 1px solid #2a2a2a;
+  }
+
+  /* 다크모드 버튼 호버 효과 */
+  .dark button:hover {
+    transition: all 0.2s ease-in-out;
+  }
+
+  /* 다크모드 입력 필드 스타일 */
+  .dark input,
+  .dark textarea {
+    background-color: #1a1a1a;
+    border-color: #2a2a2a;
+    color: #e5e5e5;
+  }
+
+  .dark input:focus,
+  .dark textarea:focus {
+    border-color: #404040;
+    background-color: #1f1f1f;
+  }
+
+  /* 다크모드 드롭다운/팝오버 스타일 */
+  .dark [role="menu"],
+  .dark [role="dialog"] {
+    background-color: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+  }
+
+    /* 다크모드 링크 스타일 */
+  .dark a {
+    color: #a0a0a0;
+  }
+
+  .dark a:hover {
+    color: #e5e5e5;
+  }
+
+  /* 글래스모피즘 효과 */
+  .glass {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .dark .glass {
+    background: rgba(26, 26, 26, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* 부드러운 그라디언트 효과 */
+  .gradient-soft {
+    background: linear-gradient(135deg, 
+      rgba(59, 130, 246, 0.1) 0%,
+      rgba(139, 92, 246, 0.1) 50%,
+      rgba(236, 72, 153, 0.1) 100%);
+  }
+
+  .dark .gradient-soft {
+    background: linear-gradient(135deg, 
+      rgba(59, 130, 246, 0.15) 0%,
+      rgba(139, 92, 246, 0.15) 50%,
+      rgba(236, 72, 153, 0.15) 100%);
+  }
+
+  /* 글래스 카드 */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  }
+
+  .dark .glass-card {
+    background: rgba(26, 26, 26, 0.8);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+
+  /* 부드러운 그라디언트 텍스트 */
+  .gradient-text {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* 미묘한 글로우 효과 */
+  .glow-subtle {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.1),
+                0 0 40px rgba(139, 92, 246, 0.05);
+  }
+
+  .dark .glow-subtle {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.2),
+                0 0 40px rgba(139, 92, 246, 0.1);
   }
 }
 
@@ -173,6 +335,48 @@
 /* 부드러운 스크롤 */
 html {
   scroll-behavior: smooth;
+}
+
+/* 다크모드 전환 애니메이션 */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* 다크모드 전환 시 깜빡임 방지 */
+html {
+  color-scheme: light dark;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+/* 다크모드 스크롤바 스타일 - 블랙 */
+.dark ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0a0a0a;
+  border-radius: 6px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 6px;
+  border: 3px solid #0a0a0a;
+  transition: background 0.2s;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #404040;
+}
+
+/* 다크모드 선택 영역 스타일 - 화이트 */
+.dark ::selection {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fafafa;
 }
 
 /* Toss 디자인 시스템 변수 */
@@ -276,68 +480,4 @@ html {
 .toss-button-ghost {
   background-color: transparent;
   color: var(--toss-gray-600);
-}
-
-.toss-button-ghost:hover {
-  background-color: var(--toss-gray-100);
-  color: var(--toss-gray-900);
-}
-
-.toss-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: none;
-  outline: none;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-}
-
-.toss-input {
-  width: 100%;
-  padding: var(--toss-space-3) var(--toss-space-4);
-  border: 1px solid var(--toss-gray-200);
-  border-radius: var(--toss-radius-lg);
-  font-size: var(--toss-text-body2);
-  transition: border-color 0.2s ease-in-out;
-  background-color: var(--toss-bg-primary);
-}
-
-.toss-input:focus {
-  border-color: var(--toss-blue);
-  outline: none;
-  box-shadow: 0 0 0 3px var(--toss-blue-light);
-}
-
-.toss-fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-/* 텍스트 스타일 */
-.toss-text-caption {
-  font-size: var(--toss-text-caption);
-  line-height: 1.33;
-}
-
-.toss-text-body2 {
-  font-size: var(--toss-text-body2);
-  line-height: 1.43;
-}
-
-.toss-text-body1 {
-  font-size: var(--toss-text-body1);
-  line-height: 1.5;
-}
-
-.toss-text-h4 {
-  font-size: var(--toss-text-h4);
-  font-weight: 600;
-  line-height: 1.33;
-}
-
-.toss-text-h3 {
-  font-size: var(--toss-text-h3);
-  font-weight: 600;
-  line-height: 1.2;
 }

@@ -54,7 +54,7 @@ export default function GapDiagnosisFeaturePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-[#0a0a0a]">
       <FloatingHeader />
 
       {/* 히어로 섹션 */}
@@ -66,16 +66,16 @@ export default function GapDiagnosisFeaturePage() {
             transition={{ duration: 0.6 }}
             className="text-center mb-16"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 rounded-full mb-6">
-              <Sparkles className="w-5 h-5 text-orange-600" />
-              <span className="text-sm font-semibold text-orange-600">공백 진단</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 dark:bg-orange-900/30 rounded-full mb-6">
+              <Sparkles className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">공백 진단</span>
             </div>
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 tracking-tight">
+            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-6 tracking-tight">
               기출 자소서 문항 기반
               <br />
               약점 분석
             </h1>
-            <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-gray-600 dark:text-[#a0a0a0] max-w-3xl mx-auto leading-relaxed">
               실제 기업의 기출 문항을 통해<br />
               부족한 경험과 역량을 정확히 파악하세요
             </p>
@@ -95,17 +95,17 @@ export default function GapDiagnosisFeaturePage() {
               transition={{ duration: 0.6 }}
               className="relative"
             >
-              <div className="relative bg-gradient-to-br from-orange-50 to-red-50 rounded-[24px] p-8 border border-gray-200 shadow-2xl">
+              <div className="relative bg-gradient-to-br from-orange-50 dark:from-orange-900/20 to-red-50 dark:to-red-900/20 rounded-[24px] p-8 border border-gray-200 dark:border-[#2a2a2a] shadow-2xl">
                 {/* GIF placeholder - 프레임만 */}
-                <div className="relative w-full aspect-video bg-white rounded-[16px] border-2 border-gray-300 overflow-hidden">
+                <div className="relative w-full aspect-video bg-white dark:bg-[#1a1a1a] rounded-[16px] border-2 border-gray-300 dark:border-[#2a2a2a] overflow-hidden">
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
-                      <Sparkles className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-sm text-gray-500">공백 진단 GIF</p>
+                      <Sparkles className="w-16 h-16 text-gray-400 dark:text-[#606060] mx-auto mb-4" />
+                      <p className="text-sm text-gray-500 dark:text-[#a0a0a0]">공백 진단 GIF</p>
                     </div>
                   </div>
                   {/* 브라우저 프레임 효과 */}
-                  <div className="absolute top-0 left-0 right-0 h-8 bg-gray-100 border-b border-gray-300 flex items-center gap-2 px-3">
+                  <div className="absolute top-0 left-0 right-0 h-8 bg-gray-100 dark:bg-[#2a2a2a] border-b border-gray-300 dark:border-[#3a3a3a] flex items-center gap-2 px-3">
                     <div className="w-3 h-3 rounded-full bg-red-400"></div>
                     <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
                     <div className="w-3 h-3 rounded-full bg-green-400"></div>
@@ -122,38 +122,38 @@ export default function GapDiagnosisFeaturePage() {
               transition={{ duration: 0.6 }}
               className="space-y-6"
             >
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-4">
                 정확한 약점 파악
               </h2>
-              <p className="text-lg text-gray-600 leading-relaxed">
+              <p className="text-lg text-gray-600 dark:text-[#a0a0a0] leading-relaxed">
                 실제 기업의 최근 5년간 기출 자소서 문항을 기반으로, 각 문항에 대해 작성할 소재가 있는지 체크하고 부족한 역량을 자동으로 분석합니다.
               </p>
               <ul className="space-y-4">
                 <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Check className="w-4 h-4 text-orange-600" />
+                  <div className="w-6 h-6 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 mb-1">기업별 맞춤 진단</p>
-                    <p className="text-gray-600 text-sm">원하는 기업과 직무를 선택하면 해당 직무의 기출 문항으로 진단합니다</p>
+                    <p className="font-semibold text-gray-900 dark:text-[#e5e5e5] mb-1">기업별 맞춤 진단</p>
+                    <p className="text-gray-600 dark:text-[#a0a0a0] text-sm">원하는 기업과 직무를 선택하면 해당 직무의 기출 문항으로 진단합니다</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Check className="w-4 h-4 text-orange-600" />
+                  <div className="w-6 h-6 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 mb-1">간단한 소재 체크</p>
-                    <p className="text-gray-600 text-sm">각 문항에 대해 '있음' 또는 '없음'만 선택하면 자동으로 분석합니다</p>
+                    <p className="font-semibold text-gray-900 dark:text-[#e5e5e5] mb-1">간단한 소재 체크</p>
+                    <p className="text-gray-600 dark:text-[#a0a0a0] text-sm">각 문항에 대해 '있음' 또는 '없음'만 선택하면 자동으로 분석합니다</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Check className="w-4 h-4 text-orange-600" />
+                  <div className="w-6 h-6 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 mb-1">자동 역량 추출</p>
-                    <p className="text-gray-600 text-sm">부족한 역량을 자동으로 식별하고 추천 인벤토리에 추가합니다</p>
+                    <p className="font-semibold text-gray-900 dark:text-[#e5e5e5] mb-1">자동 역량 추출</p>
+                    <p className="text-gray-600 dark:text-[#a0a0a0] text-sm">부족한 역량을 자동으로 식별하고 추천 인벤토리에 추가합니다</p>
                   </div>
                 </li>
               </ul>
@@ -163,7 +163,7 @@ export default function GapDiagnosisFeaturePage() {
       </section>
 
       {/* 주요 특징 */}
-      <section className="px-5 py-20 bg-gray-50">
+      <section className="px-5 py-20 bg-gray-50 dark:bg-[#0a0a0a]">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -172,10 +172,10 @@ export default function GapDiagnosisFeaturePage() {
             transition={{ duration: 0.6 }}
             className="text-center mb-16"
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-4">
               공백 진단의 특징
             </h2>
-            <p className="text-lg text-gray-600">
+            <p className="text-lg text-gray-600 dark:text-[#a0a0a0]">
               체계적인 분석으로 취업 준비의 약점을 정확히 파악하세요
             </p>
           </motion.div>
@@ -188,13 +188,13 @@ export default function GapDiagnosisFeaturePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="bg-white rounded-[20px] p-8 border border-gray-200 hover:shadow-lg transition-shadow"
+                className="bg-white dark:bg-[#1a1a1a] rounded-[20px] p-8 border border-gray-200 dark:border-[#2a2a2a] hover:shadow-lg transition-shadow card-hover"
               >
-                <div className="w-12 h-12 bg-orange-50 rounded-[12px] flex items-center justify-center mb-4">
-                  <feature.icon className="w-6 h-6 text-orange-600" />
+                <div className="w-12 h-12 bg-orange-50 dark:bg-orange-900/30 rounded-[12px] flex items-center justify-center mb-4">
+                  <feature.icon className="w-6 h-6 text-orange-600 dark:text-orange-400" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{feature.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-2">{feature.title}</h3>
+                <p className="text-gray-600 dark:text-[#a0a0a0] leading-relaxed">{feature.description}</p>
               </motion.div>
             ))}
           </div>
@@ -213,7 +213,7 @@ export default function GapDiagnosisFeaturePage() {
             <Button
               onClick={handleGetStarted}
               size="lg"
-              className="bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-900 font-semibold h-14 px-8 rounded-[12px] shadow-lg flex items-center gap-3 mx-auto"
+              className="bg-white dark:bg-[#1e3a8a] hover:bg-gray-50 dark:hover:bg-[#1e40af] text-gray-900 dark:text-white border-2 border-gray-900 dark:border-[#60A5FA] font-semibold h-14 px-8 rounded-[12px] shadow-lg flex items-center gap-3 mx-auto"
             >
               <Image
                 src="/new_logo.png"

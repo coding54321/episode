@@ -48,13 +48,20 @@ function LandingContent() {
     }
   };
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-[#0a0a0a]">
       {/* 플로팅 헤더바 */}
       <FloatingHeader />
 
       {/* 히어로 섹션 */}
-      <section className="px-5 pt-32 pb-24 md:pt-40 md:pb-32">
-        <div className="max-w-4xl mx-auto text-center">
+      <section className="px-5 pt-32 pb-24 md:pt-40 md:pb-32 relative">
+        {/* 큰 반투명 episode 로고 배경 */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <h1 className="text-[200px] md:text-[300px] font-bold text-[#1a1a1a] dark:text-[#1a1a1a] opacity-30 dark:opacity-20 select-none">
+            episode
+          </h1>
+        </div>
+
+        <div className="max-w-4xl mx-auto text-center relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -63,7 +70,7 @@ function LandingContent() {
             {/* 텍스트 + 로고 이미지 */}
             <div className="mb-8 flex flex-col items-center">
               {/* 캐치프레이즈 - 노드 연결 애니메이션 */}
-              <div className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 tracking-tight flex items-center flex-wrap justify-center">
+              <div className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-6 tracking-tight flex items-center flex-wrap justify-center">
                 <motion.span
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -79,7 +86,7 @@ function LandingContent() {
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.5, delay: 0.3 }}
-                    className="relative inline-block px-6 py-3 bg-white border-2 border-blue-300 rounded-xl shadow-sm"
+                    className="relative inline-block px-6 py-3 bg-gray-100 dark:bg-[#2a2a2a] border-2 border-gray-300 dark:border-[#3a3a3a] rounded-xl text-gray-900 dark:text-[#e5e5e5]"
                   >
                     경험을
                   </motion.div>
@@ -98,12 +105,34 @@ function LandingContent() {
                       y1="2"
                       x2="80"
                       y2="2"
-                      stroke="#93C5FD"
+                      stroke="#60A5FA"
                       strokeWidth="3"
                       strokeLinecap="round"
+                      className="dark:stroke-[#60A5FA]"
                       initial={{ pathLength: 0 }}
                       animate={{ pathLength: 1 }}
                       transition={{ duration: 0.8, delay: 0.8, ease: "easeInOut" }}
+                    />
+                    {/* 연결선 양쪽 원 */}
+                    <motion.circle
+                      cx="0"
+                      cy="2"
+                      r="4"
+                      fill="#60A5FA"
+                      className="dark:fill-[#60A5FA]"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3, delay: 1.1 }}
+                    />
+                    <motion.circle
+                      cx="80"
+                      cy="2"
+                      r="4"
+                      fill="#60A5FA"
+                      className="dark:fill-[#60A5FA]"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3, delay: 1.1 }}
                     />
                   </motion.svg>
 
@@ -112,25 +141,15 @@ function LandingContent() {
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.5, delay: 1.6 }}
-                    className="relative inline-block px-6 py-3 bg-white border-2 border-blue-300 rounded-xl shadow-sm"
+                    className="relative inline-block px-6 py-3 bg-gray-100 dark:bg-[#2a2a2a] border-2 border-gray-300 dark:border-[#3a3a3a] rounded-xl text-gray-900 dark:text-[#e5e5e5]"
                   >
                     잇다
                   </motion.div>
                 </div>
               </div>
-              
-              {/* 로고 이미지 */}
-              <Image
-                src="/new_logo.png"
-                alt="Episode Logo"
-                width={700}
-                height={700}
-                className="object-contain"
-                priority
-              />
             </div>
             
-            <p className="text-lg md:text-xl text-gray-600 mb-12 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg md:text-xl text-gray-600 dark:text-[#a0a0a0] mb-12 max-w-2xl mx-auto leading-relaxed">
               공백 진단부터 경험 공유까지, 취업 준비의 모든 과정을 한 곳에서
             </p>
             
@@ -146,7 +165,7 @@ function LandingContent() {
                 <div className="relative inline-block group">
                   {/* 연결선 효과 (왼쪽) */}
                   <motion.div
-                    className="absolute -left-16 top-1/2 w-12 h-0.5 bg-blue-300"
+                    className="absolute -left-16 top-1/2 w-12 h-0.5 bg-blue-400 dark:bg-[#60A5FA]"
                     initial={{ scaleX: 0, originX: 0 }}
                     animate={{ scaleX: 1 }}
                     transition={{ duration: 0.6, delay: 2.3 }}
@@ -154,39 +173,20 @@ function LandingContent() {
                   
                   {/* 연결선 효과 (오른쪽) */}
                   <motion.div
-                    className="absolute -right-16 top-1/2 w-12 h-0.5 bg-blue-300"
+                    className="absolute -right-16 top-1/2 w-12 h-0.5 bg-blue-400 dark:bg-[#60A5FA]"
                     initial={{ scaleX: 0, originX: 1 }}
                     animate={{ scaleX: 1 }}
                     transition={{ duration: 0.6, delay: 2.3 }}
                   />
                   
-                  {/* 노드 스타일 버튼 */}
+                  {/* 노드 스타일 버튼 - 레퍼런스 스타일 */}
                   <motion.div
-                    className="relative px-8 py-4 bg-white border-2 border-blue-400 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden group-hover:border-blue-500"
+                    className="relative px-8 py-4 bg-[#1e3a8a] dark:bg-[#1e3a8a] border-2 border-[#60A5FA] dark:border-[#60A5FA] rounded-xl transition-all duration-300 cursor-pointer"
                     whileHover={{ y: -2 }}
                   >
-                    {/* 배경 애니메이션 */}
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-blue-50 to-purple-50"
-                      initial={{ x: '-100%' }}
-                      whileHover={{ x: 0 }}
-                      transition={{ duration: 0.3 }}
-                    />
-                    
                     {/* 버튼 텍스트 */}
-                    <div className="relative flex items-center gap-2 text-lg font-bold text-blue-600 group-hover:text-blue-700">
-                      <motion.span
-                        animate={{ 
-                          textShadow: [
-                            "0 0 0px rgba(59, 130, 246, 0)",
-                            "0 0 8px rgba(59, 130, 246, 0.3)",
-                            "0 0 0px rgba(59, 130, 246, 0)"
-                          ]
-                        }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      >
-                        무료로 시작하기
-                      </motion.span>
+                    <div className="relative flex items-center gap-2 text-lg font-bold text-white">
+                      <span>무료로 시작하기</span>
                       <motion.div
                         animate={{ x: [0, 5, 0] }}
                         transition={{ duration: 1.5, repeat: Infinity }}
@@ -203,7 +203,7 @@ function LandingContent() {
       </section>
 
       {/* 기능 소개 */}
-      <section className="px-5 py-24 border-t border-gray-100">
+      <section className="px-5 py-24 border-t border-gray-100 dark:border-[#2a2a2a]">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -212,9 +212,9 @@ function LandingContent() {
             transition={{ duration: 0.6 }}
             className="text-center mb-20"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 tracking-tight flex items-center justify-center gap-3 flex-wrap">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 dark:text-[#e5e5e5] tracking-tight flex items-center justify-center gap-3 flex-wrap">
               취업준비{' '}
-              <span className="inline-block px-4 py-2 bg-white border-2 border-blue-300 rounded-xl shadow-sm text-inherit">
+              <span className="inline-block px-4 py-2 bg-gray-100 dark:bg-[#2a2a2a] border-2 border-gray-300 dark:border-[#3a3a3a] rounded-xl text-inherit">
                 소스
               </span>
               {' '}정리,
@@ -264,16 +264,16 @@ function LandingContent() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 onClick={() => handleFeatureClick(feature.key)}
-                className="w-full flex items-start gap-6 p-8 rounded-[20px] hover:bg-gray-50 transition-all duration-200 group text-left"
+                className="w-full flex items-start gap-6 p-8 rounded-[20px] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-all duration-200 group text-left"
               >
-                <div className={`w-16 h-16 ${feature.color} rounded-[16px] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform`}>
-                  <feature.icon className={`w-8 h-8 ${feature.iconColor}`} />
+                <div className={`w-16 h-16 ${feature.color} dark:bg-[#2a2a2a] rounded-[16px] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform`}>
+                  <feature.icon className={`w-8 h-8 ${feature.iconColor} dark:text-[#60A5FA]`} />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold mb-3 text-gray-900">{feature.title}</h3>
-                  <p className="text-lg text-gray-600 leading-relaxed">{feature.description}</p>
+                  <h3 className="text-2xl font-bold mb-3 text-gray-900 dark:text-[#e5e5e5]">{feature.title}</h3>
+                  <p className="text-lg text-gray-600 dark:text-[#a0a0a0] leading-relaxed">{feature.description}</p>
                 </div>
-                <ChevronRight className="w-6 h-6 text-gray-400 group-hover:text-gray-900 flex-shrink-0 transition-colors" />
+                <ChevronRight className="w-6 h-6 text-gray-400 dark:text-[#606060] group-hover:text-gray-900 dark:group-hover:text-[#e5e5e5] flex-shrink-0 transition-colors" />
               </motion.button>
             ))}
           </div>
@@ -281,9 +281,9 @@ function LandingContent() {
       </section>
 
       {/* 푸터 */}
-      <footer className="px-5 py-16 border-t border-gray-100">
+      <footer className="px-5 py-16 border-t border-gray-100 dark:border-[#2a2a2a]">
         <div className="max-w-6xl mx-auto text-center">
-          <p className="text-sm text-gray-400">© 2025 Episode</p>
+          <p className="text-sm text-gray-400 dark:text-[#606060]">© 2025 Episode</p>
         </div>
       </footer>
     </div>
@@ -294,10 +294,10 @@ export default function LandingPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-600">로딩 중...</p>
+            <p className="text-gray-600 dark:text-gray-400">로딩 중...</p>
           </div>
         </div>
       }

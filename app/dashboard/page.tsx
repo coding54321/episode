@@ -90,26 +90,26 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="safe-area-top bg-white" />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+      <div className="safe-area-top bg-white dark:bg-gray-900" />
 
       {/* 헤더 */}
-      <header className="bg-white border-b border-gray-100 px-5 py-4">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-5 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-2 text-gray-600"
+              className="flex items-center gap-2 text-gray-600 dark:text-gray-400"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
-            <h1 className="text-lg font-bold text-gray-900">
+            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
               내 자소서
             </h1>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/mindmap">
-              <Button variant="ghost" size="sm" className="px-3 h-9 text-gray-600">
+              <Button variant="ghost" size="sm" className="px-3 h-9 text-gray-600 dark:text-gray-400">
                 <Plus className="h-4 w-4" />
               </Button>
             </Link>
@@ -125,7 +125,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="flex-1 bg-white px-5 py-6">
+      <div className="flex-1 bg-white dark:bg-gray-900 px-5 py-6">
         {/* 통계 카드 */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           <Card className="p-4 bg-blue-50 border-blue-200">
@@ -159,7 +159,7 @@ export default function DashboardPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="자소서 검색..."
-            className="pl-11 h-12 rounded-[12px] border-gray-200 bg-gray-50 focus:bg-white transition-colors"
+            className="pl-11 h-12 rounded-[12px] border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:bg-white dark:focus:bg-gray-700 transition-colors"
           />
         </div>
 
@@ -167,7 +167,7 @@ export default function DashboardPage() {
         {filteredAssets.length === 0 ? (
           <div className="text-center py-16">
             <div className="text-4xl mb-4">📄</div>
-            <p className="text-gray-500 mb-6">
+            <p className="text-gray-500 dark:text-gray-400 mb-6">
               {searchQuery ? '검색 결과가 없어요' : '아직 작성한 자소서가 없어요'}
             </p>
             <Link href="/mindmap">
@@ -186,7 +186,7 @@ export default function DashboardPage() {
                 transition={{ duration: 0.3, delay: index * 0.05 }}
               >
                 <Card
-                  className="p-4 hover:shadow-sm transition-all duration-200 cursor-pointer border border-gray-100 rounded-[12px]"
+                  className="p-4 hover:shadow-sm transition-all duration-200 cursor-pointer border border-gray-100 dark:border-gray-800 rounded-[12px] bg-white dark:bg-gray-800"
                   onClick={() => {
                     setSelectedAsset(asset);
                     setIsDetailOpen(true);
@@ -195,9 +195,9 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <h3 className="text-base font-semibold mb-1 line-clamp-1">{asset.title}</h3>
-                      <p className="text-sm text-gray-600 line-clamp-1">{asset.content}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{asset.content}</p>
                       <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs text-gray-500">{formatDate(asset.createdAt)}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{formatDate(asset.createdAt)}</span>
                         {asset.company && (
                           <Badge variant="outline" className="text-xs px-2 py-0.5 rounded-full">
                             {asset.company}

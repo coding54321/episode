@@ -351,10 +351,10 @@ export default function SharePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">로딩 중...</p>
+          <p className="text-gray-600 dark:text-gray-400">로딩 중...</p>
         </div>
       </div>
     );
@@ -368,11 +368,11 @@ export default function SharePage() {
     
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <Card className="p-8 text-center max-w-md border border-gray-200 rounded-[16px] shadow-sm">
-          <h1 className="text-2xl font-bold mb-4 text-gray-900">
+        <Card className="p-8 text-center max-w-md border border-gray-200 dark:border-gray-700 rounded-[16px] shadow-sm">
+          <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
             {isInvalidNodeId ? '잘못된 공유 링크입니다' : '공유된 노드를 찾을 수 없습니다'}
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             {isInvalidNodeId 
               ? '공유 링크 형식이 올바르지 않습니다. 링크를 다시 확인해주세요.'
               : '공유 링크가 만료되었거나 삭제된 링크일 수 있습니다.'}
@@ -392,26 +392,26 @@ export default function SharePage() {
     <DndProvider backend={HTML5Backend}>
       <div className="min-h-screen bg-white flex flex-col">
         {/* 헤더 */}
-        <header className="bg-white border-b border-gray-200 px-5 py-4 flex-shrink-0">
+        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-5 py-4 flex-shrink-0">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <Link href="/">
-              <Button variant="ghost" size="sm" className="text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-[12px]">
+              <Button variant="ghost" size="sm" className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-[12px]">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 돌아가기
               </Button>
             </Link>
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                <Share2 className="h-4 w-4 text-gray-700" />
+                <Share2 className="h-4 w-4 text-gray-700 dark:text-gray-300" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">
+                <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   공유된 경험 맵
                 </h1>
-                <div className="flex items-center gap-3 text-xs text-gray-500">
+                <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
                   {sharedData.createdByUser && (
                     <span className="flex items-center gap-1">
-                      <span className="font-medium text-gray-700">{sharedData.createdByUser.name}</span>
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{sharedData.createdByUser.name}</span>
                       <span>님이 공유</span>
                     </span>
                   )}
@@ -434,7 +434,7 @@ export default function SharePage() {
               ) : (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg">
                   <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {user?.name}님
                   </span>
                 </div>
@@ -449,21 +449,21 @@ export default function SharePage() {
           <div className="flex-1 relative">
             {/* 읽기 전용 오버레이 */}
             {isReadOnly && (
-              <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-20 flex items-center justify-center pointer-events-none">
+              <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/60 backdrop-blur-[2px] z-20 flex items-center justify-center pointer-events-none">
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-[16px] p-6 shadow-lg border border-gray-200 pointer-events-auto max-w-md mx-4"
+                  className="bg-white dark:bg-gray-800 rounded-[16px] p-6 shadow-lg border border-gray-200 dark:border-gray-700 pointer-events-auto max-w-md mx-4"
                 >
                   <div className="flex items-center justify-center mb-4">
                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                       <Lock className="h-6 w-6 text-blue-600" />
                     </div>
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900 text-center mb-2">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 text-center mb-2">
                     읽기 전용 모드
                   </h3>
-                  <p className="text-sm text-gray-600 text-center mb-6">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-6">
                     이 노드는 조회만 가능합니다.
                     <br />
                     편집하려면 로그인이 필요합니다.
@@ -503,48 +503,48 @@ export default function SharePage() {
           </div>
 
           {/* 사이드바 - 정보 & STAR 에셋 */}
-          <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
+          <div className="w-96 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col">
             <ScrollArea className="flex-1">
               <div className="p-6 space-y-6">
                 {/* 노드 정보 */}
                 <div>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-12 h-12 bg-gray-100 rounded-[12px] flex items-center justify-center">
-                      <span className="text-xl font-bold text-gray-700">
+                      <span className="text-xl font-bold text-gray-700 dark:text-gray-300">
                         {sharedData.node.label.charAt(0)}
                       </span>
                     </div>
                     <div className="flex-1">
-                      <h2 className="text-xl font-bold text-gray-900">{sharedData.node.label}</h2>
-                      <p className="text-sm text-gray-500">공유된 경험</p>
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{sharedData.node.label}</h2>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">공유된 경험</p>
                     </div>
                   </div>
 
                   {/* 공유한 사용자 정보 */}
                   {sharedData.createdByUser && (
-                    <div className="mb-4 p-3 bg-gray-50 rounded-[12px] border border-gray-100">
+                    <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-[12px] border border-gray-100 dark:border-gray-700">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-semibold text-gray-700">
+                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                             {sharedData.createdByUser.name.charAt(0)}
                           </span>
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                             {sharedData.createdByUser.name}님이 공유
                           </p>
                           {sharedData.createdByUser.email && (
-                            <p className="text-xs text-gray-500">{sharedData.createdByUser.email}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{sharedData.createdByUser.email}</p>
                           )}
                         </div>
                       </div>
                     </div>
                   )}
 
-                  <div className="bg-gray-50 rounded-[12px] p-4 space-y-3 border border-gray-100">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-[12px] p-4 space-y-3 border border-gray-100 dark:border-gray-700">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">하위 노드</span>
-                      <span className="font-semibold text-gray-900">{nodes.length - 1}개</span>
+                      <span className="text-gray-600 dark:text-gray-400">하위 노드</span>
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">{nodes.length - 1}개</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">레벨</span>

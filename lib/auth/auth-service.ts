@@ -37,7 +37,7 @@ class SupabaseAuthService implements AuthService {
     const { data: existingUser, error: selectError } = await supabase
       .from('users')
       .select('*')
-      .eq('id', supabaseUser.id)
+      .eq('id' as any, supabaseUser.id as any)
       .maybeSingle();
 
     if (selectError) {
@@ -58,8 +58,8 @@ class SupabaseAuthService implements AuthService {
           name: userName,
           email: userEmail,
           updated_at: new Date().toISOString(),
-        })
-        .eq('id', supabaseUser.id)
+        } as any)
+        .eq('id' as any, supabaseUser.id as any)
         .select()
         .single();
 
@@ -73,12 +73,12 @@ class SupabaseAuthService implements AuthService {
         // 업데이트 실패해도 기존 사용자 정보 반환
       }
 
-      const result = updatedUser || existingUser;
+      const result = (updatedUser || existingUser) as any;
       return {
         id: result.id,
         name: result.name,
         email: result.email || '',
-        provider: result.provider as 'kakao' | 'google' | 'email',
+        provider: 'kakao' as const,
         createdAt: new Date(result.created_at || Date.now()).getTime(),
       };
     } else {
@@ -87,11 +87,11 @@ class SupabaseAuthService implements AuthService {
         .from('users')
         .insert({
           id: supabaseUser.id,
-          provider: provider,
+          provider: 'kakao',
           provider_user_id: supabaseUser.id,
           name: userName,
           email: userEmail,
-        })
+        } as any)
         .select()
         .single();
 
@@ -111,12 +111,13 @@ class SupabaseAuthService implements AuthService {
         throw new Error('Failed to create user in public.users table');
       }
 
+      const newUserTyped = newUser as any;
       return {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email || '',
-        provider: newUser.provider as 'kakao' | 'google' | 'email',
-        createdAt: new Date(newUser.created_at || Date.now()).getTime(),
+        id: newUserTyped.id,
+        name: newUserTyped.name,
+        email: newUserTyped.email || '',
+        provider: 'kakao' as const,
+        createdAt: new Date(newUserTyped.created_at || Date.now()).getTime(),
       };
     }
   }

@@ -1,5 +1,6 @@
 import { supabase } from './client';
 import { User } from '@/types';
+import type { Database } from './types';
 
 // users 테이블에 사용자 등록 보장
 async function ensureUserRegistered(supabaseUser: any): Promise<void> {
@@ -37,18 +38,20 @@ async function ensureUserRegistered(supabaseUser: any): Promise<void> {
                 supabaseUser.user_metadata?.email ||
                 '';
 
-    // users 테이블에 사용자 등록
+    // users 테이블에 사용자 등록 (upsert 사용으로 중복 처리)
     const { error } = await supabase
       .from('users')
-      .insert({
+      .upsert({
         id: supabaseUser.id,
         provider: provider,
         provider_user_id: providerUserId,
         name: name,
         email: email,
+      } as any, {
+        onConflict: 'id'
       });
 
-    if (error && error.code !== '23505') { // 중복 키 에러가 아닌 경우만 로그
+    if (error) {
       console.error('Failed to register user:', error);
     }
   } catch (error) {

@@ -2,23 +2,27 @@
 
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { MindMapNode, MindMapProject, GapTag, NodeType } from '@/types';
+import { MindMapNode, MindMapProject, GapTag, NodeType, LayoutType, LayoutConfig, MindMapSettings } from '@/types';
 import { mindMapProjectStorage, currentProjectStorage, sharedNodeStorage, assetStorage, mindMapOnboardingStorage } from '@/lib/storage';
 import { useUnifiedAuth } from '@/lib/auth/unified-auth-context';
-import MindMapCanvas from '@/components/mindmap/MindMapCanvas';
+import MindMapCanvas, { MindMapCanvasHandle } from '@/components/mindmap/MindMapCanvas';
 import MindMapTabs, { Tab } from '@/components/mindmap/MindMapTabs';
 import UnifiedSidebar from '@/components/UnifiedSidebar';
 import STAREditor from '@/components/star/STAREditor';
+import LayoutSelector from '@/components/mindmap/LayoutSelector';
+import MindMapToolbar from '@/components/mindmap/MindMapToolbar';
+import MindMapSettingsDialog from '@/components/mindmap/MindMapSettingsDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, MessageSquare, Check, X, BarChart3, FileText } from 'lucide-react';
+import { ChevronLeft, MessageSquare, Check, X, BarChart3, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { saveNodes, updateNode } from '@/lib/supabase/data';
+import { saveNodes, updateNode, updateProject } from '@/lib/supabase/data';
+import { applyLayout, applyAutoLayoutForNewNode, applyAutoLayoutAfterDelete } from '@/lib/layouts';
 
 export default function MindMapProjectPage() {
   const router = useRouter();
@@ -54,6 +58,14 @@ export default function MindMapProjectPage() {
   const [newNodeName, setNewNodeName] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
+  const [showGrid, setShowGrid] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | null>(null);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [settings, setSettings] = useState<MindMapSettings>({
+    colorTheme: 'default',
+    lineStyle: 'straight',
+    showGrid: false,
+  });
 
   // DB 업데이트 디바운싱을 위한 ref
   const supabaseUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -61,6 +73,10 @@ export default function MindMapProjectPage() {
   const isDraggingRef = useRef(false);
   // 상태 업데이트 디바운싱을 위한 ref
   const stateUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // 캔버스 ref
+  const canvasRef = useRef<MindMapCanvasHandle>(null);
+  // 마지막 저장된 노드 상태 (변경 감지용)
+  const lastSavedNodesRef = useRef<string>('');
 
   useEffect(() => {
     // 인증 로딩 중이면 대기
@@ -94,7 +110,23 @@ export default function MindMapProjectPage() {
         });
 
         setProject(loadedProject);
-        setNodes(loadedProject.nodes);
+
+        // 저장된 설정 불러오기
+        if (loadedProject.settings) {
+          setSettings(loadedProject.settings);
+          setShowGrid(loadedProject.settings.showGrid || false);
+        }
+
+        // 자동 레이아웃이 활성화되어 있고 노드가 있으면 레이아웃 적용
+        const layoutConfig = loadedProject.layoutConfig || { autoLayout: true };
+        if (layoutConfig.autoLayout && loadedProject.nodes.length > 0) {
+          const layoutType = loadedProject.layoutType || 'radial';
+          const layoutedNodes = applyLayout(loadedProject.nodes, layoutType, layoutConfig);
+          setNodes(layoutedNodes);
+        } else {
+          setNodes(loadedProject.nodes);
+        }
+
         currentProjectStorage.save(projectId);
 
         // 탭 초기화
@@ -138,6 +170,22 @@ export default function MindMapProjectPage() {
       }
     };
   }, [projectId, router, user, authLoading]);
+
+  // 페이지 떠나기 전 저장되지 않은 변경사항 처리
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // 대기 중인 저장이 있으면 경고
+      if (supabaseUpdateTimeoutRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   // URL의 nodeId가 있으면 해당 처리
   useEffect(() => {
@@ -276,7 +324,7 @@ export default function MindMapProjectPage() {
     // 드래그 중이면 상태 업데이트도 디바운싱 (16ms = ~60fps)
     if (isDrag) {
       isDraggingRef.current = true;
-      
+
       // 기존 상태 업데이트 타이머 취소
       if (stateUpdateTimeoutRef.current) {
         clearTimeout(stateUpdateTimeoutRef.current);
@@ -309,23 +357,61 @@ export default function MindMapProjectPage() {
 
     // DB에 직접 저장 (디바운싱 적용)
     if (project) {
+      // 변경 감지: 노드가 실제로 변경되었는지 확인
+      const newNodesHash = JSON.stringify(newNodes.map(n => ({ id: n.id, x: n.x, y: n.y, label: n.label, parentId: n.parentId })));
+
+      // 초기 로드가 아니고 변경이 없으면 저장 스킵
+      if (lastSavedNodesRef.current && newNodesHash === lastSavedNodesRef.current) {
+        console.log('[mindmap/page] 변경 없음, 저장 스킵');
+        return;
+      }
+
       // 기존 타이머 취소
       if (supabaseUpdateTimeoutRef.current) {
         clearTimeout(supabaseUpdateTimeoutRef.current);
       }
 
+      // 저장 중 상태 표시
+      setSaveStatus('saving');
+
       // 500ms 디바운싱으로 Supabase에 노드 저장
       supabaseUpdateTimeoutRef.current = setTimeout(async () => {
         try {
           // 노드를 DB에 직접 저장 (saveNodes가 모든 노드 정보를 저장)
-          await saveNodes(projectId, newNodes);
-          
-          // 프로젝트 메타데이터만 업데이트 (nodes는 제외하여 중복 저장 방지)
-          await mindMapProjectStorage.update(projectId, {
-            updatedAt: Date.now(),
-          });
+          const success = await saveNodes(projectId, newNodes);
+
+          if (success) {
+            // 저장 성공
+            lastSavedNodesRef.current = newNodesHash;
+            setSaveStatus('saved');
+
+            // 프로젝트 메타데이터만 업데이트 (nodes는 제외하여 중복 저장 방지)
+            await mindMapProjectStorage.update(projectId, {
+              updatedAt: Date.now(),
+            });
+
+            // 2초 후 저장 상태 숨김
+            setTimeout(() => {
+              setSaveStatus(null);
+            }, 2000);
+          } else {
+            // 저장 실패
+            setSaveStatus('error');
+            console.error('[mindmap/page] 노드 저장 실패');
+
+            // 5초 후 에러 상태 숨김
+            setTimeout(() => {
+              setSaveStatus(null);
+            }, 5000);
+          }
         } catch (error) {
-          console.error('Failed to save nodes to database:', error);
+          console.error('[mindmap/page] 노드 저장 예외:', error);
+          setSaveStatus('error');
+
+          // 5초 후 에러 상태 숨김
+          setTimeout(() => {
+            setSaveStatus(null);
+          }, 5000);
         }
       }, 500);
     }
@@ -402,31 +488,7 @@ export default function MindMapProjectPage() {
   const handleNodeAddChild = (parentId: string, direction: 'right' | 'left' | 'top' | 'bottom' = 'right') => {
     // 인덱스 맵 사용
     const parent = nodeMap.get(parentId);
-    if (!parent) return;
-
-    // 방향에 따라 위치 계산
-    let x = parent.x;
-    let y = parent.y;
-    const offset = 180;
-
-    switch (direction) {
-      case 'right':
-        x = parent.x + offset;
-        y = parent.y + (parent.children.length * 60) - (parent.children.length * 30);
-        break;
-      case 'left':
-        x = parent.x - offset;
-        y = parent.y + (parent.children.length * 60) - (parent.children.length * 30);
-        break;
-      case 'top':
-        x = parent.x + (parent.children.length * 60) - (parent.children.length * 30);
-        y = parent.y - 120;
-        break;
-      case 'bottom':
-        x = parent.x + (parent.children.length * 60) - (parent.children.length * 30);
-        y = parent.y + 120;
-        break;
-    }
+    if (!parent || !project) return;
 
     // 노드 타입 결정
     const newLevel = parent.level + 1;
@@ -455,10 +517,11 @@ export default function MindMapProjectPage() {
       label: defaultLabel,
       parentId: parentId,
       children: [],
-      x,
-      y,
+      x: parent.x, // 임시 좌표 (자동 레이아웃에서 재계산됨)
+      y: parent.y,
       level: newLevel,
       nodeType,
+      isManuallyPositioned: false, // 자동 레이아웃으로 배치
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -471,7 +534,13 @@ export default function MindMapProjectPage() {
     });
 
     updatedNodes.push(newChild);
-    handleNodesChange(updatedNodes, false);
+
+    // 자동 레이아웃 적용
+    const layoutType = project.layoutType || 'radial';
+    const layoutConfig = project.layoutConfig || { autoLayout: true };
+    const layoutedNodes = applyAutoLayoutForNewNode(updatedNodes, newChild, layoutType, layoutConfig);
+    
+    handleNodesChange(layoutedNodes, false);
     setEditingNodeId(newChild.id);
   };
 
@@ -819,7 +888,7 @@ export default function MindMapProjectPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">로딩 중...</p>
+          <p className="text-gray-600 dark:text-gray-400">로딩 중...</p>
         </div>
       </div>
     );
@@ -827,7 +896,7 @@ export default function MindMapProjectPage() {
 
   return (
     <DndProvider backend={HTML5Backend}>
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50 dark:bg-[#0a0a0a]">
       {/* 헤더 */}
       <Header />
       
@@ -843,12 +912,12 @@ export default function MindMapProjectPage() {
       )}
       
       {/* 프로젝트 정보 */}
-      <div className="bg-white border-b border-gray-100 px-5 py-3">
+      <div className="bg-white dark:bg-[#0a0a0a] border-b border-gray-100 dark:border-[#2a2a2a] px-5 py-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link href="/mindmaps">
               <Button variant="ghost" size="sm" className="px-2">
-                <ChevronLeft className="h-5 w-5 text-gray-600" />
+                <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
               </Button>
             </Link>
             <div className="flex items-center gap-2">
@@ -861,7 +930,7 @@ export default function MindMapProjectPage() {
                     onKeyDown={handleTitleKeyDown}
                     onBlur={handleTitleSave}
                     autoFocus
-                    className="text-lg font-bold text-gray-900 border-b-2 border-blue-600 bg-transparent focus:outline-none px-1"
+                    className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5] border-b-2 border-blue-600 dark:border-[#60A5FA] bg-transparent focus:outline-none px-1"
                     style={{ width: `${Math.max(editedTitle.length * 10, 100)}px` }}
                   />
                   <Button
@@ -884,17 +953,17 @@ export default function MindMapProjectPage() {
               ) : (
                 <div>
                   <h1 
-                    className={`text-lg font-bold text-gray-900 ${!isNodeView ? 'cursor-pointer hover:text-blue-600 transition-colors' : ''}`}
+                    className={`text-lg font-bold text-gray-900 dark:text-[#e5e5e5] ${!isNodeView ? 'cursor-pointer hover:text-blue-600 dark:hover:text-[#60A5FA] transition-colors' : ''}`}
                     onClick={!isNodeView ? handleTitleEdit : undefined}
                     title={!isNodeView ? '클릭하여 제목 수정' : ''}
                   >
                     {isNodeView && activeTab ? activeTab.label : project.name}
                   </h1>
                   {isNodeView ? (
-                    <p className="text-xs text-gray-500">노드 중심 뷰</p>
+                    <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">노드 중심 뷰</p>
                   ) : (
                     project.description && (
-                      <p className="text-xs text-gray-500">{project.description}</p>
+                      <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">{project.description}</p>
                     )
                   )}
                 </div>
@@ -904,6 +973,32 @@ export default function MindMapProjectPage() {
           
           {/* 우측 버튼 그룹 */}
           <div className="flex items-center gap-2">
+            {/* 저장 상태 표시 */}
+            {saveStatus && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200">
+                {saveStatus === 'saving' && (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600 dark:text-blue-400" />
+                    <span className="text-gray-600 dark:text-gray-400">저장 중...</span>
+                  </>
+                )}
+                {saveStatus === 'saved' && (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                    <span className="text-gray-600 dark:text-gray-400">저장 완료</span>
+                  </>
+                )}
+                {saveStatus === 'error' && (
+                  <>
+                    <AlertCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+                    <span className="text-red-600 dark:text-red-400">저장 실패</span>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* 레이아웃 선택기는 툴바로 이동 */}
+
             {/* 공백 진단하기 버튼 */}
             <Button
               variant={isSidebarOpen && sidebarMainTab === 'gap' ? "default" : "outline"}
@@ -919,7 +1014,7 @@ export default function MindMapProjectPage() {
               className={`px-3 py-2 gap-2 transition-all duration-200 ${
                 isSidebarOpen && sidebarMainTab === 'gap'
                   ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-300'
+                  : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] border border-gray-300 dark:border-[#2a2a2a]'
               }`}
               title={isSidebarOpen && sidebarMainTab === 'gap' ? '공백 진단하기 닫기' : '공백 진단하기 열기'}
             >
@@ -942,7 +1037,7 @@ export default function MindMapProjectPage() {
               className={`px-3 py-2 gap-2 transition-all duration-200 ${
                 isSidebarOpen && sidebarMainTab === 'star'
                   ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
               }`}
               title={isSidebarOpen && sidebarMainTab === 'star' ? 'STAR 정리하기 닫기' : 'STAR 정리하기 열기'}
             >
@@ -965,7 +1060,7 @@ export default function MindMapProjectPage() {
               className={`px-3 py-2 gap-2 transition-all duration-200 ${
                 isSidebarOpen && sidebarMainTab === 'assistant'
                   ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
               }`}
               title={isSidebarOpen && sidebarMainTab === 'assistant' ? '어시스턴트 닫기' : '어시스턴트 열기'}
             >
@@ -980,11 +1075,68 @@ export default function MindMapProjectPage() {
       <div className="flex-1 relative overflow-hidden flex">
         {/* 마인드맵 캔버스 영역 */}
         <div className="flex-1 relative overflow-hidden">
+          {/* 플로팅 툴바 */}
+          {!isNodeView && (
+            <MindMapToolbar
+              onFitToScreen={() => canvasRef.current?.fitToScreen()}
+              onAutoLayout={async () => {
+                if (!project) return;
+                const layoutConfig = project.layoutConfig || { autoLayout: true };
+                const layoutedNodes = applyLayout(nodes, project.layoutType || 'radial', layoutConfig);
+                handleNodesChange(layoutedNodes, false);
+              }}
+              currentLayout={project?.layoutType || 'radial'}
+              onLayoutChange={async (newLayout: LayoutType) => {
+                if (!project || !user) return;
+                const updatedProject = {
+                  ...project,
+                  layoutType: newLayout,
+                  updatedAt: Date.now(),
+                };
+                const layoutConfig = project.layoutConfig || { autoLayout: true };
+                const layoutedNodes = applyLayout(nodes, newLayout, layoutConfig);
+                await updateProject(projectId, updatedProject);
+                setProject(updatedProject);
+                handleNodesChange(layoutedNodes, false);
+              }}
+              onToggleGrid={() => setShowGrid(!showGrid)}
+              showGrid={showGrid}
+              onExport={async (type: 'image' | 'pdf') => {
+                if (!project) return;
+
+                try {
+                  // DB 데이터 기반 이미지 생성 방식 사용
+                  const { downloadMindMapAsImage, downloadMindMapAsPDF } = await import('@/lib/mindmap-export');
+
+                  if (type === 'image') {
+                    await downloadMindMapAsImage(nodes, project.name || 'mindmap');
+                  } else {
+                    await downloadMindMapAsPDF(nodes, project.name || 'mindmap');
+                  }
+                } catch (error) {
+                  console.error('내보내기 실패:', error);
+                  alert('내보내기에 실패했습니다. 다시 시도해주세요.');
+                }
+              }}
+              onShare={() => {
+                // TODO: 공유 기능 구현
+                console.log('공유 기능 구현 필요');
+              }}
+              onSettings={() => {
+                setShowSettingsDialog(true);
+              }}
+            />
+          )}
+          
           <MindMapCanvas
+            ref={canvasRef}
             nodes={displayNodes}
             originalNodes={nodes}
             centerNodeId={isNodeView ? activeTab?.nodeId || null : null}
             focusNodeId={!isNodeView ? focusNodeId : null}
+            showGrid={showGrid}
+            colorTheme={settings.colorTheme}
+            lineStyle={settings.lineStyle}
             onNodesChange={(newNodes) => {
             if (isNodeView && activeTab?.nodeId) {
               // 노드 중심 뷰에서는 "좌표만" 원래 좌표계로 되돌리고,
@@ -1055,6 +1207,8 @@ export default function MindMapProjectPage() {
           onNodeEdit={handleNodeEdit}
           onNodeAddChild={handleNodeAddChild}
           onNodeDelete={(nodeId) => {
+            if (!project) return;
+            
             // 하위 노드까지 재귀적으로 삭제 (인덱스 맵 사용)
             const deleteNodeAndChildren = (id: string): string[] => {
               const targetNode = nodeMap.get(id);
@@ -1066,7 +1220,7 @@ export default function MindMapProjectPage() {
             const idsToDelete = deleteNodeAndChildren(nodeId);
             
             // 삭제된 노드와 하위 노드들을 필터링하고, 부모 노드의 children 배열에서도 제거
-            const updatedNodes = nodes
+            let updatedNodes = nodes
               .filter(n => !idsToDelete.includes(n.id))
               .map(n => {
                 // 부모 노드의 children 배열에서 삭제된 노드 ID 제거
@@ -1079,6 +1233,11 @@ export default function MindMapProjectPage() {
                 }
                 return n;
               });
+
+            // 자동 레이아웃 적용
+            const layoutType = project.layoutType || 'radial';
+            const layoutConfig = project.layoutConfig || { autoLayout: true };
+            updatedNodes = applyAutoLayoutAfterDelete(updatedNodes, nodeId, layoutType, layoutConfig);
 
             handleNodesChange(updatedNodes);
             
@@ -1125,12 +1284,11 @@ export default function MindMapProjectPage() {
               onNodeAdd={(parentId, label, nodeType) => {
                 // 새 노드 생성 (인덱스 맵 사용)
                 const parent = nodeMap.get(parentId);
-                if (!parent) return;
+                if (!parent || !project) return;
 
-                const angle = Math.random() * Math.PI * 2;
-                const radius = 200;
-                const x = parent.x + Math.cos(angle) * radius;
-                const y = parent.y + Math.sin(angle) * radius;
+                // 임시 좌표 (자동 레이아웃에서 재계산됨)
+                const x = parent.x;
+                const y = parent.y;
 
                 const newNode: MindMapNode = {
                   id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -1141,17 +1299,23 @@ export default function MindMapProjectPage() {
                   y,
                   level: parent.level + 1,
                   nodeType,
+                  isManuallyPositioned: false, // 자동 레이아웃으로 배치
                   createdAt: Date.now(),
                   updatedAt: Date.now(),
                 };
 
                 // 부모 노드의 children 업데이트
-                const updatedNodes = nodes.map(n =>
+                let updatedNodes = nodes.map(n =>
                   n.id === parentId
                     ? { ...n, children: [...n.children, newNode.id], updatedAt: Date.now() }
                     : n
                 );
                 updatedNodes.push(newNode);
+
+                // 자동 레이아웃 적용
+                const layoutType = project.layoutType || 'radial';
+                const layoutConfig = project.layoutConfig || { autoLayout: true };
+                updatedNodes = applyAutoLayoutForNewNode(updatedNodes, newNode, layoutType, layoutConfig);
 
                 handleNodesChange(updatedNodes);
                 setSelectedNodeId(newNode.id);
@@ -1200,16 +1364,16 @@ export default function MindMapProjectPage() {
       {/* 노드 추가 다이얼로그 */}
       {showConfirmDialog && droppedTag && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]" onClick={handleCancelAddTag}>
-          <div className="bg-white rounded-[24px] p-8 max-w-md w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-card rounded-[24px] p-8 max-w-md w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             {/* 헤더 */}
             <div className="flex items-center justify-between mb-8">
-              <h3 className="text-2xl font-bold text-gray-900">노드 추가하기</h3>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-[#e5e5e5]">노드 추가하기</h3>
               <button
                 onClick={handleCancelAddTag}
-                className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                className="w-10 h-10 flex items-center justify-center hover:bg-gray-100/50 dark:hover:bg-[#2a2a2a]/50 rounded-full transition-colors"
                 title="닫기"
               >
-                <X className="h-5 w-5 text-gray-600" />
+                <X className="h-5 w-5 text-gray-600 dark:text-[#a0a0a0]" />
               </button>
             </div>
             
@@ -1244,12 +1408,12 @@ export default function MindMapProjectPage() {
                 
                 return (
                   <>
-                    <p className="text-sm text-gray-600 leading-relaxed">
+                    <p className="text-sm text-gray-600 dark:text-[#a0a0a0] leading-relaxed">
                       {guidanceText}
                     </p>
                     <div className="flex items-center gap-2 pt-2">
-                      <span className="text-sm text-gray-500">관련 역량:</span>
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-medium">
+                      <span className="text-sm text-gray-500 dark:text-[#a0a0a0]">관련 역량:</span>
+                      <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-[#60A5FA] border-blue-200 dark:border-blue-600 text-xs font-medium">
                         {droppedTag.tag.category}
                       </Badge>
                     </div>
@@ -1285,7 +1449,7 @@ export default function MindMapProjectPage() {
                       }
                     }}
                     placeholder={placeholderText}
-                    className="h-14 rounded-[16px] border-gray-200 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 text-base"
+                    className="h-14 rounded-[16px] border-gray-200 dark:border-[#2a2a2a] focus:border-gray-900 dark:focus:border-[#60A5FA] focus:ring-2 focus:ring-gray-100 dark:focus:ring-blue-900/50 text-base bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-[#e5e5e5]"
                     autoFocus
                   />
                 );
@@ -1297,13 +1461,13 @@ export default function MindMapProjectPage() {
               <Button 
                 onClick={handleCancelAddTag}
                 variant="outline"
-                className="flex-1 h-14 rounded-[16px] border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold"
+                className="flex-1 h-14 rounded-[16px] border-gray-200 dark:border-[#2a2a2a] text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50 dark:hover:bg-[#2a2a2a] font-semibold"
               >
                 취소
               </Button>
               <Button 
                 onClick={handleConfirmAddTag}
-                className="flex-1 h-14 bg-gray-900 hover:bg-gray-800 rounded-[16px] text-white font-semibold"
+                className="flex-1 h-14 bg-gray-900 dark:bg-[#1e3a8a] hover:bg-gray-800 dark:hover:bg-[#1e40af] rounded-[16px] text-white font-semibold"
               >
                 생성하기
               </Button>
@@ -1320,7 +1484,7 @@ export default function MindMapProjectPage() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.96 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full max-w-xl bg-white rounded-[24px] shadow-2xl p-8 relative"
+            className="w-full max-w-xl glass-card rounded-[24px] shadow-2xl p-8 relative"
           >
             {/* 닫기 버튼 */}
             <button
@@ -1328,21 +1492,21 @@ export default function MindMapProjectPage() {
                 mindMapOnboardingStorage.saveShown();
                 setShowOnboarding(false);
               }}
-              className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+              className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100/50 dark:hover:bg-[#2a2a2a]/50 transition-colors"
             >
-              <X className="h-5 w-5 text-gray-500" />
+              <X className="h-5 w-5 text-gray-500 dark:text-[#a0a0a0]" />
             </button>
 
             {/* 콘텐츠 */}
             <div className="mb-6">
-              <p className="text-xs font-semibold text-blue-600 mb-2">마인드맵 튜토리얼</p>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              <p className="text-xs font-semibold text-blue-600 dark:text-[#60A5FA] mb-2">마인드맵 튜토리얼</p>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-3">
                 {onboardingStep === 0 && '계층 구조로 경험 정리하기'}
                 {onboardingStep === 1 && '공백 진단으로 부족한 경험 찾기'}
                 {onboardingStep === 2 && '어시스턴트로 노드 확장하기'}
                 {onboardingStep === 3 && '캔버스 조작과 노드 편집'}
               </h2>
-              <p className="text-sm text-gray-600 leading-relaxed">
+              <p className="text-sm text-gray-600 dark:text-[#a0a0a0] leading-relaxed">
                 {onboardingStep === 0 &&
                   'episode의 마인드맵은 중심-범주-경험-에피소드 구조로 경험을 정리합니다. 먼저 중심 노드를 기준으로 범주(인턴, 동아리 등)를 만들고, 그 안에 구체적인 경험과 에피소드를 쌓아가세요.'}
                 {onboardingStep === 1 &&
@@ -1361,7 +1525,7 @@ export default function MindMapProjectPage() {
                   mindMapOnboardingStorage.saveShown();
                   setShowOnboarding(false);
                 }}
-                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-xs text-gray-400 dark:text-[#606060] hover:text-gray-600 dark:hover:text-[#a0a0a0] transition-colors"
               >
                 건너뛰기
               </button>
@@ -1375,8 +1539,8 @@ export default function MindMapProjectPage() {
                       onClick={() => setOnboardingStep(step)}
                       className={`w-2.5 h-2.5 rounded-full transition-all ${
                         onboardingStep === step
-                          ? 'bg-blue-600'
-                          : 'bg-gray-200 hover:bg-gray-300'
+                          ? 'bg-blue-600 dark:bg-blue-500'
+                          : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'
                       }`}
                     />
                   ))}
@@ -1413,6 +1577,28 @@ export default function MindMapProjectPage() {
           </motion.div>
         </div>
       )}
+
+      {/* 설정 다이얼로그 */}
+      <MindMapSettingsDialog
+        isOpen={showSettingsDialog}
+        onClose={() => setShowSettingsDialog(false)}
+        settings={settings}
+        onSettingsChange={async (newSettings) => {
+          setSettings(newSettings);
+          setShowGrid(newSettings.showGrid || false);
+
+          // 설정을 프로젝트에 저장
+          if (project) {
+            const updatedProject = {
+              ...project,
+              settings: newSettings,
+              updatedAt: Date.now(),
+            };
+            await mindMapProjectStorage.update(projectId, updatedProject);
+            setProject(updatedProject);
+          }
+        }}
+      />
     </div>
     </DndProvider>
   );

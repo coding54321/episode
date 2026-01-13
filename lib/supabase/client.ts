@@ -26,8 +26,9 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     // storageKey를 명시적으로 설정하여 충돌 방지
     storageKey: 'sb-auth-token',
-    // flowType을 'implicit'로 변경하여 OAuth 콜백 처리 간소화
-    flowType: 'implicit',
+    // flowType을 'pkce'로 변경하여 보안성 향상 및 배포 환경 호환성 개선
+    // 'pkce'는 OAuth 2.0 PKCE 플로우로, 더 안전하고 배포 환경에서 더 안정적
+    flowType: 'pkce',
   },
 });
 

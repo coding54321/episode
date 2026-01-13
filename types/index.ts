@@ -40,6 +40,7 @@ export interface MindMapNode {
   customLabel?: string; // '기타' 배지일 때 사용자가 입력한 실제 라벨
   isShared?: boolean;
   sharedLink?: string;
+  isManuallyPositioned?: boolean; // 수동으로 위치를 조정했는지 여부
   createdAt: number;
   updatedAt: number;
 }
@@ -171,6 +172,33 @@ export interface GapQuestion {
   difficulty: 'easy' | 'medium' | 'hard' | null;
 }
 
+// 레이아웃 타입
+export type LayoutType = 'radial' | 'hierarchical' | 'tree' | 'force-directed';
+
+// 레이아웃 설정
+export interface LayoutConfig {
+  autoLayout?: boolean;
+  spacing?: {
+    horizontal?: number;
+    vertical?: number;
+    radial?: number;
+  };
+  preserveManualPositions?: boolean;
+}
+
+// 색상 테마 타입
+export type ColorTheme = 'default' | 'pastel' | 'vivid' | 'monochrome';
+
+// 연결선 스타일 타입
+export type LineStyle = 'straight' | 'curved';
+
+// 마인드맵 설정
+export interface MindMapSettings {
+  colorTheme: ColorTheme;
+  lineStyle: LineStyle;
+  showGrid?: boolean;
+}
+
 // 마인드맵 프로젝트
 export interface MindMapProject {
   id: string;
@@ -179,10 +207,16 @@ export interface MindMapProject {
   badges: BadgeType[];
   nodes: MindMapNode[];
   nodeCount?: number; // 노드 개수 (목록 조회 시 사용, 상세 조회 시에는 nodes.length 사용)
+  layoutType?: LayoutType; // 레이아웃 타입
+  layoutConfig?: LayoutConfig; // 레이아웃 설정
+  settings?: MindMapSettings; // 마인드맵 설정 (색상 테마, 연결선 스타일 등)
   createdAt: number;
   updatedAt: number;
   isDefault?: boolean;
   isFavorite?: boolean;
+  isShared?: boolean; // 공유된 마인드맵인지 여부
+  sharedBy?: string; // 공유한 사용자 ID
+  sharedByUser?: { id: string; name: string; email?: string }; // 공유한 사용자 정보
 }
 
 // 공유된 노드 데이터

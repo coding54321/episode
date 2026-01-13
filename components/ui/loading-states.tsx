@@ -26,10 +26,10 @@ interface PageLoadingProps {
 
 export function PageLoading({ message = '로딩 중...' }: PageLoadingProps) {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
       <div className="text-center">
-        <LoadingSpinner size="lg" className="text-blue-600 mx-auto mb-4" />
-        <p className="text-gray-600 text-sm">{message}</p>
+        <LoadingSpinner size="lg" className="text-blue-600 dark:text-blue-400 mx-auto mb-4" />
+        <p className="text-gray-600 dark:text-gray-400 text-sm">{message}</p>
       </div>
     </div>
   )
@@ -41,10 +41,10 @@ interface AuthLoadingProps {
 
 export function AuthLoading({ message = '인증 확인 중...' }: AuthLoadingProps) {
   return (
-    <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="text-center">
-        <LoadingSpinner size="lg" className="text-blue-600 mx-auto mb-3" />
-        <p className="text-gray-700 font-medium">{message}</p>
+        <LoadingSpinner size="lg" className="text-blue-600 dark:text-blue-400 mx-auto mb-3" />
+        <p className="text-gray-700 dark:text-gray-300 font-medium">{message}</p>
       </div>
     </div>
   )

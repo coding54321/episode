@@ -91,22 +91,22 @@ function GapTagCard({ tag, onRemove, onShowQuestions }: { tag: GapTag; onRemove:
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: isDragging ? 0.5 : 1, y: 0 }}
       >
-      <Card className="p-4 hover:shadow-md transition-shadow bg-gradient-to-br from-white to-gray-50 border border-gray-200">
+      <Card className="p-4 hover:shadow-md transition-shadow bg-gradient-to-br from-white to-gray-50 dark:from-[#1a1a1a] dark:to-[#2a2a2a] border border-gray-200 dark:border-[#2a2a2a]">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
-              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+              <Badge variant="outline" className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800">
                 {tag.label}
               </Badge>
             </div>
-            <p className="text-xs text-gray-600 mb-2">{tag.source}</p>
+            <p className="text-xs text-gray-600 dark:text-[#a0a0a0] mb-2">{tag.source}</p>
             {tag.questions && tag.questions.length > 0 && onShowQuestions && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onShowQuestions(tag);
                 }}
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
               >
                 관련 질문 {tag.questions.length}개 보기
               </button>
@@ -118,14 +118,14 @@ function GapTagCard({ tag, onRemove, onShowQuestions }: { tag: GapTag; onRemove:
                 e.stopPropagation();
                 onRemove(tag.id);
               }}
-              className="w-6 h-6 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+              className="w-6 h-6 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-full transition-colors"
             >
-              <X className="h-3 w-3 text-gray-500" />
+              <X className="h-3 w-3 text-gray-500 dark:text-[#a0a0a0]" />
             </button>
           </div>
         </div>
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <span className="text-xs text-gray-500">드래그하여 추가</span>
+        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-[#2a2a2a]">
+          <span className="text-xs text-gray-500 dark:text-[#a0a0a0]">드래그하여 추가</span>
         </div>
       </Card>
       </motion.div>
@@ -658,7 +658,7 @@ export default function UnifiedSidebar({
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 400, opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="absolute right-0 bg-white shadow-2xl z-[55] flex flex-col border-l border-gray-200"
+      className="absolute right-0 glass-card shadow-2xl z-[55] flex flex-col border-l border-gray-200 dark:border-[#2a2a2a]"
       style={{ 
         top: 0,
         bottom: 0,
@@ -680,22 +680,22 @@ export default function UnifiedSidebar({
       {mainTab === 'gap' && (
         <Tabs value={gapSubTab} onValueChange={(value) => setGapSubTab(value as 'analysis' | 'inventory')} className="flex-1 flex flex-col overflow-hidden">
           {/* 서브탭 헤더 */}
-          <div className="px-6 pt-4 pb-2 flex-shrink-0 border-b border-gray-100">
+          <div className="px-6 pt-4 pb-2 flex-shrink-0 border-b border-gray-100 dark:border-[#2a2a2a]">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-gray-900">공백 진단하기</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5]">공백 진단하기</h2>
               <button
                 onClick={onClose}
-                className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+                className="w-10 h-10 flex items-center justify-center hover:bg-gray-100/50 dark:hover:bg-[#2a2a2a]/50 rounded-full transition-colors flex-shrink-0"
                 title="닫기"
               >
-                <ChevronRight className="h-5 w-5 text-gray-600" />
+                <ChevronRight className="h-5 w-5 text-gray-600 dark:text-[#a0a0a0]" />
               </button>
             </div>
-            <TabsList className="w-full bg-gray-100 p-1 rounded-[12px] h-auto">
-              <TabsTrigger value="analysis" className="flex-1 h-10 rounded-[8px] data-[state=active]:bg-white data-[state=active]:shadow-sm font-semibold">
+            <TabsList className="w-full bg-gray-100 dark:bg-[#1a1a1a] p-1 rounded-[12px] h-auto">
+              <TabsTrigger value="analysis" className="flex-1 h-10 rounded-[8px] data-[state=active]:bg-white dark:data-[state=active]:bg-[#2a2a2a] data-[state=active]:shadow-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">
                 부족 역량확인
               </TabsTrigger>
-              <TabsTrigger value="inventory" className="flex-1 h-10 rounded-[8px] data-[state=active]:bg-white data-[state=active]:shadow-sm font-semibold">
+              <TabsTrigger value="inventory" className="flex-1 h-10 rounded-[8px] data-[state=active]:bg-white dark:data-[state=active]:bg-[#2a2a2a] data-[state=active]:shadow-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">
                 추천 인벤토리
               </TabsTrigger>
             </TabsList>
@@ -710,17 +710,17 @@ export default function UnifiedSidebar({
                   {isGapLoading ? (
                     <div className="text-center py-8">
                       <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                      <p className="text-sm text-gray-600">로딩 중...</p>
+                      <p className="text-sm text-gray-600 dark:text-[#a0a0a0]">로딩 중...</p>
                     </div>
                   ) : (
                     companies.map(company => (
                       <button
                         key={company.id}
                         onClick={() => handleCompanySelect(company)}
-                        className="p-4 rounded-xl border border-gray-200 hover:border-blue-600 hover:shadow-sm transition-all text-left group"
+                        className="p-4 rounded-xl border border-gray-200 dark:border-[#2a2a2a] hover:border-blue-600 dark:hover:border-[#60A5FA] hover:shadow-sm transition-all text-left group bg-white dark:bg-[#1a1a1a] card-hover"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center border border-gray-100 group-hover:border-blue-100 transition-colors overflow-hidden flex-shrink-0">
+                          <div className="w-12 h-12 bg-white dark:bg-[#2a2a2a] rounded-lg flex items-center justify-center border border-gray-100 dark:border-[#3a3a3a] group-hover:border-blue-100 dark:group-hover:border-[#60A5FA] transition-colors overflow-hidden flex-shrink-0">
                             {company.logo_url ? (
                               <Image
                                 src={company.logo_url}
@@ -730,14 +730,14 @@ export default function UnifiedSidebar({
                                 className="w-full h-full object-contain p-1.5"
                               />
                             ) : (
-                              <Building2 className="w-6 h-6 text-gray-600 group-hover:text-blue-600" />
+                              <Building2 className="w-6 h-6 text-gray-600 dark:text-[#a0a0a0] group-hover:text-blue-600 dark:group-hover:text-[#60A5FA]" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 truncate">{company.name}</h3>
-                            <p className="text-sm text-gray-500 truncate">{company.industry}</p>
+                            <h3 className="font-semibold text-gray-900 dark:text-[#e5e5e5] truncate">{company.name}</h3>
+                            <p className="text-sm text-gray-500 dark:text-[#a0a0a0] truncate">{company.industry}</p>
                           </div>
-                          <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />
+                          <ChevronRight className="w-5 h-5 text-gray-400 dark:text-[#606060] group-hover:text-blue-600 dark:group-hover:text-[#60A5FA] flex-shrink-0" />
                         </div>
                       </button>
                     ))
@@ -750,7 +750,7 @@ export default function UnifiedSidebar({
                 <div className="space-y-6">
                   <button
                     onClick={() => setGapStep('company')}
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4"
+                    className="flex items-center gap-2 text-sm text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] mb-4"
                   >
                     <ChevronLeftIcon className="h-4 w-4" />
                     뒤로가기
@@ -758,12 +758,12 @@ export default function UnifiedSidebar({
                   {isGapLoading ? (
                     <div className="text-center py-8">
                       <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                      <p className="text-sm text-gray-600">로딩 중...</p>
+                      <p className="text-sm text-gray-600 dark:text-[#a0a0a0]">로딩 중...</p>
                     </div>
                   ) : (
                     Object.entries(jobsByCategory).map(([category, categoryJobs]) => (
                       <div key={category} className="space-y-3">
-                        <div className="text-sm font-bold text-gray-900 px-1">
+                        <div className="text-sm font-bold text-gray-900 dark:text-[#e5e5e5] px-1">
                           {category}
                         </div>
                         <div className="grid grid-cols-1 gap-3">
@@ -771,14 +771,14 @@ export default function UnifiedSidebar({
                             <button
                               key={job.id}
                               onClick={() => handleJobSelect(job)}
-                              className="p-4 rounded-xl border border-gray-200 hover:border-gray-900 hover:shadow-sm transition-all text-left group"
+                              className="p-4 rounded-xl border border-gray-200 dark:border-[#2a2a2a] hover:border-gray-900 dark:hover:border-[#60A5FA] hover:shadow-sm transition-all text-left group bg-white dark:bg-[#1a1a1a] card-hover"
                             >
                               <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1">
-                                  <h3 className="font-semibold text-gray-900 mb-1">{job.job_title}</h3>
-                                  <p className="text-sm text-gray-500">{job.department}</p>
+                                  <h3 className="font-semibold text-gray-900 dark:text-[#e5e5e5] mb-1">{job.job_title}</h3>
+                                  <p className="text-sm text-gray-500 dark:text-[#a0a0a0]">{job.department}</p>
                                 </div>
-                                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-900 flex-shrink-0" />
+                                <ChevronRight className="w-5 h-5 text-gray-400 dark:text-[#606060] group-hover:text-gray-900 dark:group-hover:text-[#e5e5e5] flex-shrink-0" />
                               </div>
                             </button>
                           ))}
@@ -794,7 +794,7 @@ export default function UnifiedSidebar({
                 <div className="space-y-6">
                   <button
                     onClick={() => setGapStep('job')}
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4"
+                    className="flex items-center gap-2 text-sm text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] mb-4"
                   >
                     <ChevronLeftIcon className="h-4 w-4" />
                     뒤로가기
@@ -802,16 +802,16 @@ export default function UnifiedSidebar({
                   {isGapLoading ? (
                     <div className="text-center py-8">
                       <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                      <p className="text-sm text-gray-600">문항을 불러오는 중...</p>
+                      <p className="text-sm text-gray-600 dark:text-[#a0a0a0]">문항을 불러오는 중...</p>
                     </div>
                   ) : questions.length === 0 ? (
                     <div className="text-center py-8">
-                      <p className="text-gray-600">해당 직무의 문항이 없습니다.</p>
+                      <p className="text-gray-600 dark:text-[#a0a0a0]">해당 직무의 문항이 없습니다.</p>
                     </div>
                   ) : (
                     <>
-                      <div className="bg-blue-50 rounded-xl p-4">
-                        <p className="text-sm text-blue-900">
+                      <div className="bg-blue-50 dark:bg-blue-900/30 rounded-xl p-4">
+                        <p className="text-sm text-blue-900 dark:text-[#e5e5e5]">
                           <strong>{selectedCompany?.name} {selectedJob?.job_title}</strong> 직무의 최근 5년간 기출 문항입니다.
                           각 문항에 대해 작성할 소재가 있는지 체크해주세요.
                         </p>
@@ -823,7 +823,7 @@ export default function UnifiedSidebar({
                           <div key={yearHalfKey} className="space-y-3">
                             <div className="flex items-center gap-2 px-1">
                               <div className="h-px flex-1 bg-gradient-to-r from-blue-200 to-transparent"></div>
-                              <h3 className="text-sm font-bold text-gray-900 px-3 py-1 bg-blue-50 rounded-full">
+                              <h3 className="text-sm font-bold text-gray-900 dark:text-[#e5e5e5] px-3 py-1 bg-blue-50 dark:bg-blue-900/30 rounded-full">
                                 {yearHalfKey}
                               </h3>
                               <div className="h-px flex-1 bg-gradient-to-l from-blue-200 to-transparent"></div>
@@ -833,17 +833,17 @@ export default function UnifiedSidebar({
                               {group.questions.map((q) => (
                                 <div
                                   key={q.id}
-                                  className="p-4 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors bg-white"
+                                  className="p-4 rounded-xl border border-gray-200 dark:border-[#2a2a2a] hover:border-gray-300 dark:hover:border-[#3a3a3a] transition-colors bg-white dark:bg-[#1a1a1a] card-hover"
                                 >
                                   <div className="flex gap-4">
                                     <div className="flex-1">
                                       <div className="flex items-start gap-2 mb-3">
-                                        <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 bg-blue-50 text-blue-600 rounded-full text-xs font-semibold flex-shrink-0">
+                                        <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-[#60A5FA] rounded-full text-xs font-semibold flex-shrink-0">
                                           {q.question_no}
                                         </span>
-                                        <p className="text-sm text-gray-900 leading-relaxed">{q.content}</p>
+                                        <p className="text-sm text-gray-900 dark:text-[#e5e5e5] leading-relaxed">{q.content}</p>
                                       </div>
-                                      <p className="text-xs text-gray-500 ml-8">
+                                      <p className="text-xs text-gray-500 dark:text-[#a0a0a0] ml-8">
                                         최대 {q.max_chars.toLocaleString()}자
                                       </p>
                                     </div>
@@ -853,7 +853,7 @@ export default function UnifiedSidebar({
                                         className={`w-20 h-10 rounded-lg font-medium text-sm transition-all ${
                                           responses[q.id] === true
                                             ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            : 'bg-gray-100 dark:bg-[#2a2a2a] text-gray-600 dark:text-[#e5e5e5] hover:bg-gray-200 dark:hover:bg-[#3a3a3a]'
                                         }`}
                                       >
                                         있음
@@ -862,8 +862,8 @@ export default function UnifiedSidebar({
                                         onClick={() => handleResponseToggle(q.id, false)}
                                         className={`w-20 h-10 rounded-lg font-medium text-sm transition-all ${
                                           responses[q.id] === false
-                                            ? 'bg-red-100 text-red-600'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                                            : 'bg-gray-100 dark:bg-[#2a2a2a] text-gray-600 dark:text-[#e5e5e5] hover:bg-gray-200 dark:hover:bg-[#3a3a3a]'
                                         }`}
                                       >
                                         없음
@@ -888,25 +888,25 @@ export default function UnifiedSidebar({
                     <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Check className="w-8 h-8 text-blue-600" />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">분석 완료</h3>
-                    <p className="text-sm text-gray-600">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-2">분석 완료</h3>
+                    <p className="text-sm text-gray-600 dark:text-[#a0a0a0]">
                       총 {questions.length}개 문항 중 {Object.values(responses).filter(r => r === false).length}개 문항에서 소재가 부족합니다
                     </p>
                   </div>
 
                   {analyzedTags.length > 0 ? (
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900">부족한 역량</h4>
+                      <h4 className="font-semibold text-gray-900 dark:text-[#e5e5e5]">부족한 역량</h4>
                       <div className="grid grid-cols-1 gap-3">
                         {analyzedTags.map(tag => (
                           <div
                             key={tag.id}
-                            className="p-4 rounded-xl bg-red-50 border border-red-100"
+                            className="p-4 rounded-xl bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <h5 className="font-semibold text-red-900 mb-1">{tag.label}</h5>
-                                <p className="text-xs text-red-600">{tag.source}</p>
+                                <h5 className="font-semibold text-red-900 dark:text-red-300 mb-1">{tag.label}</h5>
+                                <p className="text-xs text-red-600 dark:text-red-400">{tag.source}</p>
                               </div>
                             </div>
                           </div>
@@ -915,14 +915,14 @@ export default function UnifiedSidebar({
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <p className="text-gray-600">모든 문항에 대한 소재가 충분합니다! 👏</p>
+                      <p className="text-gray-600 dark:text-[#a0a0a0]">모든 문항에 대한 소재가 충분합니다! 👏</p>
                     </div>
                   )}
                 </div>
               )}
 
               {/* 푸터 버튼 */}
-              <div className="px-6 py-4 border-t border-gray-100 flex-shrink-0">
+              <div className="px-6 py-4 border-t border-gray-100 dark:border-[#2a2a2a] flex-shrink-0 bg-white dark:bg-[#0a0a0a]">
                 <div className="flex justify-end gap-3">
                   {gapStep === 'result' && (
                     <Button variant="outline" onClick={handleRestart}>
@@ -965,8 +965,8 @@ export default function UnifiedSidebar({
                   <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-[20px] flex items-center justify-center mx-auto mb-5">
                     <Sparkles className="w-10 h-10 text-blue-600" />
                   </div>
-                  <p className="font-bold text-lg text-gray-900 mb-2">추천 인벤토리가 비어있습니다</p>
-                  <p className="text-sm text-gray-500 mb-6">공백 진단을 통해 추천을 받아보세요</p>
+                  <p className="font-bold text-lg text-gray-900 dark:text-[#e5e5e5] mb-2">추천 인벤토리가 비어있습니다</p>
+                  <p className="text-sm text-gray-500 dark:text-[#a0a0a0] mb-6">공백 진단을 통해 추천을 받아보세요</p>
                   <Button
                     onClick={() => setGapSubTab('analysis')}
                     className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 h-12 px-6 rounded-[12px] font-semibold shadow-sm"
@@ -977,16 +977,16 @@ export default function UnifiedSidebar({
               </div>
             ) : (
               <div className="flex-1 flex flex-col min-h-0">
-                <div className="mx-6 mt-4 p-5 rounded-[16px] bg-gradient-to-br from-blue-50 to-blue-100/30 border border-blue-100 flex-shrink-0">
+                <div className="mx-6 mt-4 p-5 rounded-[16px] bg-gradient-to-br from-blue-50 to-blue-100/30 dark:from-blue-900/30 dark:to-blue-800/30 border border-blue-100 dark:border-blue-800 flex-shrink-0">
                   <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 bg-white rounded-[12px] flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <Sparkles className="h-5 w-5 text-blue-600" />
+                    <div className="w-10 h-10 bg-white dark:bg-[#2a2a2a] rounded-[12px] flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Sparkles className="h-5 w-5 text-blue-600 dark:text-[#60A5FA]" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-bold text-gray-900 mb-1.5">
+                      <p className="text-sm font-bold text-gray-900 dark:text-[#e5e5e5] mb-1.5">
                         태그를 드래그하여 추가하세요
                       </p>
-                      <p className="text-xs text-gray-600 leading-relaxed">
+                      <p className="text-xs text-gray-600 dark:text-[#a0a0a0] leading-relaxed">
                         태그를 마인드맵의 노드로 드래그하면<br />관련 경험을 추가할 수 있습니다
                       </p>
                     </div>
@@ -1018,16 +1018,16 @@ export default function UnifiedSidebar({
       {mainTab === 'star' && (
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
           {/* 헤더 */}
-          <div className="flex items-center gap-3 px-6 pt-4 pb-2 flex-shrink-0 border-b border-gray-100">
+          <div className="flex items-center gap-3 px-6 pt-4 pb-2 flex-shrink-0 border-b border-gray-100 dark:border-[#2a2a2a]">
             <div className="flex-1">
-              <h2 className="text-lg font-bold text-gray-900">STAR 정리하기</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5]">STAR 정리하기</h2>
             </div>
             <button
               onClick={onClose}
-              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100/50 dark:hover:bg-[#2a2a2a]/50 rounded-full transition-colors flex-shrink-0"
               title="닫기"
             >
-              <ChevronRight className="h-5 w-5 text-gray-600" />
+              <ChevronRight className="h-5 w-5 text-gray-600 dark:text-[#a0a0a0]" />
             </button>
           </div>
 
@@ -1040,8 +1040,8 @@ export default function UnifiedSidebar({
                     <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-[20px] flex items-center justify-center mx-auto mb-5">
                       <FileText className="w-10 h-10 text-blue-600" />
                     </div>
-                    <p className="font-bold text-lg text-gray-900 mb-2">에피소드가 없습니다</p>
-                    <p className="text-sm text-gray-500">마인드맵에 에피소드 노드를 추가해주세요</p>
+                    <p className="font-bold text-lg text-gray-900 dark:text-[#e5e5e5] mb-2">에피소드가 없습니다</p>
+                    <p className="text-sm text-gray-500 dark:text-[#a0a0a0]">마인드맵에 에피소드 노드를 추가해주세요</p>
                   </div>
                 </div>
               ) : (
@@ -1049,7 +1049,7 @@ export default function UnifiedSidebar({
                   {episodeNodes.map((node) => (
                     <Card
                       key={node.id}
-                      className="p-4 hover:shadow-md transition-shadow cursor-pointer"
+                      className="p-4 hover:shadow-md transition-shadow cursor-pointer bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] card-hover"
                       onClick={async () => {
                         setSelectedEpisodeNodeId(node.id);
                         setStarEditorTitle(node.label);
@@ -1073,10 +1073,10 @@ export default function UnifiedSidebar({
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 mb-1 truncate">{node.label}</h3>
-                          <p className="text-xs text-gray-500 truncate">{getNodePath(node)}</p>
+                          <h3 className="font-semibold text-gray-900 dark:text-[#e5e5e5] mb-1 truncate">{node.label}</h3>
+                          <p className="text-xs text-gray-500 dark:text-[#a0a0a0] truncate">{getNodePath(node)}</p>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                        <ChevronRight className="w-5 h-5 text-gray-400 dark:text-[#606060] flex-shrink-0" />
                       </div>
                     </Card>
                   ))}
@@ -1086,7 +1086,7 @@ export default function UnifiedSidebar({
           ) : (
             // STAR 에디터
             <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-              <div className="px-6 pt-4 pb-2 flex-shrink-0 border-b border-gray-100">
+              <div className="px-6 pt-4 pb-2 flex-shrink-0 border-b border-gray-100 dark:border-[#2a2a2a]">
                 <button
                   onClick={() => {
                     setSelectedEpisodeNodeId(null);
@@ -1097,7 +1097,7 @@ export default function UnifiedSidebar({
                     setStarEditorResult('');
                     setStarEditorTags([]);
                   }}
-                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-3"
+                  className="flex items-center gap-2 text-sm text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] mb-3"
                 >
                   <ChevronLeftIcon className="h-4 w-4" />
                   목록으로 돌아가기
@@ -1108,7 +1108,7 @@ export default function UnifiedSidebar({
                 <div className="space-y-6">
                   {/* 제목 */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-[#e5e5e5] mb-2">
                       제목 <span className="text-red-500">*</span>
                     </label>
                     <Input
@@ -1122,7 +1122,7 @@ export default function UnifiedSidebar({
                   {/* STAR 구성 요소 */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-[#e5e5e5] mb-2">
                         <Badge variant="outline" className="mr-2">S</Badge>
                         상황 (Situation)
                       </label>
@@ -1130,11 +1130,11 @@ export default function UnifiedSidebar({
                         value={starEditorSituation}
                         onChange={(e) => setStarEditorSituation(e.target.value)}
                         placeholder="어떤 상황이었나요?"
-                        className="min-h-[100px]"
+                        className="min-h-[100px] bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-900 dark:text-[#e5e5e5]"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-[#e5e5e5] mb-2">
                         <Badge variant="outline" className="mr-2">T</Badge>
                         과제 (Task)
                       </label>
@@ -1142,11 +1142,11 @@ export default function UnifiedSidebar({
                         value={starEditorTask}
                         onChange={(e) => setStarEditorTask(e.target.value)}
                         placeholder="어떤 과제나 목표가 있었나요?"
-                        className="min-h-[100px]"
+                        className="min-h-[100px] bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-900 dark:text-[#e5e5e5]"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-[#e5e5e5] mb-2">
                         <Badge variant="outline" className="mr-2">A</Badge>
                         행동 (Action)
                       </label>
@@ -1154,11 +1154,11 @@ export default function UnifiedSidebar({
                         value={starEditorAction}
                         onChange={(e) => setStarEditorAction(e.target.value)}
                         placeholder="구체적으로 어떤 행동을 취했나요?"
-                        className="min-h-[100px]"
+                        className="min-h-[100px] bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-900 dark:text-[#e5e5e5]"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-[#e5e5e5] mb-2">
                         <Badge variant="outline" className="mr-2">R</Badge>
                         결과 (Result)
                       </label>
@@ -1166,14 +1166,14 @@ export default function UnifiedSidebar({
                         value={starEditorResult}
                         onChange={(e) => setStarEditorResult(e.target.value)}
                         placeholder="결과는 어땠나요?"
-                        className="min-h-[100px]"
+                        className="min-h-[100px] bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-900 dark:text-[#e5e5e5]"
                       />
                     </div>
                   </div>
 
                   {/* 역량 키워드 선택 */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-[#e5e5e5] mb-3">
                       강점/역량 태그 선택
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -1184,7 +1184,7 @@ export default function UnifiedSidebar({
                           className={`cursor-pointer transition-all ${
                             starEditorTags.includes(keyword)
                               ? 'bg-blue-600 text-white hover:bg-blue-700'
-                              : 'hover:bg-gray-100'
+                              : 'hover:bg-gray-100 dark:hover:bg-[#2a2a2a] border-gray-200 dark:border-[#2a2a2a] text-gray-700 dark:text-[#e5e5e5]'
                           }`}
                           onClick={() => {
                             setStarEditorTags(prev =>
@@ -1201,7 +1201,7 @@ export default function UnifiedSidebar({
                         </Badge>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
+                    <p className="text-xs text-gray-500 dark:text-[#a0a0a0] mt-2">
                       이 경험에서 발휘한 강점이나 역량을 선택해주세요 (복수 선택 가능)
                     </p>
                   </div>
@@ -1209,7 +1209,7 @@ export default function UnifiedSidebar({
               </ScrollArea>
 
               {/* 액션 버튼 */}
-              <div className="px-6 py-4 border-t border-gray-100 flex-shrink-0 bg-white">
+              <div className="px-6 py-4 border-t border-gray-100 dark:border-[#2a2a2a] flex-shrink-0 bg-white dark:bg-[#0a0a0a]">
                 <div className="flex justify-end gap-3">
                   <Button
                     variant="outline"
@@ -1306,28 +1306,28 @@ export default function UnifiedSidebar({
       {mainTab === 'assistant' && (
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
           {/* 헤더 */}
-          <div className="flex items-center gap-3 px-6 pt-4 pb-2 flex-shrink-0 border-b border-gray-100">
+          <div className="flex items-center gap-3 px-6 pt-4 pb-2 flex-shrink-0 border-b border-gray-100 dark:border-[#2a2a2a]">
             <div className="flex-1">
-              <h2 className="text-lg font-bold text-gray-900">어시스턴트</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5]">어시스턴트</h2>
             </div>
             <button
               onClick={onClose}
-              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100/50 dark:hover:bg-[#2a2a2a]/50 rounded-full transition-colors flex-shrink-0"
               title="닫기"
             >
-              <ChevronRight className="h-5 w-5 text-gray-600" />
+              <ChevronRight className="h-5 w-5 text-gray-600 dark:text-[#a0a0a0]" />
             </button>
           </div>
 
           {!selectedNodeId && (
-            <div className="mx-6 mt-4 p-5 rounded-[16px] bg-gradient-to-br from-blue-50 to-blue-100/30 border border-blue-100 flex-shrink-0">
+            <div className="mx-6 mt-4 p-5 rounded-[16px] bg-gradient-to-br from-blue-50 to-blue-100/30 dark:from-blue-900/30 dark:to-blue-800/30 border border-blue-100 dark:border-blue-800 flex-shrink-0">
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-white rounded-[12px] flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <Sparkles className="h-5 w-5 text-blue-600" />
+                <div className="w-10 h-10 bg-white dark:bg-[#2a2a2a] rounded-[12px] flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <Sparkles className="h-5 w-5 text-blue-600 dark:text-[#60A5FA]" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-gray-900 mb-1.5">노드를 선택해보세요</p>
-                  <p className="text-xs text-gray-600 leading-relaxed">
+                  <p className="text-sm font-bold text-gray-900 dark:text-[#e5e5e5] mb-1.5">노드를 선택해보세요</p>
+                  <p className="text-xs text-gray-600 dark:text-[#a0a0a0] leading-relaxed">
                     마인드맵에서 경험 노드를 선택하면<br />AI가 STAR 기법으로 경험을 구조화합니다.
                   </p>
                 </div>
@@ -1348,7 +1348,7 @@ export default function UnifiedSidebar({
                     className={`max-w-[80%] rounded-[20px] px-5 py-3.5 ${
                       message.role === 'user'
                         ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-sm'
-                        : 'bg-gray-50 text-gray-900'
+                        : 'bg-gray-50 dark:bg-[#1a1a1a] text-gray-900 dark:text-[#e5e5e5]'
                     }`}
                   >
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
@@ -1357,11 +1357,11 @@ export default function UnifiedSidebar({
               ))}
               {isTyping && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-[20px] px-5 py-4">
+                  <div className="bg-gray-100 dark:bg-[#1a1a1a] rounded-[20px] px-5 py-4">
                     <div className="flex gap-1.5">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      <div className="w-2 h-2 bg-gray-400 dark:bg-[#606060] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <div className="w-2 h-2 bg-gray-400 dark:bg-[#606060] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <div className="w-2 h-2 bg-gray-400 dark:bg-[#606060] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     </div>
                   </div>
                 </div>
@@ -1370,7 +1370,7 @@ export default function UnifiedSidebar({
             </div>
           </ScrollArea>
 
-          <div className="px-6 py-5 border-t border-gray-100 flex-shrink-0 bg-white">
+          <div className="px-6 py-5 border-t border-gray-100 dark:border-[#2a2a2a] flex-shrink-0 bg-white dark:bg-[#0a0a0a]">
             <div className="flex gap-3">
               <Input
                 value={input}
@@ -1383,7 +1383,7 @@ export default function UnifiedSidebar({
                 }}
                 placeholder="메시지를 입력하세요..."
                 disabled={!selectedNodeId || isTyping}
-                className="flex-1 h-12 rounded-[12px] border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-gray-50 focus:bg-white transition-colors"
+                className="flex-1 h-12 rounded-[12px] border-gray-200 dark:border-[#2a2a2a] focus:border-blue-500 dark:focus:border-[#60A5FA] focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50 bg-gray-50 dark:bg-[#1a1a1a] focus:bg-white dark:focus:bg-[#2a2a2a] transition-colors text-gray-900 dark:text-[#e5e5e5]"
               />
               <Button
                 onClick={handleSend}
@@ -1401,37 +1401,37 @@ export default function UnifiedSidebar({
       {/* 질문 리스트 모달 */}
       {selectedTagForQuestions && selectedTagForQuestions.questions && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70]" onClick={() => setSelectedTagForQuestions(null)}>
-          <div className="bg-white rounded-[24px] p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-card rounded-[24px] p-8 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{selectedTagForQuestions.label}</h3>
-                <p className="text-sm text-gray-500">{selectedTagForQuestions.source}</p>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-2">{selectedTagForQuestions.label}</h3>
+                <p className="text-sm text-gray-500 dark:text-[#a0a0a0]">{selectedTagForQuestions.source}</p>
               </div>
               <button
                 onClick={() => setSelectedTagForQuestions(null)}
-                className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                className="w-10 h-10 flex items-center justify-center hover:bg-gray-100/50 dark:hover:bg-[#2a2a2a]/50 rounded-full transition-colors"
               >
-                <X className="h-5 w-5 text-gray-600" />
+                <X className="h-5 w-5 text-gray-600 dark:text-[#a0a0a0]" />
               </button>
             </div>
             
             <div className="space-y-3">
               <div className="flex items-center gap-2 mb-4">
-                <FileText className="w-5 h-5 text-blue-600" />
-                <h4 className="font-semibold text-gray-900">답변하기 어려웠던 질문 ({selectedTagForQuestions.questions.length}개)</h4>
+                <FileText className="w-5 h-5 text-blue-600 dark:text-[#60A5FA]" />
+                <h4 className="font-semibold text-gray-900 dark:text-[#e5e5e5]">답변하기 어려웠던 질문 ({selectedTagForQuestions.questions.length}개)</h4>
               </div>
               {selectedTagForQuestions.questions.map((question, index) => (
-                <div key={index} className="p-4 rounded-[12px] bg-gray-50 border border-gray-200">
+                <div key={index} className="p-4 rounded-[12px] bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a]">
                   <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-xs font-semibold text-blue-600">{index + 1}</span>
+                    <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs font-semibold text-blue-600 dark:text-[#60A5FA]">{index + 1}</span>
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm text-gray-900 leading-relaxed mb-1">
+                      <p className="text-sm text-gray-900 dark:text-[#e5e5e5] leading-relaxed mb-1">
                         {typeof question === 'string' ? question : question.content}
                       </p>
                       {typeof question === 'object' && question.year && question.half && (
-                        <p className="text-xs text-gray-500 font-medium">
+                        <p className="text-xs text-gray-500 dark:text-[#a0a0a0] font-medium">
                           {question.year}년 {question.half}
                         </p>
                       )}

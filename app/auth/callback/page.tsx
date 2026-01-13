@@ -18,26 +18,33 @@ function AuthCallbackContent() {
   useEffect(() => {
     let isMounted = true
     let timeoutId: NodeJS.Timeout
+    let subscription: { unsubscribe: () => void } | null = null
+    let retryCount = 0
+    const MAX_RETRIES = 3
+    const RETRY_DELAY = 2000 // 2초
 
     const handleCallback = async () => {
       const next = searchParams.get('next') || '/mindmaps'
+      let sessionFound = false
 
       try {
         // Supabase가 URL에서 자동으로 세션을 처리하도록 대기
         // onAuthStateChange 이벤트를 활용하여 더 안정적으로 처리
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
-            if (!isMounted) return
+            if (!isMounted || sessionFound) return
 
             if (event === 'SIGNED_IN' && session?.user) {
               console.log('[AuthCallback] Login successful:', session.user.id)
+              sessionFound = true
+              clearTimeout(timeoutId)
               
-              // 약간의 지연 후 리다이렉트 (세션 저장 완료 대기)
+              // 세션이 localStorage에 저장될 때까지 충분히 대기 (배포 환경 대응)
               setTimeout(() => {
                 if (isMounted) {
                   router.replace(next)
                 }
-              }, 100)
+              }, 500) // 100ms → 500ms로 증가
             } else if (event === 'SIGNED_OUT') {
               console.log('[AuthCallback] User signed out')
               if (isMounted) {
@@ -46,50 +53,110 @@ function AuthCallbackContent() {
             }
           }
         )
+        subscription = authSubscription
 
-        // 최대 10초 대기 후 타임아웃
+        // 최대 30초 대기 후 타임아웃 (10초 → 30초로 증가)
         timeoutId = setTimeout(() => {
-          if (isMounted) {
+          if (isMounted && !sessionFound) {
             console.error('[AuthCallback] Timeout waiting for session')
-            router.replace('/login?error=session_timeout')
-          }
-        }, 10000)
-
-        // 세션 확인 (즉시 체크)
-        const { data: { session }, error } = await supabase.auth.getSession()
-
-        if (error) {
-          console.error('[AuthCallback] Session check error:', error)
-          if (isMounted) {
-            router.replace('/login?error=callback_failed')
-          }
-          subscription.unsubscribe()
-          return
-        }
-
-        if (session?.user) {
-          console.log('[AuthCallback] Session found immediately:', session.user.id)
-          clearTimeout(timeoutId)
-          subscription.unsubscribe()
-          
-          // 약간의 지연 후 리다이렉트
-          setTimeout(() => {
-            if (isMounted) {
-              router.replace(next)
+            // 재시도 로직
+            if (retryCount < MAX_RETRIES) {
+              retryCount++
+              console.log(`[AuthCallback] Retrying session check (${retryCount}/${MAX_RETRIES})`)
+              setTimeout(() => {
+                if (isMounted) {
+                  checkSessionWithRetry()
+                }
+              }, RETRY_DELAY)
+            } else {
+              router.replace('/login?error=session_timeout')
             }
-          }, 100)
-        } else {
-          // 세션이 없으면 onAuthStateChange 이벤트를 기다림
-          // 이벤트가 발생하지 않으면 타임아웃으로 처리됨
+          }
+        }, 30000) // 10초 → 30초로 증가
+
+        // 세션 확인 함수 (재시도 로직 포함)
+        const checkSessionWithRetry = async () => {
+          try {
+            // 세션 확인 (즉시 체크)
+            const { data: { session }, error } = await supabase.auth.getSession()
+
+            if (error) {
+              console.error('[AuthCallback] Session check error:', error)
+              // 재시도 가능한 에러인 경우 재시도
+              if (retryCount < MAX_RETRIES && !error.message?.includes('Invalid')) {
+                retryCount++
+                console.log(`[AuthCallback] Retrying after error (${retryCount}/${MAX_RETRIES})`)
+                setTimeout(() => {
+                  if (isMounted && !sessionFound) {
+                    checkSessionWithRetry()
+                  }
+                }, RETRY_DELAY)
+                return
+              }
+              
+              if (isMounted && !sessionFound) {
+                router.replace('/login?error=callback_failed')
+              }
+              if (subscription) {
+                subscription.unsubscribe()
+              }
+              return
+            }
+
+            if (session?.user) {
+              console.log('[AuthCallback] Session found:', session.user.id)
+              sessionFound = true
+              clearTimeout(timeoutId)
+              if (subscription) {
+                subscription.unsubscribe()
+              }
+              
+              // 세션이 localStorage에 저장될 때까지 충분히 대기
+              setTimeout(() => {
+                if (isMounted) {
+                  router.replace(next)
+                }
+              }, 500) // 100ms → 500ms로 증가
+            } else {
+              // 세션이 없으면 onAuthStateChange 이벤트를 기다림
+              // 이벤트가 발생하지 않으면 타임아웃으로 처리됨
+              console.log('[AuthCallback] No session found, waiting for onAuthStateChange event...')
+            }
+          } catch (error) {
+            console.error('[AuthCallback] Session check exception:', error)
+            // 재시도 가능한 경우 재시도
+            if (retryCount < MAX_RETRIES && isMounted && !sessionFound) {
+              retryCount++
+              console.log(`[AuthCallback] Retrying after exception (${retryCount}/${MAX_RETRIES})`)
+              setTimeout(() => {
+                if (isMounted && !sessionFound) {
+                  checkSessionWithRetry()
+                }
+              }, RETRY_DELAY)
+            } else if (isMounted && !sessionFound) {
+              router.replace('/login?error=processing_failed')
+            }
+          }
         }
 
-        return () => {
-          subscription.unsubscribe()
-        }
+        // 초기 세션 확인
+        await checkSessionWithRetry()
+
       } catch (error) {
         console.error('[AuthCallback] Callback processing error:', error)
-        if (isMounted) {
-          router.replace('/login?error=processing_failed')
+        if (isMounted && !sessionFound) {
+          // 재시도 가능한 경우 재시도
+          if (retryCount < MAX_RETRIES) {
+            retryCount++
+            console.log(`[AuthCallback] Retrying after processing error (${retryCount}/${MAX_RETRIES})`)
+            setTimeout(() => {
+              if (isMounted && !sessionFound) {
+                handleCallback()
+              }
+            }, RETRY_DELAY)
+          } else {
+            router.replace('/login?error=processing_failed')
+          }
         }
       }
     }
@@ -101,15 +168,18 @@ function AuthCallbackContent() {
       isMounted = false
       clearTimeout(initTimeout)
       clearTimeout(timeoutId)
+      if (subscription) {
+        subscription.unsubscribe()
+      }
     }
   }, [router, searchParams])
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
       <div className="text-center">
-        <LoadingSpinner size="lg" className="text-blue-600 mx-auto mb-4" />
-        <p className="text-gray-600">로그인 처리 중...</p>
-        <p className="text-sm text-gray-500 mt-2">잠시만 기다려주세요</p>
+        <LoadingSpinner size="lg" className="text-blue-600 dark:text-blue-400 mx-auto mb-4" />
+        <p className="text-gray-600 dark:text-gray-400">로그인 처리 중...</p>
+        <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">잠시만 기다려주세요</p>
       </div>
     </div>
   )
@@ -123,10 +193,10 @@ export default function AuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
           <div className="text-center">
-            <LoadingSpinner size="lg" className="text-blue-600 mx-auto mb-4" />
-            <p className="text-gray-600">로딩 중...</p>
+            <LoadingSpinner size="lg" className="text-blue-600 dark:text-blue-400 mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">로딩 중...</p>
           </div>
         </div>
       }

@@ -8,6 +8,7 @@ import { userStorage, badgeStorage, mindMapProjectStorage, currentProjectStorage
 import { BadgeType, MindMapProject, MindMapNode } from '@/types';
 import { motion } from 'framer-motion';
 import { Check, ChevronLeft } from 'lucide-react';
+import { applyLayout } from '@/lib/layouts';
 
 const BADGES: { id: BadgeType; label: string; emoji: string }[] = [
   { id: 'intern', label: '인턴', emoji: '💼' },
@@ -91,10 +92,8 @@ export default function BadgeSelectionPage() {
       updatedAt: Date.now(),
     };
 
-    // 배지 노드들 생성
+    // 배지 노드들 생성 (임시 좌표, 자동 레이아웃에서 재계산됨)
     const badgeNodes: MindMapNode[] = selectedBadges.map((badgeId, index) => {
-      const angle = (index / selectedBadges.length) * 2 * Math.PI;
-      const radius = 200;
       const nodeId = `badge_${badgeId}_${index}`;
       
       centerNode.children.push(nodeId);
@@ -109,23 +108,34 @@ export default function BadgeSelectionPage() {
         label: displayLabel,
         parentId: 'center',
         children: [],
-        x: 500 + Math.cos(angle) * radius,
-        y: 300 + Math.sin(angle) * radius,
+        x: 500, // 임시 좌표 (자동 레이아웃에서 재계산됨)
+        y: 300,
         level: 1,
         nodeType: 'category',
         badgeType: badgeId,
         customLabel: badgeId === 'other' ? customLabels[index] : undefined,
+        isManuallyPositioned: false, // 자동 레이아웃으로 배치
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
     });
 
+    // 초기 노드 배열 생성
+    const initialNodes = [centerNode, ...badgeNodes];
+    
+    // 자동 레이아웃 적용
+    const layoutType = 'radial';
+    const layoutConfig = { autoLayout: true, spacing: { horizontal: 150, vertical: 120, radial: 160 } };
+    const layoutedNodes = applyLayout(initialNodes, layoutType, layoutConfig);
+    
     const newProject: MindMapProject & { userId?: string } = {
       id: projectId,
       name: projectName,
       description: `${selectedBadges.length}개의 경험 유형을 관리합니다`,
       badges: selectedBadges,
-      nodes: [centerNode, ...badgeNodes],
+      nodes: layoutedNodes,
+      layoutType: 'radial', // 기본 레이아웃 타입
+      layoutConfig: layoutConfig,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       isDefault: true,
@@ -170,6 +180,8 @@ export default function BadgeSelectionPage() {
       description: '경험을 관리합니다',
       badges: [],
       nodes: [centerNode],
+      layoutType: 'radial', // 기본 레이아웃 타입
+      layoutConfig: { autoLayout: true, spacing: { horizontal: 150, vertical: 120, radial: 160 } },
       createdAt: Date.now(),
       updatedAt: Date.now(),
       isDefault: true,
@@ -183,12 +195,12 @@ export default function BadgeSelectionPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="safe-area-top bg-white" />
-      <div className="flex-1 bg-white px-5 py-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] flex flex-col">
+      <div className="safe-area-top bg-white dark:bg-[#0a0a0a]" />
+      <div className="flex-1 bg-white dark:bg-[#0a0a0a] px-5 py-6">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 mb-8"
+          className="flex items-center gap-2 text-gray-600 dark:text-[#a0a0a0] mb-8"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
@@ -200,11 +212,11 @@ export default function BadgeSelectionPage() {
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="mb-12">
-              <h1 className="text-2xl font-bold text-gray-900 mb-3">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-3">
                 어떤 경험을
                 <br />관리하고 싶으신가요?
               </h1>
-              <p className="text-gray-600 text-base">
+              <p className="text-gray-600 dark:text-[#a0a0a0] text-base">
                 여러 개를 선택할 수 있어요
               </p>
             </div>
@@ -222,14 +234,14 @@ export default function BadgeSelectionPage() {
                       onClick={() => toggleBadge(badge.id)}
                       className={`relative h-[72px] rounded-[16px] border-[1.5px] transition-all duration-200 ease-out ${
                         isSelected
-                          ? 'bg-blue-50 border-blue-500 shadow-sm'
-                          : 'bg-white border-gray-200 hover:border-gray-300'
+                          ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-[#60A5FA] shadow-sm'
+                          : 'bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] hover:border-gray-300 dark:hover:border-[#3a3a3a] card-hover'
                       }`}
                     >
                       <div className="flex items-center gap-3 px-4">
                         <span className="text-2xl">{badge.emoji}</span>
                         <span className={`font-semibold text-sm ${
-                          isSelected ? 'text-blue-700' : 'text-gray-700'
+                          isSelected ? 'text-blue-700 dark:text-[#60A5FA]' : 'text-gray-700 dark:text-[#e5e5e5]'
                         }`}>
                           {badge.label}
                         </span>
@@ -266,7 +278,7 @@ export default function BadgeSelectionPage() {
                         placeholder="기타 경험 유형을 입력하세요 (예: 어학연수, 창업 등)"
                         value={customLabels[idx] || ''}
                         onChange={(e) => setCustomLabels(prev => ({ ...prev, [idx]: e.target.value }))}
-                        className="w-full h-[48px] px-4 rounded-[12px] border-[1.5px] border-gray-200 focus:border-blue-500 focus:outline-none text-sm"
+                        className="w-full h-[48px] px-4 rounded-[12px] border-[1.5px] border-gray-200 dark:border-[#2a2a2a] focus:border-blue-500 dark:focus:border-[#60A5FA] focus:outline-none text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-[#e5e5e5] placeholder-gray-500 dark:placeholder-[#606060]"
                       />
                     </motion.div>
                   );
@@ -287,14 +299,14 @@ export default function BadgeSelectionPage() {
               <Button
                 onClick={handleSkip}
                 variant="outline"
-                className="w-full h-[56px] bg-white border-[1.5px] border-gray-200 hover:border-gray-300 text-gray-600 font-semibold text-base rounded-[12px] shadow-sm transition-all duration-200 ease-out"
+                className="w-full h-[56px] bg-white dark:bg-[#1a1a1a] border-[1.5px] border-gray-200 dark:border-[#2a2a2a] hover:border-gray-300 dark:hover:border-[#3a3a3a] text-gray-600 dark:text-[#a0a0a0] font-semibold text-base rounded-[12px] shadow-sm transition-all duration-200 ease-out"
               >
                 건너뛰기
               </Button>
             </div>
 
             {selectedBadges.length === 0 && (
-              <p className="text-sm text-gray-500 text-center mt-4">
+              <p className="text-sm text-gray-500 dark:text-[#a0a0a0] text-center mt-4">
                 최소 1개 이상 선택해주세요
               </p>
             )}

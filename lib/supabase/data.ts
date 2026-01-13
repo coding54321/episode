@@ -18,13 +18,14 @@ export async function getProjects(userId: string): Promise<MindMapProject[]> {
         *,
         nodes(count)
       `)
-      .eq('user_id', userId)
+      .eq('user_id' as any, userId as any)
       .order('is_favorite', { ascending: false }) // 즐겨찾기 우선 정렬
       .order('updated_at', { ascending: false }); // 그 다음 최신순
 
     if (error) throw error;
+    if (!data) return [];
 
-    return (data || []).map((p: any) => {
+    return (data as any[]).map((p: any) => {
       // Supabase의 count 결과는 배열 형태로 반환됨: [{ count: number }]
       const nodeCount = Array.isArray(p.nodes) && p.nodes.length > 0 
         ? p.nodes[0].count 
@@ -35,12 +36,17 @@ export async function getProjects(userId: string): Promise<MindMapProject[]> {
         name: p.name,
         description: p.description || '',
         badges: (p.badges as BadgeType[]) || [],
-        nodes: Array(nodeCount).fill(null).map((_, i) => ({ id: `placeholder_${i}` } as any)), // 개수만큼 플레이스홀더 생성 (하위 호환성)
+        nodes: Array(nodeCount).fill(null).map((_, i) => ({ id: `placeholder_${i}` } as MindMapNode)), // 개수만큼 플레이스홀더 생성 (하위 호환성)
         nodeCount, // 실제 노드 개수 (새 필드)
+        layoutType: p.layout_type || 'radial',
+        layoutConfig: p.layout_config || { autoLayout: true, spacing: { horizontal: 150, vertical: 120, radial: 160 } },
         createdAt: new Date(p.created_at || '').getTime(),
         updatedAt: new Date(p.updated_at || '').getTime(),
         isDefault: p.is_default || false,
         isFavorite: p.is_favorite || false,
+        isShared: p.is_shared || false,
+        sharedBy: p.shared_by || undefined,
+        sharedByUser: p.shared_by_user || undefined,
       };
     });
   } catch (error) {
@@ -54,8 +60,8 @@ export async function getProject(projectId: string, userId: string): Promise<Min
     const { data, error } = await supabase
       .from('projects')
       .select('*')
-      .eq('id', projectId)
-      .eq('user_id', userId)
+      .eq('id' as any, projectId as any)
+      .eq('user_id' as any, userId as any)
       .maybeSingle();
 
     if (error) {
@@ -75,17 +81,24 @@ export async function getProject(projectId: string, userId: string): Promise<Min
     // 노드 로드
     const nodes = await getNodes(projectId);
 
+    const projectData = data as any;
+
     return {
-      id: data.id,
-      name: data.name,
-      description: data.description || '',
-      badges: (data.badges as BadgeType[]) || [],
+      id: projectData.id,
+      name: projectData.name,
+      description: projectData.description || '',
+      badges: (projectData.badges as BadgeType[]) || [],
       nodes,
       nodeCount: nodes.length, // 상세 조회 시에도 nodeCount 설정
-      createdAt: new Date(data.created_at || '').getTime(),
-      updatedAt: new Date(data.updated_at || '').getTime(),
-      isDefault: data.is_default || false,
-      isFavorite: data.is_favorite || false,
+      layoutType: projectData.layout_type || 'radial',
+      layoutConfig: projectData.layout_config || { autoLayout: true, spacing: { horizontal: 150, vertical: 120, radial: 160 } },
+      createdAt: new Date(projectData.created_at || '').getTime(),
+      updatedAt: new Date(projectData.updated_at || '').getTime(),
+      isDefault: projectData.is_default || false,
+      isFavorite: projectData.is_favorite || false,
+      isShared: projectData.is_shared || false,
+      sharedBy: projectData.shared_by || undefined,
+      sharedByUser: projectData.shared_by_user || undefined,
     };
   } catch (error) {
     // AbortError는 조용히 무시 (컴포넌트 언마운트 등으로 인한 정상적인 중단)
@@ -115,7 +128,7 @@ export async function createProject(
       const { data: existing } = await supabase
         .from('projects')
         .select('id')
-        .eq('id', project.id)
+        .eq('id' as any, project.id as any)
         .maybeSingle();
 
       if (existing) {
@@ -130,6 +143,8 @@ export async function createProject(
       description: project.description || null,
       badges: project.badges || [],
       is_default: project.isDefault || false,
+      layout_type: project.layoutType || 'radial',
+      layout_config: project.layoutConfig || { autoLayout: true, spacing: { horizontal: 150, vertical: 120, radial: 160 } },
     };
 
     // id가 제공된 경우에만 포함 (그렇지 않으면 DB에서 자동 생성)
@@ -153,7 +168,7 @@ export async function createProject(
     }
 
     // 노드 저장 (생성된 프로젝트의 실제 ID 사용)
-    const createdProjectId = data.id;
+    const createdProjectId = (data as any).id;
     if (project.nodes && project.nodes.length > 0) {
       console.log('[data.ts] createProject: 노드 저장 시작', {
         projectId: createdProjectId,
@@ -178,12 +193,14 @@ export async function createProject(
       });
     }
 
+    const createdData = data as any;
+
     return {
       ...project,
       id: createdProjectId, // DB에서 생성된 실제 ID 사용
-      createdAt: new Date(data.created_at || '').getTime(),
-      updatedAt: new Date(data.updated_at || '').getTime(),
-      isFavorite: data.is_favorite || false,
+      createdAt: new Date(createdData.created_at || '').getTime(),
+      updatedAt: new Date(createdData.updated_at || '').getTime(),
+      isFavorite: createdData.is_favorite || false,
     };
   } catch (error) {
     console.error('Failed to create project:', error);
@@ -202,11 +219,13 @@ export async function updateProject(
     if (updates.badges !== undefined) updateData.badges = updates.badges;
     if (updates.isDefault !== undefined) updateData.is_default = updates.isDefault;
     if (updates.isFavorite !== undefined) updateData.is_favorite = updates.isFavorite;
+    if (updates.layoutType !== undefined) updateData.layout_type = updates.layoutType;
+    if (updates.layoutConfig !== undefined) updateData.layout_config = updates.layoutConfig;
 
     const { error } = await supabase
       .from('projects')
       .update(updateData)
-      .eq('id', projectId);
+      .eq('id' as any, projectId as any);
 
     if (error) throw error;
 
@@ -225,10 +244,10 @@ export async function updateProject(
 export async function deleteProject(projectId: string): Promise<boolean> {
   try {
     // 노드 먼저 삭제 (외래키 제약)
-    await supabase.from('nodes').delete().eq('project_id', projectId);
+    await supabase.from('nodes').delete().eq('project_id' as any, projectId as any);
 
     // 프로젝트 삭제
-    const { error } = await supabase.from('projects').delete().eq('id', projectId);
+    const { error } = await supabase.from('projects').delete().eq('id' as any, projectId as any);
 
     if (error) throw error;
     return true;
@@ -245,12 +264,14 @@ export async function getNodes(projectId: string): Promise<MindMapNode[]> {
     const { data, error } = await supabase
       .from('nodes')
       .select('*')
-      .eq('project_id', projectId)
+      .eq('project_id' as any, projectId as any)
       .order('created_at', { ascending: true });
 
     if (error) throw error;
+    if (!data) return [];
 
-    const nodes = (data || []).map((n) => ({
+    const nodesData = (data as any[]) || [];
+    const nodes = nodesData.map((n: any) => ({
       id: n.id,
       label: n.label,
       parentId: n.parent_id,
@@ -258,11 +279,12 @@ export async function getNodes(projectId: string): Promise<MindMapNode[]> {
       x: n.x || 0,
       y: n.y || 0,
       level: n.level || 0,
-      nodeType: (n.node_type as any) || undefined,
-      badgeType: (n.badge_type as any) || undefined,
+      nodeType: n.node_type || undefined,
+      badgeType: n.badge_type || undefined,
       customLabel: n.custom_label || undefined,
       isShared: n.is_shared || false,
       sharedLink: n.shared_link || undefined,
+      isManuallyPositioned: n.is_manually_positioned || false,
       createdAt: n.created_at,
       updatedAt: n.updated_at,
     }));
@@ -339,7 +361,7 @@ const saveNodesInProgress = new Map<string, Promise<boolean>>();
 export async function updateNode(
   projectId: string,
   nodeId: string,
-  updates: Partial<Pick<MindMapNode, 'label' | 'x' | 'y' | 'isShared' | 'sharedLink' | 'customLabel' | 'parentId' | 'children' | 'level' | 'nodeType' | 'badgeType'>>
+  updates: Partial<Pick<MindMapNode, 'label' | 'x' | 'y' | 'isShared' | 'sharedLink' | 'customLabel' | 'parentId' | 'children' | 'level' | 'nodeType' | 'badgeType' | 'isManuallyPositioned'>>
 ): Promise<boolean> {
   try {
     const updateData: any = {
@@ -377,12 +399,15 @@ export async function updateNode(
     if (updates.badgeType !== undefined) {
       updateData.badge_type = updates.badgeType || null;
     }
+    if (updates.isManuallyPositioned !== undefined) {
+      updateData.is_manually_positioned = updates.isManuallyPositioned;
+    }
 
     const { error } = await supabase
       .from('nodes')
       .update(updateData)
-      .eq('id', nodeId)
-      .eq('project_id', projectId);
+      .eq('id' as any, nodeId as any)
+      .eq('project_id' as any, projectId as any);
 
     if (error) {
       console.error('[data.ts] updateNode: 노드 업데이트 실패', {
@@ -430,6 +455,7 @@ export async function insertNode(projectId: string, node: MindMapNode): Promise<
       y: node.y ?? 0,
       is_shared: node.isShared || false,
       shared_link: node.sharedLink || null,
+      is_manually_positioned: node.isManuallyPositioned || false,
       created_at: node.createdAt || Date.now(),
       updated_at: node.updatedAt || Date.now(),
     };
@@ -473,8 +499,8 @@ export async function deleteNode(projectId: string, nodeId: string): Promise<boo
     const { error } = await supabase
       .from('nodes')
       .delete()
-      .eq('id', nodeId)
-      .eq('project_id', projectId);
+      .eq('id' as any, nodeId as any)
+      .eq('project_id' as any, projectId as any);
 
     if (error) {
       console.error('[data.ts] deleteNode: 노드 삭제 실패', {
@@ -526,7 +552,7 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
     
     if (nodes.length === 0) {
       // 노드가 없으면 해당 프로젝트의 모든 노드 삭제
-      const { error } = await supabase.from('nodes').delete().eq('project_id', projectId);
+      const { error } = await supabase.from('nodes').delete().eq('project_id' as any, projectId as any);
       if (error) {
         console.error('[data.ts] saveNodes: 노드 삭제 실패', { error, projectId });
         return false;
@@ -538,81 +564,106 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
     // 부모-자식 관계를 고려하여 노드를 계층별로 정렬
     const sortedNodes = sortNodesByHierarchy(nodes);
 
-    // 저장할 노드들의 모든 parentId 수집 (재귀적으로 모든 조상 노드 포함)
+    // 저장할 노드들의 모든 parentId 수집
     const nodeIdsInArray = new Set(nodes.map(n => n.id));
-    let allParentIds = new Set<string>();
-    
+    const allMissingParentIds = new Set<string>();
+
     // 초기 parentId 수집
     nodes.forEach(node => {
       if (node.parentId && !nodeIdsInArray.has(node.parentId)) {
-        allParentIds.add(node.parentId);
+        allMissingParentIds.add(node.parentId);
       }
     });
 
-    // DB에서 누락된 부모 노드들 조회하여 포함 (재귀적으로 모든 조상 포함)
+    // DB에서 누락된 부모 노드들을 최대 2단계까지 조회 (최적화: while 루프 대신 2단계로 제한)
     const nodesToSave = [...nodes];
-    let hasMoreParents = allParentIds.size > 0;
-    const fetchedParentIds = new Set<string>();
-    
-    // 모든 조상 노드를 포함할 때까지 반복
-    while (hasMoreParents) {
-      const missingParentIds = Array.from(allParentIds).filter(id => !fetchedParentIds.has(id));
-      
-      if (missingParentIds.length === 0) {
-        break;
-      }
-      
-      // DB에서 누락된 부모 노드들 조회
+
+    if (allMissingParentIds.size > 0) {
+      const missingParentIds = Array.from(allMissingParentIds);
+
+      // 1단계: 누락된 부모 노드 조회
       const { data: missingParents, error: fetchError } = await supabase
         .from('nodes')
         .select('*')
-        .eq('project_id', projectId)
-        .in('id', missingParentIds);
+        .eq('project_id' as any, projectId as any)
+        .in('id' as any, missingParentIds as any);
 
-      if (fetchError || !missingParents || missingParents.length === 0) {
-        break;
-      }
+      if (!fetchError && missingParents && missingParents.length > 0) {
+        const missingParentsTyped = (missingParents as any[]) || [];
+        const parentNodes: MindMapNode[] = missingParentsTyped.map((n: any) => ({
+          id: n.id,
+          label: n.label,
+          parentId: n.parent_id,
+          children: [],
+          x: n.x || 0,
+          y: n.y || 0,
+          level: n.level || 0,
+          nodeType: n.node_type || undefined,
+          badgeType: n.badge_type || undefined,
+          customLabel: n.custom_label || undefined,
+          isShared: n.is_shared || false,
+          sharedLink: n.shared_link || undefined,
+          createdAt: n.created_at,
+          updatedAt: n.updated_at,
+        }));
 
-      // 조회한 노드들을 추가
-      const parentNodes: MindMapNode[] = missingParents.map((n: any) => ({
-        id: n.id,
-        label: n.label,
-        parentId: n.parent_id,
-        children: [],
-        x: n.x || 0,
-        y: n.y || 0,
-        level: n.level || 0,
-        nodeType: (n.node_type as any) || undefined,
-        badgeType: (n.badge_type as any) || undefined,
-        customLabel: n.custom_label || undefined,
-        isShared: n.is_shared || false,
-        sharedLink: n.shared_link || undefined,
-        createdAt: n.created_at,
-        updatedAt: n.updated_at,
-      }));
+        nodesToSave.push(...parentNodes);
 
-      nodesToSave.push(...parentNodes);
-      
-      // 조회한 노드들의 parentId도 수집 (재귀적으로)
-      const newParentIds = new Set<string>();
-      parentNodes.forEach(node => {
-        fetchedParentIds.add(node.id);
-        if (node.parentId && !nodeIdsInArray.has(node.parentId) && !fetchedParentIds.has(node.parentId)) {
-          newParentIds.add(node.parentId);
+        // 2단계: 조회한 부모 노드들의 parentId도 수집하여 추가 조회
+        const secondLevelParentIds = new Set<string>();
+        parentNodes.forEach(node => {
+          if (node.parentId && !nodeIdsInArray.has(node.parentId) && !allMissingParentIds.has(node.parentId)) {
+            secondLevelParentIds.add(node.parentId);
+          }
+        });
+
+        // 2단계 조상 노드도 조회 (대부분의 경우 충분함, 마인드맵 깊이가 5단계를 넘지 않으므로)
+        if (secondLevelParentIds.size > 0) {
+          const { data: secondLevelParents } = await supabase
+            .from('nodes')
+            .select('*')
+            .eq('project_id' as any, projectId as any)
+            .in('id' as any, Array.from(secondLevelParentIds) as any);
+
+          if (secondLevelParents && secondLevelParents.length > 0) {
+            const secondLevelParentsTyped = (secondLevelParents as any[]) || [];
+            const secondLevelNodes: MindMapNode[] = secondLevelParentsTyped.map((n: any) => ({
+              id: n.id,
+              label: n.label,
+              parentId: n.parent_id,
+              children: [],
+              x: n.x || 0,
+              y: n.y || 0,
+              level: n.level || 0,
+              nodeType: n.node_type || undefined,
+              badgeType: n.badge_type || undefined,
+              customLabel: n.custom_label || undefined,
+              isShared: n.is_shared || false,
+              sharedLink: n.shared_link || undefined,
+              createdAt: n.created_at,
+              updatedAt: n.updated_at,
+            }));
+
+            nodesToSave.push(...secondLevelNodes);
+          }
         }
-      });
-      
-      allParentIds = newParentIds;
-      hasMoreParents = newParentIds.size > 0;
+      }
     }
 
     // 부모 노드 포함하여 다시 계층별로 정렬
     const sortedNodesWithParents = sortNodesByHierarchy(nodesToSave);
 
     // 노드를 계층별로 저장 (부모부터 자식 순으로)
+    // 배치 크기 제한 (한 번에 100개씩 저장)
+    const BATCH_SIZE = 100;
+
     for (let levelIndex = 0; levelIndex < sortedNodesWithParents.length; levelIndex++) {
       const levelNodes = sortedNodesWithParents[levelIndex];
-      const nodesToUpsert = levelNodes.map((node) => {
+
+      // 레벨 내 노드가 많으면 배치로 나누어 저장
+      for (let batchStart = 0; batchStart < levelNodes.length; batchStart += BATCH_SIZE) {
+        const batchNodes = levelNodes.slice(batchStart, batchStart + BATCH_SIZE);
+        const nodesToUpsert = batchNodes.map((node) => {
       // createdAt과 updatedAt을 숫자(bigint)로 변환
       // 실제 DB 스키마: created_at bigint, updated_at bigint
       let createdAt: number | null = null;
@@ -654,6 +705,7 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
         y: node.y ?? 0,
         is_shared: node.isShared || false,
         shared_link: node.sharedLink || null,
+        is_manually_positioned: node.isManuallyPositioned || false,
         created_at: createdAt || nowTimestamp,
         updated_at: updatedAt || nowTimestamp,
       };
@@ -661,42 +713,43 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
         return nodeData;
       });
 
-      // 각 레벨의 노드들을 upsert
-      console.log(`[data.ts] saveNodes: 레벨 ${levelIndex} 노드 저장 시도`, {
-        levelIndex,
-        nodeCount: nodesToUpsert.length,
-        nodeIds: nodesToUpsert.map(n => n.id),
-        firstNode: nodesToUpsert[0] ? {
-          id: nodesToUpsert[0].id,
-          project_id: nodesToUpsert[0].project_id,
-          label: nodesToUpsert[0].label,
-          level: nodesToUpsert[0].level,
-        } : null,
-      });
-
-      const result = await supabase
-        .from('nodes')
-        .upsert(nodesToUpsert, {
-          onConflict: 'id',
-          ignoreDuplicates: false // 중복 시 업데이트하도록 설정
-        });
-
-      if (result.error) {
-        console.error(`[data.ts] saveNodes: 레벨 ${levelIndex} 저장 실패`, {
-          error: result.error,
-          errorCode: result.error.code,
-          errorMessage: result.error.message,
-          errorDetails: (result.error as any).details,
-          errorHint: (result.error as any).hint,
+        // 각 배치의 노드들을 upsert
+        console.log(`[data.ts] saveNodes: 레벨 ${levelIndex} 배치 ${Math.floor(batchStart / BATCH_SIZE)} 노드 저장 시도`, {
+          levelIndex,
+          batchIndex: Math.floor(batchStart / BATCH_SIZE),
           nodeCount: nodesToUpsert.length,
-          projectId,
+          nodeIds: nodesToUpsert.map(n => n.id),
+          firstNode: nodesToUpsert[0] ? {
+            id: nodesToUpsert[0].id,
+            project_id: nodesToUpsert[0].project_id,
+            label: nodesToUpsert[0].label,
+            level: nodesToUpsert[0].level,
+          } : null,
         });
-        // Foreign Key 제약조건 위반인 경우 (부모 노드 누락)
-        if (result.error.code === '23503') {
-          console.warn(`Foreign key constraint violation at level ${levelIndex}:`, {
-            error: result.error.message,
-            levelNodes: levelNodes.map(n => ({ id: n.id, parentId: n.parentId }))
+
+        const result = await supabase
+          .from('nodes')
+          .upsert(nodesToUpsert, {
+            onConflict: 'id',
+            ignoreDuplicates: false // 중복 시 업데이트하도록 설정
           });
+
+        if (result.error) {
+          console.error(`[data.ts] saveNodes: 레벨 ${levelIndex} 배치 ${Math.floor(batchStart / BATCH_SIZE)} 저장 실패`, {
+            error: result.error,
+            errorCode: result.error.code,
+            errorMessage: result.error.message,
+            errorDetails: (result.error as any).details,
+            errorHint: (result.error as any).hint,
+            nodeCount: nodesToUpsert.length,
+            projectId,
+          });
+          // Foreign Key 제약조건 위반인 경우 (부모 노드 누락)
+          if (result.error.code === '23503') {
+            console.warn(`Foreign key constraint violation at level ${levelIndex}:`, {
+              error: result.error.message,
+              batchNodes: batchNodes.map(n => ({ id: n.id, parentId: n.parentId }))
+            });
           
           // 부모 노드가 누락된 경우, 누락된 부모 노드들을 찾아서 먼저 저장
           const missingParentIds = new Set<string>();
@@ -722,8 +775,8 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
                 const fetchResult = await supabase
                   .from('nodes')
                   .select('*')
-                  .eq('project_id', projectId)
-                  .in('id', Array.from(missingParentIds));
+                  .eq('project_id' as any, projectId as any)
+                  .in('id' as any, Array.from(missingParentIds) as any);
                 missingParents = fetchResult.data;
                 fetchError = fetchResult.error;
                 
@@ -784,7 +837,7 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
 
               const parentResult = await supabase
                 .from('nodes')
-                .upsert(parentNodesToUpsert, {
+                .upsert(parentNodesToUpsert as any, {
                   onConflict: 'id',
                   ignoreDuplicates: false
                 });
@@ -824,27 +877,29 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
           continue;
         }
 
-        console.error('Failed to save nodes:', result.error);
-        throw result.error;
-      }
-    }
+          console.error('Failed to save nodes:', result.error);
+          throw result.error;
+        }
+      } // 배치 루프 종료
+    } // 레벨 루프 종료
 
     // 프로젝트에 속하지 않는 노드 삭제 (삭제된 노드 처리)
     const nodeIds = nodes.map(n => n.id);
     const { data: existingNodes } = await supabase
       .from('nodes')
       .select('id, parent_id')
-      .eq('project_id', projectId);
+      .eq('project_id' as any, projectId as any);
 
     if (existingNodes) {
-      const existingNodeIds = existingNodes.map(n => n.id);
+      const existingNodesTyped = (existingNodes as any[]) || [];
+      const existingNodeIds = existingNodesTyped.map((n: any) => n.id);
       const nodesToDeleteIds = existingNodeIds.filter(id => !nodeIds.includes(id));
 
       if (nodesToDeleteIds.length > 0) {
         // 삭제할 노드들을 자식부터 부모 순으로 정렬
-        const nodesToDeleteData = existingNodes.filter(n => nodesToDeleteIds.includes(n.id));
+        const nodesToDeleteData = existingNodesTyped.filter((n: any) => nodesToDeleteIds.includes(n.id));
         const sortedDeleteNodes = sortNodesByHierarchy(
-          nodesToDeleteData.map(n => ({
+          nodesToDeleteData.map((n: any) => ({
             id: n.id,
             parentId: n.parent_id,
             label: '',
@@ -865,7 +920,7 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
           const { error: deleteError } = await supabase
             .from('nodes')
             .delete()
-            .in('id', levelNodeIds);
+            .in('id' as any, levelNodeIds as any);
 
           if (deleteError) {
             // 삭제 에러는 무시 (RLS 정책이나 이미 삭제된 노드일 수 있음)
@@ -879,16 +934,17 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
     const { data: savedNodes, error: verifyError } = await supabase
       .from('nodes')
       .select('id')
-      .eq('project_id', projectId);
+      .eq('project_id' as any, projectId as any);
 
     if (verifyError) {
       console.error('[data.ts] saveNodes: 저장 검증 실패', { error: verifyError, projectId });
     } else {
+      const savedNodesTyped = (savedNodes as any[]) || [];
       console.log('[data.ts] saveNodes: 저장 검증 완료', {
         projectId,
         expectedCount: nodes.length,
-        actualCount: savedNodes?.length || 0,
-        savedNodeIds: savedNodes?.map(n => n.id).slice(0, 5),
+        actualCount: savedNodesTyped.length || 0,
+        savedNodeIds: savedNodesTyped.map((n: any) => n.id).slice(0, 5),
       });
     }
 
@@ -908,7 +964,7 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
         error,
         errorName: error instanceof Error ? error.name : 'Unknown',
         errorMessage: error instanceof Error ? error.message : String(error),
-        errorCode: (error as any)?.code,
+        errorCode: error && typeof error === 'object' && 'code' in error ? (error as { code?: string }).code : undefined,
         projectId,
         nodeCount: nodes.length,
       });
@@ -928,32 +984,38 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
 export async function getSTARAssets(userId: string): Promise<STARAsset[]> {
   try {
     // 사용자의 프로젝트에 속한 노드들의 STAR 에셋만 가져오기
-    const { data: projects } = await supabase
+    const { data: projects, error: projectsError } = await supabase
       .from('projects')
       .select('id')
-      .eq('user_id', userId);
+      .eq('user_id' as any, userId as any);
 
+    if (projectsError) throw projectsError;
     if (!projects || projects.length === 0) return [];
 
-    const projectIds = projects.map((p) => p.id);
+    const projectsTyped = (projects as any[]) || [];
+    const projectIds = projectsTyped.map((p: any) => p.id);
 
-    const { data: nodes } = await supabase
+    const { data: nodes, error: nodesError } = await supabase
       .from('nodes')
       .select('id')
-      .in('project_id', projectIds);
+      .in('project_id' as any, projectIds as any);
 
+    if (nodesError) throw nodesError;
     if (!nodes || nodes.length === 0) return [];
 
-    const nodeIds = nodes.map((n) => n.id);
+    const nodesTyped = (nodes as any[]) || [];
+    const nodeIds = nodesTyped.map((n: any) => n.id);
 
     const { data, error } = await supabase
       .from('star_assets')
       .select('*')
-      .in('node_id', nodeIds);
+      .in('node_id' as any, nodeIds as any);
 
     if (error) throw error;
+    if (!data) return [];
 
-    return (data || []).map((a) => ({
+    const dataTyped = (data as any[]) || [];
+    return dataTyped.map((a: any) => ({
       id: a.id,
       nodeId: a.node_id,
       title: a.title,
@@ -979,7 +1041,7 @@ export async function getSTARAssetById(assetId: string): Promise<STARAsset | nul
     const { data, error } = await supabase
       .from('star_assets')
       .select('*')
-      .eq('id', assetId)
+      .eq('id' as any, assetId as any)
       .maybeSingle();
 
     if (error) {
@@ -992,20 +1054,21 @@ export async function getSTARAssetById(assetId: string): Promise<STARAsset | nul
 
     if (!data) return null;
 
+    const dataTyped = data as any;
     return {
-      id: data.id,
-      nodeId: data.node_id,
-      title: data.title,
-      situation: data.situation || '',
-      task: data.task || '',
-      action: data.action || '',
-      result: data.result || '',
-      content: data.content || '',
-      company: data.company || undefined,
-      competency: data.competency || undefined,
-      tags: (data.tags as string[]) || [],
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
+      id: dataTyped.id,
+      nodeId: dataTyped.node_id,
+      title: dataTyped.title,
+      situation: dataTyped.situation || '',
+      task: dataTyped.task || '',
+      action: dataTyped.action || '',
+      result: dataTyped.result || '',
+      content: dataTyped.content || '',
+      company: dataTyped.company || undefined,
+      competency: dataTyped.competency || undefined,
+      tags: (dataTyped.tags as string[]) || [],
+      createdAt: dataTyped.created_at,
+      updatedAt: dataTyped.updated_at,
     };
   } catch (error) {
     console.error('Failed to get STAR asset by id:', error);
@@ -1018,7 +1081,7 @@ export async function getSTARAssetByNodeId(nodeId: string): Promise<STARAsset | 
     const { data, error } = await supabase
       .from('star_assets')
       .select('*')
-      .eq('node_id', nodeId.trim())
+      .eq('node_id' as any, nodeId.trim() as any)
       .maybeSingle();
 
     if (error) {
@@ -1036,20 +1099,21 @@ export async function getSTARAssetByNodeId(nodeId: string): Promise<STARAsset | 
 
     if (!data) return null;
 
+    const dataTyped = data as any;
     return {
-      id: data.id,
-      nodeId: data.node_id,
-      title: data.title,
-      situation: data.situation || '',
-      task: data.task || '',
-      action: data.action || '',
-      result: data.result || '',
-      content: data.content || '',
-      company: data.company || undefined,
-      competency: data.competency || undefined,
-      tags: (data.tags as string[]) || [],
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
+      id: dataTyped.id,
+      nodeId: dataTyped.node_id,
+      title: dataTyped.title,
+      situation: dataTyped.situation || '',
+      task: dataTyped.task || '',
+      action: dataTyped.action || '',
+      result: dataTyped.result || '',
+      content: dataTyped.content || '',
+      company: dataTyped.company || undefined,
+      competency: dataTyped.competency || undefined,
+      tags: (dataTyped.tags as string[]) || [],
+      createdAt: dataTyped.created_at,
+      updatedAt: dataTyped.updated_at,
     };
   } catch (error) {
     // 모든 에러는 무시하고 null 반환
@@ -1084,15 +1148,15 @@ export async function saveSTARAsset(asset: STARAsset): Promise<boolean> {
     const { data: nodeData, error: nodeError } = await supabase
       .from('nodes')
       .select('id, project_id')
-      .eq('id', asset.nodeId.trim())
+      .eq('id' as any, asset.nodeId.trim() as any)
       .maybeSingle(); // .single() 대신 .maybeSingle() 사용
 
     if (nodeError) {
       console.error('Error fetching node:', {
         nodeId: asset.nodeId,
         error: nodeError,
-        errorCode: (nodeError as any)?.code,
-        errorMessage: (nodeError as any)?.message,
+        errorCode: nodeError.code,
+        errorMessage: nodeError.message,
       });
       throw new Error(`Failed to fetch node: ${asset.nodeId}`);
     }
@@ -1106,17 +1170,19 @@ export async function saveSTARAsset(asset: STARAsset): Promise<boolean> {
       throw new Error(`Node not found: ${asset.nodeId}`);
     }
 
+    const nodeDataTyped = nodeData as any;
+
     // 프로젝트가 사용자의 것인지 확인
     const { data: projectData, error: projectError } = await supabase
       .from('projects')
       .select('id, user_id')
-      .eq('id', nodeData.project_id)
-      .eq('user_id', user.id)
+      .eq('id' as any, nodeDataTyped.project_id as any)
+      .eq('user_id' as any, user.id as any)
       .single();
 
     if (projectError || !projectData) {
       console.error('Project not found or access denied:', {
-        projectId: nodeData.project_id,
+        projectId: nodeDataTyped.project_id,
         userId: user.id,
         error: projectError,
       });
@@ -1149,11 +1215,19 @@ export async function saveSTARAsset(asset: STARAsset): Promise<boolean> {
 
     if (error) {
       // 에러 객체를 더 자세히 로깅
-      const errorInfo: any = {};
+      const errorInfo: {
+        code?: string;
+        message?: string;
+        details?: string;
+        hint?: string;
+        status?: number;
+        allProperties?: string[];
+        errorString?: string;
+      } = {};
       
       // PostgrestError의 속성들을 직접 접근
       if (error && typeof error === 'object') {
-        const err = error as any;
+        const err = error as { code?: string; message?: string; details?: string; hint?: string; status?: number };
         errorInfo.code = err.code;
         errorInfo.message = err.message;
         errorInfo.details = err.details;
@@ -1174,15 +1248,15 @@ export async function saveSTARAsset(asset: STARAsset): Promise<boolean> {
       // 403 에러인 경우 RLS 정책 문제로 안내
       if (errorInfo.status === 403 || errorInfo.code === '42501') {
         // 실제 에러 객체의 모든 속성을 로깅
-        const fullError = error as any;
+        const fullError = error as { status?: number; code?: string; message?: string; details?: string; hint?: string };
         console.error('❌ RLS Policy Error (403 Forbidden):', {
           message: 'star_assets 테이블에 대한 INSERT/UPDATE 권한이 없습니다.',
           hint: 'Supabase 대시보드에서 star_assets 테이블의 RLS 정책을 확인하세요.',
-          errorStatus: fullError?.status,
-          errorCode: fullError?.code,
-          errorMessage: fullError?.message,
-          errorDetails: fullError?.details,
-          errorHint: fullError?.hint,
+          errorStatus: fullError.status,
+          errorCode: fullError.code,
+          errorMessage: fullError.message,
+          errorDetails: fullError.details,
+          errorHint: fullError.hint,
           errorInfo,
           assetData: {
             id: assetData.id,
@@ -1246,7 +1320,7 @@ export async function saveSTARAsset(asset: STARAsset): Promise<boolean> {
 
 export async function deleteSTARAsset(assetId: string): Promise<boolean> {
   try {
-    const { error } = await supabase.from('star_assets').delete().eq('id', assetId);
+    const { error } = await supabase.from('star_assets').delete().eq('id' as any, assetId as any);
 
     if (error) throw error;
     return true;
@@ -1263,12 +1337,13 @@ export async function getGapTags(userId: string): Promise<GapTag[]> {
     const { data, error } = await supabase
       .from('gap_tags')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id' as any, userId as any)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    return (data || []).map((t) => ({
+    const gapTagsData = (data as any[]) || [];
+    return gapTagsData.map((t: any) => ({
       id: t.id,
       label: t.label,
       category: t.category,
@@ -1321,7 +1396,7 @@ export async function saveGapTag(tag: GapTag & { userId?: string }): Promise<boo
 
 export async function deleteGapTag(tagId: string): Promise<boolean> {
   try {
-    const { error } = await supabase.from('gap_tags').delete().eq('id', tagId);
+    const { error } = await supabase.from('gap_tags').delete().eq('id' as any, tagId as any);
 
     if (error) throw error;
     return true;
@@ -1338,7 +1413,7 @@ export async function getSharedNodes(userId: string): Promise<SharedNodeData[]> 
     const { data, error } = await supabase
       .from('shared_nodes')
       .select('*')
-      .eq('created_by', userId)
+      .eq('created_by' as any, userId as any)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -1347,31 +1422,34 @@ export async function getSharedNodes(userId: string): Promise<SharedNodeData[]> 
     // 별도로 노드 정보를 로드해야 함
     const sharedNodes: SharedNodeData[] = [];
     
-    for (const s of data || []) {
+    const sharedNodesData = (data as any[]) || [];
+    for (const s of sharedNodesData) {
       // 노드 정보 로드
       const { data: nodeData } = await supabase
         .from('nodes')
         .select('*')
-        .eq('id', s.node_id)
+        .eq('id' as any, (s as any).node_id as any)
         .single();
       
       if (!nodeData) continue;
       
+      const nodeDataTyped = nodeData as any;
+      
       const node: MindMapNode = {
-        id: nodeData.id,
-        label: nodeData.label,
-        parentId: nodeData.parent_id,
+        id: nodeDataTyped.id,
+        label: nodeDataTyped.label,
+        parentId: nodeDataTyped.parent_id,
         children: [],
-        x: nodeData.x || 0,
-        y: nodeData.y || 0,
-        level: nodeData.level || 0,
-        nodeType: (nodeData.node_type as any) || undefined,
-        badgeType: (nodeData.badge_type as any) || undefined,
-        customLabel: nodeData.custom_label || undefined,
-        isShared: nodeData.is_shared || false,
-        sharedLink: nodeData.shared_link || undefined,
-        createdAt: nodeData.created_at,
-        updatedAt: nodeData.updated_at,
+        x: nodeDataTyped.x || 0,
+        y: nodeDataTyped.y || 0,
+        level: nodeDataTyped.level || 0,
+        nodeType: (nodeDataTyped.node_type as any) || undefined,
+        badgeType: (nodeDataTyped.badge_type as any) || undefined,
+        customLabel: nodeDataTyped.custom_label || undefined,
+        isShared: nodeDataTyped.is_shared || false,
+        sharedLink: nodeDataTyped.shared_link || undefined,
+        createdAt: nodeDataTyped.created_at,
+        updatedAt: nodeDataTyped.updated_at,
       };
       
       // 모든 하위 노드들을 재귀적으로 로드
@@ -1379,34 +1457,36 @@ export async function getSharedNodes(userId: string): Promise<SharedNodeData[]> 
       const { data: allProjectNodes } = await supabase
         .from('nodes')
         .select('*')
-        .eq('project_id', s.project_id);
+        .eq('project_id' as any, (s as any).project_id as any);
       
-      if (!allProjectNodes) {
+      const allProjectNodesTyped = (allProjectNodes as any[]) || [];
+      
+      if (allProjectNodesTyped.length === 0) {
         sharedNodes.push({
-          id: s.id,
-          nodeId: s.node_id,
-          projectId: s.project_id,
+          id: (s as any).id,
+          nodeId: (s as any).node_id,
+          projectId: (s as any).project_id,
           node,
           descendants: [],
           starAssets: [],
-          includeSTAR: s.include_star || false,
-          createdAt: s.created_at,
+          includeSTAR: (s as any).include_star || false,
+          createdAt: (s as any).created_at,
         });
         continue;
       }
 
       // 노드 맵 생성 (빠른 조회를 위해)
       const nodeMap = new Map<string, any>();
-      allProjectNodes.forEach(n => {
+      allProjectNodesTyped.forEach((n: any) => {
         nodeMap.set(n.id, n);
       });
 
       // 재귀적으로 모든 하위 노드 가져오기
       const getDescendants = (parentId: string): MindMapNode[] => {
-        const children = allProjectNodes.filter(n => n.parent_id === parentId);
+        const children = allProjectNodesTyped.filter((n: any) => n.parent_id === parentId);
         const descendants: MindMapNode[] = [];
         
-        children.forEach(child => {
+        children.forEach((child: any) => {
           const childNode: MindMapNode = {
             id: child.id,
             label: child.label,
@@ -1435,7 +1515,7 @@ export async function getSharedNodes(userId: string): Promise<SharedNodeData[]> 
       
       // STAR 에셋 로드 (노드와 모든 하위 노드들의 에셋)
       const starAssets: STARAsset[] = [];
-      if (s.include_star) {
+      if ((s as any).include_star) {
         // 노드와 모든 하위 노드의 ID 수집
         const allNodeIds = [node.id, ...descendants.map(d => d.id)];
         
@@ -1443,10 +1523,11 @@ export async function getSharedNodes(userId: string): Promise<SharedNodeData[]> 
         const { data: starData } = await supabase
           .from('star_assets')
           .select('*')
-          .in('node_id', allNodeIds);
+          .in('node_id' as any, allNodeIds as any);
         
         if (starData) {
-          starAssets.push(...starData.map((a) => ({
+          const starDataTyped = starData as any[];
+          starAssets.push(...starDataTyped.map((a: any) => ({
             id: a.id,
             nodeId: a.node_id,
             title: a.title,
@@ -1466,32 +1547,33 @@ export async function getSharedNodes(userId: string): Promise<SharedNodeData[]> 
       
       // 공유한 사용자 정보 가져오기
       let createdByUser: { id: string; name: string; email?: string } | null = null;
-      if (s.created_by) {
+      if ((s as any).created_by) {
         const { data: userData } = await supabase
           .from('users')
           .select('id, name, email')
-          .eq('id', s.created_by)
+          .eq('id' as any, (s as any).created_by as any)
           .maybeSingle();
         
         if (userData) {
+          const userDataTyped = userData as any;
           createdByUser = {
-            id: userData.id,
-            name: userData.name,
-            email: userData.email || undefined,
+            id: userDataTyped.id,
+            name: userDataTyped.name,
+            email: userDataTyped.email || undefined,
           };
         }
       }
 
       sharedNodes.push({
-        id: s.id,
-        nodeId: s.node_id,
-        projectId: s.project_id,
+        id: (s as any).id,
+        nodeId: (s as any).node_id,
+        projectId: (s as any).project_id,
         node,
         descendants,
         starAssets,
-        includeSTAR: s.include_star || false,
-        createdAt: s.created_at,
-        createdBy: s.created_by || undefined,
+        includeSTAR: (s as any).include_star || false,
+        createdAt: (s as any).created_at,
+        createdBy: (s as any).created_by || undefined,
         createdByUser: createdByUser || undefined,
       });
     }
@@ -1614,17 +1696,18 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
 
     // node_id로 공유 노드 찾기 (사용자 ID 없이) - 공개 접근 가능
     // AbortError는 컴포넌트 언마운트 등으로 인한 정상적인 중단이므로 즉시 반환
-    let data, error;
+    let data: Database['public']['Tables']['shared_nodes']['Row'] | null = null;
+    let error: any = null;
     
     try {
       const result = await supabase
         .from('shared_nodes')
         .select('*')
-        .eq('node_id', trimmedNodeId)
+        .eq('node_id' as any, trimmedNodeId as any)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      data = result.data;
+      data = result.data as Database['public']['Tables']['shared_nodes']['Row'] | null;
       error = result.error;
     } catch (err) {
       // AbortError는 조용히 무시 (컴포넌트 언마운트 등으로 인한 정상적인 중단)
@@ -1662,9 +1745,10 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
       return null;
     }
 
+    const dataTyped = data as any;
     console.log('[data.ts] getSharedNodeByNodeId: 공유 노드 발견', {
       nodeId: trimmedNodeId,
-      projectId: data.project_id,
+      projectId: dataTyped.project_id,
     });
 
     // 병렬로 노드와 프로젝트 정보 로드 (성능 최적화)
@@ -1672,12 +1756,12 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
       supabase
         .from('nodes')
         .select('*')
-        .eq('id', data.node_id)
+        .eq('id' as any, dataTyped.node_id as any)
         .single(),
       supabase
         .from('projects')
         .select('id')
-        .eq('id', data.project_id)
+        .eq('id' as any, dataTyped.project_id as any)
         .single()
     ]);
 
@@ -1699,9 +1783,9 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
       return null;
     }
 
-    const nodeData = nodeResult.data;
+    const nodeData = nodeResult.data as any;
     if (!nodeData) {
-      console.warn('[data.ts] getSharedNodeByNodeId: 노드 데이터 없음', { nodeId: data.node_id });
+      console.warn('[data.ts] getSharedNodeByNodeId: 노드 데이터 없음', { nodeId: dataTyped.node_id });
       return null;
     }
 
@@ -1710,7 +1794,7 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
       if (projectResult.error.code === 'PGRST116') {
         console.warn('[data.ts] getSharedNodeByNodeId: 프로젝트를 찾을 수 없음', {
           projectId: nodeData.project_id,
-          nodeId: data.node_id
+          nodeId: dataTyped.node_id
         });
         return null;
       }
@@ -1720,18 +1804,18 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
       }
       console.warn('[data.ts] getSharedNodeByNodeId: 프로젝트 조회 에러', {
         projectId: nodeData.project_id,
-        nodeId: data.node_id,
+        nodeId: dataTyped.node_id,
         error: projectResult.error.message,
         errorCode: projectResult.error.code,
       });
       return null;
     }
 
-    const projectData = projectResult.data;
+    const projectData = projectResult.data as any;
     if (!projectData) {
       console.warn('[data.ts] getSharedNodeByNodeId: 프로젝트 데이터 없음', {
         projectId: nodeData.project_id,
-        nodeId: data.node_id
+        nodeId: dataTyped.node_id
       });
       return null;
     }
@@ -1761,7 +1845,7 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
       const result = await supabase
         .from('nodes')
         .select('*')
-        .eq('project_id', data.project_id);
+        .eq('project_id' as any, dataTyped.project_id as any);
       allProjectNodes = result.data || [];
       
       // 에러가 있으면 확인
@@ -1771,7 +1855,7 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
         if (result.error.message?.includes('aborted') || result.error.message?.includes('AbortError') || (result.error as any)?.name === 'AbortError') {
           console.warn('[data.ts] getSharedNodeByNodeId: 프로젝트 노드 조회 AbortError, 공유 노드만 반환', { 
             nodeId: trimmedNodeId,
-            projectId: data.project_id 
+            projectId: dataTyped.project_id 
           });
           allProjectNodes = [];
         } else {
@@ -1876,13 +1960,16 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
     if (data.include_star) {
       const allNodeIds = [node.id, ...descendants.map(d => d.id)];
       
-      const starData = await withRetry(
+      const starData = await withRetry<Database['public']['Tables']['star_assets']['Row'][] | null>(
         async () => {
           const result = await supabase
             .from('star_assets')
             .select('*')
-            .in('node_id', allNodeIds);
-          return result.data || null;
+            .in('node_id' as any, allNodeIds as any);
+          if (result.error) {
+            return null;
+          }
+          return (result.data as unknown as Database['public']['Tables']['star_assets']['Row'][] | null) || null;
         },
         2,
         'getSharedNodeByNodeId: STAR 에셋 조회'
@@ -1916,14 +2003,21 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
           const result = await supabase
             .from('users')
             .select('id, name, email')
-            .eq('id', createdById)
+            .eq('id' as any, createdById as any)
             .maybeSingle();
           
-          if (result.data) {
+          // 에러가 있으면 null 반환
+          if (result.error) {
+            return null;
+          }
+          
+          // 데이터가 있으면 반환 (타입 단언 사용)
+          const userData = result.data as { id: string; name: string; email?: string } | null;
+          if (userData) {
             return {
-              id: result.data.id,
-              name: result.data.name,
-              email: result.data.email || undefined,
+              id: userData.id,
+              name: userData.name,
+              email: userData.email || undefined,
             };
           }
           
@@ -1976,7 +2070,7 @@ export async function getSharedNodeByNodeId(nodeId: string): Promise<SharedNodeD
 
 export async function deleteSharedNode(sharedNodeId: string): Promise<boolean> {
   try {
-    const { error } = await supabase.from('shared_nodes').delete().eq('id', sharedNodeId);
+    const { error } = await supabase.from('shared_nodes').delete().eq('id' as any, sharedNodeId as any);
 
     if (error) throw error;
     return true;
@@ -2003,7 +2097,7 @@ async function ensureUserExists(): Promise<string | null> {
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
-      .eq('id', user.id)
+      .eq('id' as any, user.id as any)
       .maybeSingle();
 
     if (existingUser) {
@@ -2035,15 +2129,17 @@ async function ensureUserExists(): Promise<string | null> {
                 user.user_metadata?.email ||
                 '';
 
+    const userData = {
+      id: user.id,
+      provider: provider,
+      provider_user_id: providerUserId,
+      name: name,
+      email: email || null,
+    };
+
     const { error: insertError } = await supabase
       .from('users')
-      .upsert({
-        id: user.id,
-        provider: provider,
-        provider_user_id: providerUserId,
-        name: name,
-        email: email,
-      }, { onConflict: 'id' });
+      .upsert(userData as any, { onConflict: 'id' });
 
     if (insertError) {
       console.error('Failed to create user record:', insertError);

@@ -1,9 +1,22 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { MindMapNode as NodeType, GapTag } from '@/types';
+import { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { MindMapNode as NodeType, GapTag, ColorTheme, LineStyle } from '@/types';
 import { mindMapStorage } from '@/lib/storage';
 import MindMapNode from './MindMapNode';
+import ZoomControl from './ZoomControl';
+import { getThemeColors } from '@/lib/mindmap-theme';
+
+export interface MindMapCanvasHandle {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  fitToScreen: () => void;
+  getZoom: () => number;
+  getPan: () => { x: number; y: number };
+  setPan: (pan: { x: number; y: number }) => void;
+  getCanvasElement: () => HTMLDivElement | null; // 캔버스 DOM 요소 반환
+  getCanvasContainer: () => HTMLDivElement | null; // 캔버스 컨테이너 반환
+}
 
 interface MindMapCanvasProps {
   nodes: NodeType[];
@@ -27,9 +40,13 @@ interface MindMapCanvasProps {
   onTagDrop?: (nodeId: string, tag: GapTag) => void; // 태그 드롭 핸들러
   isReadOnly?: boolean; // 읽기 전용 모드
   disableAutoSave?: boolean; // 자동 저장 비활성화 (공유 페이지 등에서 사용)
+  showGrid?: boolean; // 그리드 표시 여부
+  onZoomChange?: (zoom: number) => void; // 줌 변경 콜백
+  colorTheme?: ColorTheme; // 색상 테마
+  lineStyle?: LineStyle; // 연결선 스타일
 }
 
-export default function MindMapCanvas({
+const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(function MindMapCanvas({
   nodes,
   onNodesChange,
   selectedNodeId,
@@ -51,7 +68,11 @@ export default function MindMapCanvas({
   onTagDrop,
   isReadOnly = false,
   disableAutoSave = false,
-}: MindMapCanvasProps) {
+  showGrid = false,
+  onZoomChange,
+  colorTheme = 'default',
+  lineStyle = 'straight',
+}, ref) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -60,6 +81,29 @@ export default function MindMapCanvas({
   const [spacePressed, setSpacePressed] = useState(false);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // 다크모드 감지
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+
+    checkDarkMode();
+
+    // MutationObserver로 다크모드 변경 감지
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // 테마 색상 가져오기
+  const themeColors = useMemo(() => getThemeColors(colorTheme, isDarkMode), [colorTheme, isDarkMode]);
   
   // 드래그 중 임시 좌표 상태 (렌더링용, 실제 상태 업데이트는 드래그 종료 시)
   const [dragPositions, setDragPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
@@ -238,6 +282,112 @@ export default function MindMapCanvas({
     }
   }, [spacePressed]);
 
+  // 줌 인 함수
+  const handleZoomIn = useCallback(() => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) {
+      setZoom(prev => {
+        const newZoom = Math.min(3, prev + 0.1);
+        onZoomChange?.(newZoom);
+        return newZoom;
+      });
+      return;
+    }
+
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const worldXBefore = (centerX - pan.x) / zoom;
+    const worldYBefore = (centerY - pan.y) / zoom;
+    const newZoom = Math.min(3, zoom + 0.1);
+    const newPan = {
+      x: centerX - worldXBefore * newZoom,
+      y: centerY - worldYBefore * newZoom,
+    };
+
+    setZoom(newZoom);
+    setPan(newPan);
+    onZoomChange?.(newZoom);
+  }, [zoom, pan, onZoomChange]);
+
+  // 줌 아웃 함수
+  const handleZoomOut = useCallback(() => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) {
+      setZoom(prev => {
+        const newZoom = Math.max(0.25, prev - 0.1);
+        onZoomChange?.(newZoom);
+        return newZoom;
+      });
+      return;
+    }
+
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const worldXBefore = (centerX - pan.x) / zoom;
+    const worldYBefore = (centerY - pan.y) / zoom;
+    const newZoom = Math.max(0.25, zoom - 0.1);
+    const newPan = {
+      x: centerX - worldXBefore * newZoom,
+      y: centerY - worldYBefore * newZoom,
+    };
+
+    setZoom(newZoom);
+    setPan(newPan);
+    onZoomChange?.(newZoom);
+  }, [zoom, pan, onZoomChange]);
+
+  // 전체 보기 함수 - 초기 로드 시와 동일한 뷰로 설정
+  const handleFitToScreen = useCallback(() => {
+    if (!canvasRef.current || nodes.length === 0) return;
+
+    // 초기 로드 시와 동일한 로직: 줌을 먼저 1로 설정
+    setZoom(1);
+    onZoomChange?.(1);
+    
+    // 다음 프레임에서 pan 계산 (zoom이 업데이트된 후, 초기 로드 시와 동일)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!canvasRef.current) return;
+        
+        const rect = canvasRef.current.getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const currentZoom = 1; // zoom은 이미 1로 설정됨
+        
+        // 메인 뷰: center 노드(id === 'center')를 화면 중앙에 맞춤 (초기 로드 시와 동일)
+        // nodes 배열에서 직접 찾기 (nodeMap은 아직 초기화되지 않았을 수 있음)
+        const centerNode = nodes.find(node => node.id === 'center');
+        if (centerNode) {
+          // center 노드의 절대 좌표를 화면 중앙으로 이동시키기 위한 pan 계산
+          // 노드 좌표 * zoom + pan = 화면 중앙 좌표
+          // 따라서 pan = 화면 중앙 - 노드 좌표 * zoom
+          setPan({
+            x: centerX / currentZoom - centerNode.x,
+            y: centerY / currentZoom - centerNode.y,
+          });
+        } else {
+          // center 노드가 없으면 초기화
+          setPan({ x: 0, y: 0 });
+        }
+      });
+    });
+  }, [nodes, onZoomChange]);
+
+  // 캔버스 컨테이너 ref
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  // ref를 통해 제어 함수 노출
+  useImperativeHandle(ref, () => ({
+    zoomIn: handleZoomIn,
+    zoomOut: handleZoomOut,
+    fitToScreen: handleFitToScreen,
+    getZoom: () => zoom,
+    getPan: () => pan,
+    setPan: (newPan: { x: number; y: number }) => setPan(newPan),
+    getCanvasElement: () => canvasRef.current,
+    getCanvasContainer: () => canvasContainerRef.current,
+  }), [handleZoomIn, handleZoomOut, handleFitToScreen, zoom, pan]);
+
   // 노드 인덱스 맵 생성 (O(1) 조회를 위해)
   const nodeMap = useMemo(() => {
     return new Map(nodes.map(n => [n.id, n]));
@@ -331,40 +481,34 @@ export default function MindMapCanvas({
   // 마우스 업 - 드래그 종료 시 실제 상태 업데이트
   const handleMouseUp = useCallback(() => {
     setIsPanning(false);
-    
+
     // 드래그 중이었다면 실제 상태 업데이트
     if (draggedNodeId && dragStateRef.current && dragPositions.size > 0) {
       const draggedNode = nodeMap.get(draggedNodeId);
       if (draggedNode) {
         const newPos = dragPositions.get(draggedNodeId);
         if (newPos) {
-          const deltaX = newPos.x - dragStateRef.current.startPos.x;
-          const deltaY = newPos.y - dragStateRef.current.startPos.y;
-
           // 실제 노드 배열 업데이트 (드래그 종료 시에만)
           const updatedNodes = nodes.map(node => {
             if (node.id === draggedNodeId) {
-              return { ...node, x: newPos.x, y: newPos.y, updatedAt: Date.now() };
+              return { ...node, x: newPos.x, y: newPos.y, isManuallyPositioned: true, updatedAt: Date.now() };
             }
             if (dragStateRef.current!.descendantIds.includes(node.id)) {
               const pos = dragPositions.get(node.id);
               if (pos) {
-                return { ...node, x: pos.x, y: pos.y, updatedAt: Date.now() };
+                return { ...node, x: pos.x, y: pos.y, isManuallyPositioned: true, updatedAt: Date.now() };
               }
             }
             return node;
           });
-          
+
           // 드래그 종료 시 실제 상태 업데이트 (isDrag=false로 전달하여 즉시 업데이트)
+          // onNodesChange에서 이미 DB 저장을 처리하므로 여기서는 중복 저장하지 않음
           onNodesChange(updatedNodes, false);
-          // 공유 페이지에서는 자동 저장 비활성화 (개별 노드 업데이트로 처리)
-          if (projectId && !disableAutoSave) {
-            mindMapStorage.save(updatedNodes, projectId);
-          }
         }
       }
     }
-    
+
     // 드래그 상태 초기화
     setDraggedNodeId(null);
     setDragPositions(new Map());
@@ -373,7 +517,7 @@ export default function MindMapCanvas({
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
     }
-  }, [draggedNodeId, dragPositions, nodeMap, nodes, onNodesChange, projectId, disableAutoSave]);
+  }, [draggedNodeId, dragPositions, nodeMap, nodes, onNodesChange]);
 
   useEffect(() => {
     if (isPanning || draggedNodeId) {
@@ -523,21 +667,18 @@ export default function MindMapCanvas({
       .filter(n => !idsToDeleteSet.has(n.id))
       .map(n => {
         if (n.children.some(id => idsToDeleteSet.has(id))) {
-          return { ...n, children: n.children.filter(id => !idsToDeleteSet.has(id)) };
+          return { ...n, children: n.children.filter(id => !idsToDeleteSet.has(id)), updatedAt: Date.now() };
         }
         return n;
       });
 
     // 삭제는 드래그가 아니므로 즉시 업데이트
+    // onNodesChange에서 이미 DB 저장을 처리하므로 여기서는 중복 저장하지 않음
     onNodesChange(updatedNodes, false);
-    // 공유 페이지에서는 자동 저장 비활성화 (개별 노드 삭제로 처리)
-    if (!disableAutoSave && projectId) {
-      mindMapStorage.save(updatedNodes, projectId);
-    }
     if (selectedNodeId === nodeId) {
       onNodeSelect(null);
     }
-  }, [nodeMap, childrenMap, nodes, onNodesChange, selectedNodeId, onNodeSelect, isReadOnly, disableAutoSave, projectId]);
+  }, [nodeMap, childrenMap, nodes, onNodesChange, selectedNodeId, onNodeSelect, isReadOnly]);
 
   // 캔버스 클릭 시 선택 해제 및 편집 모드 종료
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
@@ -641,7 +782,7 @@ export default function MindMapCanvas({
   return (
     <div
       ref={canvasRef}
-      className={`w-full h-full overflow-hidden bg-gray-50 relative transition-all duration-200 ${
+      className={`w-full h-full overflow-hidden bg-gray-50 dark:bg-[#0a0a0a] relative transition-all duration-200 ${
         spacePressed || isPanning
           ? 'cursor-grab active:cursor-grabbing'
           : draggedNodeId
@@ -652,8 +793,43 @@ export default function MindMapCanvas({
       onWheel={handleWheel}
       onClick={handleCanvasClick}
     >
+      {/* 그리드 배경 - 라이트 모드 */}
+      {showGrid && (
+        <div
+          className="absolute inset-0 pointer-events-none z-0 dark:hidden"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, rgba(156, 163, 175, 0.08) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(156, 163, 175, 0.08) 1px, transparent 1px),
+              linear-gradient(to right, rgba(107, 114, 128, 0.12) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(107, 114, 128, 0.12) 1px, transparent 1px)
+            `,
+            backgroundSize: '50px 50px, 50px 50px, 200px 200px, 200px 200px',
+            backgroundPosition: `${pan.x % 50}px ${pan.y % 50}px, ${pan.x % 50}px ${pan.y % 50}px, ${pan.x % 200}px ${pan.y % 200}px, ${pan.x % 200}px ${pan.y % 200}px`,
+          }}
+        />
+      )}
+      
+      {/* 그리드 배경 - 다크 모드 */}
+      {showGrid && (
+        <div
+          className="absolute inset-0 pointer-events-none z-0 hidden dark:block"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, rgba(75, 85, 99, 0.1) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(75, 85, 99, 0.1) 1px, transparent 1px),
+              linear-gradient(to right, rgba(107, 114, 128, 0.15) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(107, 114, 128, 0.15) 1px, transparent 1px)
+            `,
+            backgroundSize: '50px 50px, 50px 50px, 200px 200px, 200px 200px',
+            backgroundPosition: `${pan.x % 50}px ${pan.y % 50}px, ${pan.x % 50}px ${pan.y % 50}px, ${pan.x % 200}px ${pan.y % 200}px, ${pan.x % 200}px ${pan.y % 200}px`,
+          }}
+        />
+      )}
+      
       {/* 캔버스 컨테이너 - transform으로 줌/팬 처리 */}
       <div
+        ref={canvasContainerRef}
         className="absolute canvas-container"
         style={{
           left: `${canvasBounds.minX}px`,
@@ -691,14 +867,43 @@ export default function MindMapCanvas({
 
             const isSharedLine =
               (node.parentId && sharedPathMap[node.parentId]) || sharedPathMap[node.id];
+
+            const x1 = parentX - canvasBounds.minX;
+            const y1 = parentY - canvasBounds.minY;
+            const x2 = nodeX - canvasBounds.minX;
+            const y2 = nodeY - canvasBounds.minY;
+
+            // 곡선 스타일일 경우 베지어 곡선 경로 생성
+            if (lineStyle === 'curved') {
+              const dx = x2 - x1;
+              const dy = y2 - y1;
+              const cx1 = x1 + dx * 0.5;
+              const cy1 = y1;
+              const cx2 = x1 + dx * 0.5;
+              const cy2 = y2;
+              const path = `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
+
+              return (
+                <path
+                  key={`line_${node.id}`}
+                  d={path}
+                  stroke={isSharedLine ? themeColors.lineShared : themeColors.line}
+                  strokeWidth={isSharedLine ? 2.6 : 2}
+                  strokeLinecap="round"
+                  fill="none"
+                />
+              );
+            }
+
+            // 직선 스타일
             return (
               <line
                 key={`line_${node.id}`}
-                x1={parentX - canvasBounds.minX}
-                y1={parentY - canvasBounds.minY}
-                x2={nodeX - canvasBounds.minX}
-                y2={nodeY - canvasBounds.minY}
-                stroke={isSharedLine ? '#22c55e' : '#CBD5E1'}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={isSharedLine ? themeColors.lineShared : themeColors.line}
                 strokeWidth={isSharedLine ? 2.6 : 2}
                 strokeLinecap="round"
               />
@@ -752,6 +957,8 @@ export default function MindMapCanvas({
                 originalNode={originalNode}
                 onTagDrop={onTagDrop}
                 isReadOnly={isReadOnly}
+                colorTheme={colorTheme}
+                isDarkMode={isDarkMode}
               />
             );
           })}
@@ -761,87 +968,9 @@ export default function MindMapCanvas({
       </div>
 
       {/* 줌 컨트롤 */}
-      <div className="absolute bottom-6 right-5 flex flex-col gap-1 bg-white rounded-[12px] shadow-sm border border-gray-200 p-1 z-50">
-        <button
-          onClick={() => {
-            const rect = canvasRef.current?.getBoundingClientRect();
-            if (!rect) {
-              setZoom(prev => Math.min(3, prev + 0.1));
-              return;
-            }
-
-            // 화면 중앙 좌표
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-
-            // 줌 변경 전 중앙이 가리키는 월드 좌표
-            const worldXBefore = (centerX - pan.x) / zoom;
-            const worldYBefore = (centerY - pan.y) / zoom;
-
-            // 새로운 줌 레벨
-            const newZoom = Math.min(3, zoom + 0.1);
-
-            // 줌 변경 후 같은 월드 좌표가 중앙에 오도록 pan 조정
-            const newPan = {
-              x: centerX - worldXBefore * newZoom,
-              y: centerY - worldYBefore * newZoom,
-            };
-
-            setZoom(newZoom);
-            setPan(newPan);
-          }}
-          className="w-8 h-8 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-[8px] transition-colors duration-200 flex items-center justify-center"
-        >
-          +
-        </button>
-        <div className="text-xs text-center text-gray-500 py-1">
-          {Math.round(zoom * 100)}%
-        </div>
-        <button
-          onClick={() => {
-            const rect = canvasRef.current?.getBoundingClientRect();
-            if (!rect) {
-              setZoom(prev => Math.max(0.25, prev - 0.1));
-              return;
-            }
-
-            // 화면 중앙 좌표
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-
-            // 줌 변경 전 중앙이 가리키는 월드 좌표
-            const worldXBefore = (centerX - pan.x) / zoom;
-            const worldYBefore = (centerY - pan.y) / zoom;
-
-            // 새로운 줌 레벨
-            const newZoom = Math.max(0.25, zoom - 0.1);
-
-            // 줌 변경 후 같은 월드 좌표가 중앙에 오도록 pan 조정
-            const newPan = {
-              x: centerX - worldXBefore * newZoom,
-              y: centerY - worldYBefore * newZoom,
-            };
-
-            setZoom(newZoom);
-            setPan(newPan);
-          }}
-          className="w-8 h-8 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-[8px] transition-colors duration-200 flex items-center justify-center"
-        >
-          −
-        </button>
-        <div className="border-t border-gray-100 my-1" />
-        <button
-          onClick={() => {
-            setPan({ x: 0, y: 0 });
-            setZoom(1);
-          }}
-          className="w-8 h-8 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-[8px] transition-colors duration-200 flex items-center justify-center"
-          title="리셋"
-        >
-          ⌂
-        </button>
-      </div>
-
+      <ZoomControl zoom={zoom} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
     </div>
   );
-}
+});
+
+export default MindMapCanvas;

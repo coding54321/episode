@@ -163,7 +163,7 @@ export default function STAREditor({
         <div className="space-y-6 pt-6">
           {/* 제목 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               제목 <span className="text-red-500">*</span>
             </label>
             <Input
@@ -177,7 +177,7 @@ export default function STAREditor({
           {/* STAR 구성 요소 */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <Badge variant="outline" className="mr-2">S</Badge>
                 상황 (Situation)
               </label>
@@ -189,7 +189,7 @@ export default function STAREditor({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <Badge variant="outline" className="mr-2">T</Badge>
                 과제 (Task)
               </label>
@@ -201,7 +201,7 @@ export default function STAREditor({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <Badge variant="outline" className="mr-2">A</Badge>
                 행동 (Action)
               </label>
@@ -213,7 +213,7 @@ export default function STAREditor({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <Badge variant="outline" className="mr-2">R</Badge>
                 결과 (Result)
               </label>
@@ -239,7 +239,7 @@ export default function STAREditor({
                   className={`cursor-pointer transition-all ${
                     selectedTags.includes(keyword)
                       ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'hover:bg-gray-100'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                   onClick={() => handleToggleTag(keyword)}
                 >
@@ -250,13 +250,13 @@ export default function STAREditor({
                 </Badge>
               ))}
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
               이 경험에서 발휘한 강점이나 역량을 선택해주세요 (복수 선택 가능)
             </p>
           </div>
 
           {/* 액션 버튼 */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button variant="outline" onClick={onClose}>
               취소
             </Button>
