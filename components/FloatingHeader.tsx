@@ -59,7 +59,7 @@ export default function FloatingHeader() {
                   variant="ghost"
                   className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-[#e5e5e5] hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-full h-9 px-4"
                 >
-                  <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                  <div className="w-6 h-6 bg-gradient-to-br from-[#5B6EFF] to-[#7B8FFF] rounded-full flex items-center justify-center shadow-lg" style={{ boxShadow: '0 0 10px rgba(91, 110, 255, 0.3)' }}>
                     <User className="w-4 h-4 text-white" />
                   </div>
                   <span>{user.name || user.email?.split('@')[0] || 'User'}님</span>

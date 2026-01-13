@@ -17,6 +17,7 @@ interface MindMapNodeProps {
   isSelected: boolean;
   isEditing: boolean;
   isSharedPath: boolean;
+  isSnapTarget?: boolean; // 스냅 연결 대상인지 여부
   onSelect: (nodeId: string) => void;
   onEdit: (nodeId: string, label: string) => void;
   onAddChild: (nodeId: string, direction?: 'right' | 'left' | 'top' | 'bottom') => void;
@@ -41,6 +42,7 @@ export default function MindMapNode({
   isSelected,
   isEditing,
   isSharedPath,
+  isSnapTarget = false,
   onSelect,
   onEdit,
   onAddChild,
@@ -230,6 +232,11 @@ export default function MindMapNode({
                   ? 'ring-4 ring-blue-400 ring-opacity-80 border-blue-400 bg-blue-50'
                   : ''
               }
+              ${
+                isSnapTarget
+                  ? 'ring-4 ring-[#5B6EFF] ring-opacity-60 border-[#5B6EFF] shadow-[0_0_15px_rgba(91,110,255,0.4)]'
+                  : ''
+              }
             `}
           >
             {isEditing ? (
@@ -406,17 +413,10 @@ export default function MindMapNode({
       </ContextMenuTrigger>
       <ContextMenuContent>
         {!isReadOnly && (
-          <>
-            <ContextMenuItem onClick={() => onAddChild(node.id, 'right')}>
-              <Plus className="w-4 h-4 mr-2" />
-              하위 노드 추가
-            </ContextMenuItem>
-            {(node.nodeType !== 'center' && node.level !== 0) && (
-              <ContextMenuItem onClick={() => onStartEdit(node.id)}>
-                이름 변경
-              </ContextMenuItem>
-            )}
-          </>
+          <ContextMenuItem onClick={() => onAddChild(node.id, 'right')}>
+            <Plus className="w-4 h-4 mr-2" />
+            하위 노드 추가
+          </ContextMenuItem>
         )}
         {/* 에피소드 노드일 때만 STAR 정리하기 표시 */}
         {(node.nodeType === 'episode' || node.level === 3) && onOpenSTAREditor && (

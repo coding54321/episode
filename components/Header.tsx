@@ -298,7 +298,7 @@ export default function Header({
               onClick={() => setShowMenu(!showMenu)}
               className="flex items-center gap-2 h-9 px-3 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg transition-colors"
             >
-              <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+              <div className="w-6 h-6 bg-gradient-to-br from-[#5B6EFF] to-[#7B8FFF] rounded-full flex items-center justify-center shadow-lg" style={{ boxShadow: '0 0 10px rgba(91, 110, 255, 0.3)' }}>
                 <UserIcon className="w-4 h-4 text-white" />
               </div>
               <span className="text-sm font-medium text-gray-700 dark:text-[#e5e5e5]">{user.name}님</span>

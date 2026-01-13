@@ -87,6 +87,7 @@ export default function MindMapProjectPage() {
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [activeEditors, setActiveEditors] = useState<ActiveEditor[]>([]);
   const [isOwner, setIsOwner] = useState(false);
+  const [isAddNodeMode, setIsAddNodeMode] = useState(false);
 
   // DB 업데이트 디바운싱을 위한 ref
   const supabaseUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -688,6 +689,95 @@ export default function MindMapProjectPage() {
     setEditingNodeId(newChild.id);
   };
 
+  // 캔버스 클릭으로 노드 추가
+  const handleCanvasAddNode = (x: number, y: number) => {
+    if (isReadOnly || !project) return;
+
+    const newNode: MindMapNode = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      label: '새 노드',
+      parentId: null, // 독립 노드로 생성
+      children: [],
+      x,
+      y,
+      level: 4, // detail 레벨로 시작
+      nodeType: 'detail',
+      isManuallyPositioned: true, // 수동 배치
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    const updatedNodes = [...nodes, newNode];
+    handleNodesChange(updatedNodes, false);
+    setEditingNodeId(newNode.id);
+    setIsAddNodeMode(false); // 노드 추가 모드 종료
+  };
+
+  // 노드 연결 (스냅 연결)
+  const handleNodeConnect = (nodeId: string, parentId: string) => {
+    if (isReadOnly || !project) return;
+
+    const nodeToConnect = nodeMap.get(nodeId);
+    const parentNode = nodeMap.get(parentId);
+    if (!nodeToConnect || !parentNode) return;
+
+    // 자기 자신이나 center 노드는 부모로 설정 불가
+    if (nodeId === parentId || parentNode.nodeType === 'center' || parentNode.level === 0) {
+      return;
+    }
+
+    // 이미 같은 부모를 가지고 있으면 무시
+    if (nodeToConnect.parentId === parentId) {
+      return;
+    }
+
+    // 기존 부모의 children에서 제거
+    const updatedNodes = nodes.map(node => {
+      if (node.id === nodeToConnect.parentId) {
+        return {
+          ...node,
+          children: node.children.filter(id => id !== nodeId),
+          updatedAt: Date.now(),
+        };
+      }
+      // 새 부모의 children에 추가
+      if (node.id === parentId) {
+        return {
+          ...node,
+          children: [...node.children, nodeId],
+          updatedAt: Date.now(),
+        };
+      }
+      return node;
+    });
+
+    // 연결할 노드의 parentId와 level 업데이트
+    const newLevel = parentNode.level + 1;
+    const updatedNode = {
+      ...nodeToConnect,
+      parentId: parentId,
+      level: newLevel,
+      updatedAt: Date.now(),
+    };
+
+    const finalNodes = updatedNodes.map(n => n.id === nodeId ? updatedNode : n);
+    handleNodesChange(finalNodes, false);
+  };
+
+  // ESC 키로 노드 추가 모드 종료
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isAddNodeMode) {
+        setIsAddNodeMode(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAddNodeMode]);
+
   const handleSTARComplete = (data: { situation: string; task: string; action: string; result: string }) => {
     setStarData(data);
     setIsSTAREditorOpen(true);
@@ -1244,6 +1334,8 @@ export default function MindMapProjectPage() {
               onFitToScreen={() => canvasRef.current?.fitToScreen()}
               onToggleGrid={() => setShowGrid(!showGrid)}
               showGrid={showGrid}
+              onToggleAddNodeMode={() => setIsAddNodeMode(!isAddNodeMode)}
+              isAddNodeMode={isAddNodeMode}
               onExport={async (type: 'image' | 'pdf') => {
                 if (!project) return;
 
@@ -1396,6 +1488,9 @@ export default function MindMapProjectPage() {
           onEndEdit={() => setEditingNodeId(null)}
           projectId={projectId}
           onTagDrop={handleTagDrop}
+          isAddNodeMode={isAddNodeMode}
+          onCanvasAddNode={handleCanvasAddNode}
+          onNodeConnect={handleNodeConnect}
         />
         </div>
 

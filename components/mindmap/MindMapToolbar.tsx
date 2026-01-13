@@ -10,6 +10,7 @@ import {
   Download,
   Share2,
   Settings,
+  Plus,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -36,6 +37,8 @@ interface MindMapToolbarProps {
   onExport?: (type: 'image' | 'pdf') => void;
   onShare?: () => void;
   onSettings?: () => void;
+  onToggleAddNodeMode?: () => void;
+  isAddNodeMode?: boolean;
 }
 
 export default function MindMapToolbar({
@@ -49,6 +52,8 @@ export default function MindMapToolbar({
   onExport,
   onShare,
   onSettings,
+  onToggleAddNodeMode,
+  isAddNodeMode = false,
 }: MindMapToolbarProps) {
 
   return (
@@ -71,6 +76,31 @@ export default function MindMapToolbar({
           </TooltipContent>
         </Tooltip>
 
+      {/* 노드 추가 */}
+      {onToggleAddNodeMode && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleAddNodeMode}
+              className={`h-9 w-9 p-0 bg-white dark:bg-[#1a1a1a] shadow-lg border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg transition-all ${
+                isAddNodeMode 
+                  ? 'bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/20 border-[#5B6EFF] shadow-[0_0_10px_rgba(91,110,255,0.3)]' 
+                  : ''
+              }`}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>{isAddNodeMode ? '노드 추가 모드 종료 (ESC)' : '노드 추가'}</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+
+      {/* 구분선 */}
+      <div className="h-px bg-gray-200 dark:bg-[#2a2a2a] my-1" />
 
       {/* 그리드 토글 */}
       <Tooltip>

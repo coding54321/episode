@@ -41,6 +41,9 @@ interface MindMapCanvasProps {
   showGrid?: boolean; // 그리드 표시 여부
   onZoomChange?: (zoom: number) => void; // 줌 변경 콜백
   colorTheme?: ColorTheme; // 색상 테마
+  isAddNodeMode?: boolean; // 노드 추가 모드 활성화 여부
+  onCanvasAddNode?: (x: number, y: number) => void; // 캔버스 클릭 시 노드 추가
+  onNodeConnect?: (nodeId: string, parentId: string) => void; // 노드 연결 핸들러
 }
 
 const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(function MindMapCanvas({
@@ -66,6 +69,9 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
   showGrid = false,
   onZoomChange,
   colorTheme = 'default',
+  isAddNodeMode = false,
+  onCanvasAddNode,
+  onNodeConnect,
 }, ref) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -75,6 +81,7 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
   const [spacePressed, setSpacePressed] = useState(false);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [snapTargetNodeId, setSnapTargetNodeId] = useState<string | null>(null); // 스냅 연결 대상 노드 ID
 
   // 다크모드 감지
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -470,9 +477,43 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
         });
 
         setDragPositions(newPositions);
+
+        // 스냅 연결 대상 찾기 (드래그 중인 노드가 독립 노드이고, 부모가 없는 경우)
+        if (draggedNode.parentId === null && onNodeConnect) {
+          const SNAP_DISTANCE = 100 / zoom; // 줌 레벨에 따라 조정
+          let closestNodeId: string | null = null;
+          let closestDistance = Infinity;
+
+          nodes.forEach(node => {
+            // 자기 자신, center 노드, 이미 부모가 있는 노드는 제외
+            if (
+              node.id === draggedNodeId ||
+              node.nodeType === 'center' ||
+              node.level === 0 ||
+              node.parentId === null
+            ) {
+              return;
+            }
+
+            // 드래그 중인 노드의 현재 위치 (임시 좌표 또는 실제 좌표)
+            const dragPos = newPositions.get(draggedNodeId) || { x: newX, y: newY };
+            const distance = Math.sqrt(
+              Math.pow(node.x - dragPos.x, 2) + Math.pow(node.y - dragPos.y, 2)
+            );
+
+            if (distance < SNAP_DISTANCE && distance < closestDistance) {
+              closestNodeId = node.id;
+              closestDistance = distance;
+            }
+          });
+
+          setSnapTargetNodeId(closestNodeId);
+        } else {
+          setSnapTargetNodeId(null);
+        }
       });
     }
-  }, [isPanning, panStart, draggedNodeId, dragOffset, zoom, pan, nodeMap]);
+  }, [isPanning, panStart, draggedNodeId, dragOffset, zoom, pan, nodeMap, nodes, onNodeConnect]);
 
   // 마우스 업 - 드래그 종료 시 실제 상태 업데이트
   const handleMouseUp = useCallback(() => {
@@ -484,6 +525,14 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
       if (draggedNode) {
         const newPos = dragPositions.get(draggedNodeId);
         if (newPos) {
+          // 스냅 연결 처리
+          if (snapTargetNodeId && onNodeConnect && draggedNode.parentId === null) {
+            // 스냅 대상 노드와 연결
+            onNodeConnect(draggedNodeId, snapTargetNodeId);
+            setSnapTargetNodeId(null);
+            // 연결 후에도 위치는 업데이트해야 함
+          }
+
           // 실제 노드 배열 업데이트 (드래그 종료 시에만)
           const updatedNodes = nodes.map(node => {
             if (node.id === draggedNodeId) {
@@ -498,9 +547,12 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
             return node;
           });
 
-          // 드래그 종료 시 실제 상태 업데이트 (isDrag=false로 전달하여 즉시 업데이트)
-          // onNodesChange에서 이미 DB 저장을 처리하므로 여기서는 중복 저장하지 않음
-          onNodesChange(updatedNodes, false);
+          // 스냅 연결이 없었으면 일반 위치 업데이트만 수행
+          if (!snapTargetNodeId || !onNodeConnect) {
+            // 드래그 종료 시 실제 상태 업데이트 (isDrag=false로 전달하여 즉시 업데이트)
+            // onNodesChange에서 이미 DB 저장을 처리하므로 여기서는 중복 저장하지 않음
+            onNodesChange(updatedNodes, false);
+          }
         }
       }
     }
@@ -508,12 +560,13 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
     // 드래그 상태 초기화
     setDraggedNodeId(null);
     setDragPositions(new Map());
+    setSnapTargetNodeId(null);
     dragStateRef.current = null;
     if (rafIdRef.current !== null) {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
     }
-  }, [draggedNodeId, dragPositions, nodeMap, nodes, onNodesChange]);
+  }, [draggedNodeId, dragPositions, nodeMap, nodes, onNodesChange, snapTargetNodeId, onNodeConnect]);
 
   useEffect(() => {
     if (isPanning || draggedNodeId) {
@@ -676,16 +729,32 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
     }
   }, [nodeMap, childrenMap, nodes, onNodesChange, selectedNodeId, onNodeSelect, isReadOnly]);
 
-  // 캔버스 클릭 시 선택 해제 및 편집 모드 종료
+  // 캔버스 클릭 시 선택 해제 및 편집 모드 종료 또는 노드 추가
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === canvasRef.current || (e.target as HTMLElement).closest('.canvas-container')) {
+    const target = e.target as HTMLElement;
+    const isCanvasClick = target === canvasRef.current || target.closest('.canvas-container');
+    
+    // 노드 추가 모드이고 캔버스 클릭이면 노드 추가
+    if (isAddNodeMode && isCanvasClick && onCanvasAddNode && !isReadOnly) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        // 화면 좌표를 캔버스 좌표로 변환
+        const canvasX = (e.clientX - rect.left - pan.x) / zoom;
+        const canvasY = (e.clientY - rect.top - pan.y) / zoom;
+        onCanvasAddNode(canvasX, canvasY);
+      }
+      return;
+    }
+    
+    // 일반적인 캔버스 클릭 처리
+    if (isCanvasClick) {
       onNodeSelect(null);
       // 편집 모드 종료
       if (editingNodeId) {
         onEndEdit();
       }
     }
-  }, [onNodeSelect, editingNodeId, onEndEdit]);
+  }, [isAddNodeMode, onCanvasAddNode, isReadOnly, pan, zoom, onNodeSelect, editingNodeId, onEndEdit]);
 
   // 공유 경로 여부 계산 (노드 자신 또는 조상 중 공유된 노드가 있는 경우)
   const sharedPathMap = useMemo(() => {
@@ -781,9 +850,11 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
       className={`w-full h-full overflow-hidden bg-gray-50 dark:bg-[#0a0a0a] relative transition-all duration-200 ${
         spacePressed || isPanning
           ? 'cursor-grab active:cursor-grabbing'
-          : draggedNodeId
-            ? 'cursor-move'
-            : 'cursor-default'
+          : isAddNodeMode
+            ? 'cursor-crosshair'
+            : draggedNodeId
+              ? 'cursor-move'
+              : 'cursor-default'
       }`}
       onMouseDown={handleMouseDown}
       onWheel={handleWheel}
@@ -883,6 +954,33 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
               />
             );
           })}
+
+          {/* 가상 연결선 (스냅 연결 중) */}
+          {snapTargetNodeId && draggedNodeId && dragPositions.size > 0 && (() => {
+            const draggedNode = nodeMap.get(draggedNodeId);
+            const targetNode = nodeMap.get(snapTargetNodeId);
+            if (!draggedNode || !targetNode) return null;
+
+            const dragPos = dragPositions.get(draggedNodeId) || { x: draggedNode.x, y: draggedNode.y };
+            const x1 = dragPos.x - canvasBounds.minX;
+            const y1 = dragPos.y - canvasBounds.minY;
+            const x2 = targetNode.x - canvasBounds.minX;
+            const y2 = targetNode.y - canvasBounds.minY;
+
+            return (
+              <line
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke="#5B6EFF"
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                opacity="0.6"
+                className="pointer-events-none"
+              />
+            );
+          })()}
         </svg>
 
         {/* 노드 렌더링 */}
@@ -914,6 +1012,7 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
                 isSelected={selectedNodeId === node.id}
                 isEditing={editingNodeId === node.id}
                 isSharedPath={sharedPathMap[node.id] ?? false}
+                isSnapTarget={snapTargetNodeId === node.id}
                 onSelect={onNodeSelect}
                 onEdit={onNodeEdit}
                 onAddChild={handleAddChild}
