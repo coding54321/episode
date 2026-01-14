@@ -200,6 +200,31 @@ export default function Header({
           </button>
         </Link>
 
+        {/* 네비게이션 링크 (로그인된 경우에만 표시) */}
+        {user && (
+          <nav className="hidden md:flex items-center gap-1">
+            <Link
+              href="/mindmaps"
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                isActive('/mindmaps')
+                  ? 'text-[#5B6EFF] bg-[#5B6EFF]/10'
+                  : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+              }`}
+            >
+              마인드맵
+            </Link>
+            <Link
+              href="/archive"
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                isActive('/archive')
+                  ? 'text-[#5B6EFF] bg-[#5B6EFF]/10'
+                  : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+              }`}
+            >
+              아카이브
+            </Link>
+          </nav>
+        )}
 
         {/* 검색 (로그인된 경우, 데스크톱에서만 표시) */}
         {user && showSearch && (

@@ -1,11 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { User, Map, LogOut, Archive } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { User, LogOut } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useState, useRef } from 'react';
 import { useUnifiedAuth } from '@/lib/auth/unified-auth-context';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -21,17 +20,21 @@ export default function FloatingHeader() {
     router.push('/');
   };
 
+  const isActive = (path: string) => {
+    if (typeof window === 'undefined') return false;
+    const pathname = window.location.pathname;
+    if (path === '/mindmaps' || path === '/mindmap') {
+      return pathname.startsWith('/mindmap');
+    }
+    return pathname === path;
+  };
+
   return (
-    <motion.header
-      initial={{ y: -100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-5xl"
-    >
-      <div className="bg-white/80 dark:bg-[#1a1a1a]/80 backdrop-blur-xl rounded-full shadow-lg border border-gray-200/50 dark:border-[#2a2a2a]/50 px-6 py-3 glow-subtle">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-[#0a0a0a] border-b border-gray-200 dark:border-[#2a2a2a]">
+      <div className="max-w-7xl mx-auto px-5 py-4">
         <div className="flex items-center justify-between">
-          {/* 왼쪽: 로고 */}
-          <div className="flex items-center gap-8">
+          {/* 왼쪽: 로고 + 네비게이션 */}
+          <div className="flex items-center gap-6">
             {/* 로고 */}
             <Link href="/" className="flex items-center gap-2">
               <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
@@ -39,6 +42,31 @@ export default function FloatingHeader() {
               </span>
             </Link>
 
+            {/* 네비게이션 링크 (로그인된 경우에만 표시) */}
+            {user && (
+              <nav className="hidden md:flex items-center gap-1">
+                <Link
+                  href="/mindmaps"
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    isActive('/mindmaps')
+                      ? 'text-[#5B6EFF] bg-[#5B6EFF]/10'
+                      : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+                  }`}
+                >
+                  마인드맵
+                </Link>
+                <Link
+                  href="/archive"
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    isActive('/archive')
+                      ? 'text-[#5B6EFF] bg-[#5B6EFF]/10'
+                      : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+                  }`}
+                >
+                  아카이브
+                </Link>
+              </nav>
+            )}
           </div>
 
           {/* 오른쪽: 테마 토글 + 로그인/가입 버튼 또는 사용자 정보 */}
@@ -82,20 +110,6 @@ export default function FloatingHeader() {
 
                       {/* 메뉴 항목 */}
                       <div className="py-1">
-                        <Link
-                          href="/mindmaps"
-                          className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 flex items-center gap-2 transition-colors"
-                        >
-                          <Map className="w-4 h-4" />
-                          마인드맵 목록
-                        </Link>
-                        <Link
-                          href="/archive"
-                          className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 flex items-center gap-2 transition-colors"
-                        >
-                          <Archive className="w-4 h-4" />
-                          에피소드 아카이브
-                        </Link>
                         <button
                           onClick={handleLogout}
                           className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 flex items-center gap-2 transition-colors"
@@ -129,7 +143,7 @@ export default function FloatingHeader() {
           </div>
         </div>
       </div>
-    </motion.header>
+    </header>
   );
 }
 
