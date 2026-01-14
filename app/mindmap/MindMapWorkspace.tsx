@@ -477,6 +477,85 @@ export default function MindMapWorkspace() {
     };
   }, [initialProjectId, nodeId, router, user, authLoading]);
 
+  // 복원 이후 URL의 initialProjectId가 있으면 탭으로 반영
+  useEffect(() => {
+    if (!workspaceRestoredRef.current) return;
+    if (!initialProjectId) return;
+    if (authLoading) return;
+
+    // 이미 해당 projectId를 가진 탭이 있으면 그 탭 활성화
+    const existingTab = tabs.find((t) => t.type === 'project' && t.projectId === initialProjectId);
+    if (existingTab) {
+      setActiveTabId(existingTab.id);
+      setActiveProjectId(existingTab.projectId || null);
+
+      // 탭 상태가 있으면 복원
+      if (!restoreTabState(existingTab.id)) {
+        // 없으면 최소한 프로젝트만 로드
+        (async () => {
+          const targetProject = await mindMapProjectStorage.get(initialProjectId);
+          if (targetProject) {
+            setProject(targetProject);
+            const layoutConfig = targetProject.layoutConfig || { autoLayout: true };
+            const layouted =
+              layoutConfig.autoLayout && targetProject.nodes.length > 0
+                ? applyLayout(targetProject.nodes, targetProject.layoutType || 'radial', layoutConfig)
+                : targetProject.nodes;
+            setNodes(layouted);
+          }
+        })();
+      }
+      return;
+    }
+
+    // 탭에 없으면 새 프로젝트 탭 추가 (NewTabPanel의 onOpenProject와 유사)
+    (async () => {
+      try {
+        const targetProject = await mindMapProjectStorage.get(initialProjectId);
+        if (!targetProject) return;
+
+        const layoutConfig = targetProject.layoutConfig || { autoLayout: true };
+        const layouted =
+          layoutConfig.autoLayout && targetProject.nodes.length > 0
+            ? applyLayout(targetProject.nodes, targetProject.layoutType || 'radial', layoutConfig)
+            : targetProject.nodes;
+
+        setActiveProjectId(initialProjectId);
+        setProject(targetProject);
+        setNodes(layouted);
+        setSelectedNodeId(null);
+        setFocusNodeId(null);
+
+        const newTabId = `project_${initialProjectId}`;
+        setTabs((prev) => [
+          ...prev,
+          {
+            id: newTabId,
+            label: targetProject.name,
+            nodeId: null,
+            href: `/mindmap?projectId=${initialProjectId}`,
+            type: 'project',
+            projectId: initialProjectId,
+          },
+        ]);
+        setActiveTabId(newTabId);
+
+        setTabStates((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(newTabId, {
+            project: targetProject,
+            nodes: layouted,
+            selectedNodeId: null,
+            focusNodeId: null,
+          });
+          return newMap;
+        });
+      } catch (error) {
+        console.error('[mindmap/workspace] URL 기반 프로젝트 탭 추가 실패', error);
+      }
+    })();
+  }, [initialProjectId, authLoading, tabs, restoreTabState]);
+
   // 편집자 추적 (로그인된 사용자만)
   useEffect(() => {
     if (!user || !project || isReadOnly || !activeProjectId) {

@@ -210,20 +210,21 @@ export default function MindMapNode({
                   : nodeColors.border,
             }}
             className={`
-              relative min-w-[120px] text-center select-none transition-all duration-200 border-2
-              ${isRootNode
-                ? 'px-6 py-4 rounded-2xl shadow-lg font-bold'
-                : isInSharedPath
-                  ? 'px-4 py-3 rounded-xl shadow-sm ring-2 ring-green-100 bg-green-50 text-green-800 border-green-400 hover:border-green-500'
+              relative select-none transition-all duration-200 border-2
+              ${isRootNode ? 'w-52 h-52 rounded-full flex flex-col items-center justify-center text-center shadow-[0_0_25px_rgba(80,144,255,0.25)] font-bold' : 'min-w-[120px] text-center'}
+              ${!isRootNode && (
+                isInSharedPath
+                  ? ' px-4 py-3 rounded-xl shadow-sm ring-2 ring-green-100 bg-green-50 text-green-800 border-green-400 hover:border-green-500'
                   : isBadgeNode
-                    ? 'px-4 py-3 rounded-xl shadow-sm font-semibold hover:brightness-95'
+                    ? ' px-4 py-3 rounded-xl shadow-sm font-semibold hover:brightness-95'
                     : isExperienceNode
-                      ? 'px-4 py-3 rounded-xl shadow-sm hover:brightness-95'
+                      ? ' px-4 py-3 rounded-xl shadow-sm hover:brightness-95'
                       : isEpisodeNode
-                        ? 'px-4 py-3 rounded-xl shadow-sm font-medium hover:brightness-95'
+                        ? ' px-4 py-3 rounded-xl shadow-sm font-medium hover:brightness-95'
                         : isDetailNode
-                          ? 'px-3 py-2 rounded-lg shadow-sm hover:brightness-95'
-                          : 'px-4 py-3 rounded-xl shadow-sm hover:brightness-95'}
+                          ? ' px-3 py-2 rounded-lg shadow-sm hover:brightness-95'
+                          : ' px-4 py-3 rounded-xl shadow-sm hover:brightness-95'
+              )}
               ${
                 isSelected
                   ? 'ring-4 ring-blue-200 ring-opacity-60'
@@ -260,7 +261,7 @@ export default function MindMapNode({
             ) : (
               <div
                 className={`font-medium leading-snug ${
-                  isRootNode ? 'text-base' : 'text-sm'
+                  isRootNode ? 'text-lg' : 'text-sm'
                 }`}
               >
                 {typeof node.label === 'string' ? node.label : '노드'}
