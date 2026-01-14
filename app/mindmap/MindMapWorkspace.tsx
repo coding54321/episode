@@ -272,6 +272,12 @@ export default function MindMapWorkspace() {
     if (typeof window === 'undefined') return;
 
     try {
+      // 아직 복원이 끝나지 않았고, 탭이 비어 있는 초기 상태라면
+      // 기존 localStorage 스냅샷을 빈 값으로 덮어쓰지 않도록 방지
+      if (!workspaceRestoredRef.current && tabs.length === 0) {
+        return;
+      }
+
       const snapshot = {
         tabs,
         activeTabId,
@@ -523,7 +529,7 @@ export default function MindMapWorkspace() {
     };
   }, [initialProjectId, nodeId, router, user, authLoading]);
 
-  // 복원 이후 URL의 initialProjectId가 있으면 탭으로 반영
+  // 복원 이후 URL의 initialProjectId가 있으면 탭으로 한 번만 반영
   useEffect(() => {
     if (!workspaceRestoredRef.current) return;
     if (!initialProjectId) return;
@@ -606,7 +612,7 @@ export default function MindMapWorkspace() {
         console.error('[mindmap/workspace] URL 기반 프로젝트 탭 추가 실패', error);
       }
     })();
-  }, [initialProjectId, authLoading, tabs, restoreTabState]);
+  }, [initialProjectId, authLoading]);
 
   // 편집자 추적 (로그인된 사용자만)
   useEffect(() => {
