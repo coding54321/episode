@@ -168,58 +168,104 @@ export default function MindMapWorkspace() {
   // 워크스페이스 탭 상태 복원 (새로고침 대비)
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    // 인증 로딩 중이면 대기
+    if (authLoading) return;
+    // 사용자가 없으면 복원하지 않음 (로그인 후 다시 시도)
+    if (!user) return;
 
-    try {
-      const raw = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
-      if (!raw) return;
+    const restoreWorkspace = async () => {
+      try {
+        const raw = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
+        if (!raw) return;
 
-      const parsed = JSON.parse(raw) as {
-        tabs?: Tab[];
-        activeTabId?: string;
-        activeProjectId?: string | null;
-        tabStates?: Array<{
-          tabId: string;
-          project: MindMapProject | null;
-          nodes: MindMapNode[];
-          selectedNodeId: string | null;
-          focusNodeId: string | null;
-        }>;
-      };
+        const parsed = JSON.parse(raw) as {
+          tabs?: Tab[];
+          activeTabId?: string;
+          activeProjectId?: string | null;
+          tabStates?: Array<{
+            tabId: string;
+            project: MindMapProject | null;
+            nodes: MindMapNode[];
+            selectedNodeId: string | null;
+            focusNodeId: string | null;
+          }>;
+        };
 
-      if (!parsed.tabs || parsed.tabs.length === 0) return;
+        if (!parsed.tabs || parsed.tabs.length === 0) return;
 
-      setTabs(parsed.tabs);
-      setActiveTabId(parsed.activeTabId || 'main');
-      setActiveProjectId(parsed.activeProjectId || null);
+        // 실제 존재하는 프로젝트 목록 가져오기
+        const { getProjects } = await import('@/lib/supabase/data');
+        const existingProjects = await getProjects(user.id);
+        const existingProjectIds = new Set(existingProjects.map(p => p.id));
 
-      const stateMap = new Map<string, TabState>();
-      (parsed.tabStates || []).forEach((s) => {
-        stateMap.set(s.tabId, {
-          project: s.project,
-          nodes: s.nodes || [],
-          selectedNodeId: s.selectedNodeId,
-          focusNodeId: s.focusNodeId,
+        // 삭제된 프로젝트의 탭 필터링
+        const validTabs = parsed.tabs.filter(tab => {
+          // 프로젝트 탭이 아니면 유지 (new, main 등)
+          if (tab.type !== 'project' || !tab.projectId) return true;
+          // 프로젝트 탭인 경우, 실제 존재하는 프로젝트인지 확인
+          return existingProjectIds.has(tab.projectId);
         });
-      });
-      setTabStates(stateMap);
 
-      // 활성 프로젝트 탭 상태 복원
-      const activeTab = parsed.tabs.find(
-        (t) => t.id === (parsed.activeTabId || 'main') && t.type === 'project' && t.projectId,
-      );
-      if (activeTab) {
-        const activeState = stateMap.get(activeTab.id);
-        if (activeState) {
-          setProject(activeState.project);
-          setNodes(activeState.nodes);
+        // 유효한 탭이 없으면 복원하지 않음
+        if (validTabs.length === 0) {
+          window.localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+          return;
         }
-      }
 
-      workspaceRestoredRef.current = true;
-    } catch (error) {
-      console.error('[mindmap/workspace] 탭 상태 복원 실패', error);
-    }
-  }, []);
+        // activeTabId가 삭제된 탭이면 유효한 탭으로 전환
+        let restoredActiveTabId = parsed.activeTabId || 'main';
+        if (!validTabs.find(t => t.id === restoredActiveTabId)) {
+          // 유효한 프로젝트 탭이 있으면 첫 번째 프로젝트 탭으로, 없으면 첫 번째 탭으로
+          const firstProjectTab = validTabs.find(t => t.type === 'project');
+          restoredActiveTabId = firstProjectTab?.id || validTabs[0]?.id || 'main';
+        }
+
+        // activeProjectId도 유효한 프로젝트인지 확인
+        let restoredActiveProjectId: string | null = parsed.activeProjectId || null;
+        if (restoredActiveProjectId && !existingProjectIds.has(restoredActiveProjectId)) {
+          const activeTab = validTabs.find(t => t.id === restoredActiveTabId && t.type === 'project');
+          restoredActiveProjectId = activeTab?.projectId || null;
+        }
+
+        setTabs(validTabs);
+        setActiveTabId(restoredActiveTabId);
+        setActiveProjectId(restoredActiveProjectId);
+
+        // 유효한 탭의 상태만 복원
+        const stateMap = new Map<string, TabState>();
+        const validTabIds = new Set(validTabs.map(t => t.id));
+        (parsed.tabStates || []).forEach((s) => {
+          if (validTabIds.has(s.tabId)) {
+            stateMap.set(s.tabId, {
+              project: s.project,
+              nodes: s.nodes || [],
+              selectedNodeId: s.selectedNodeId,
+              focusNodeId: s.focusNodeId,
+            });
+          }
+        });
+        setTabStates(stateMap);
+
+        // 활성 프로젝트 탭 상태 복원
+        const activeTab = validTabs.find(
+          (t) => t.id === restoredActiveTabId && t.type === 'project' && t.projectId,
+        );
+        if (activeTab) {
+          const activeState = stateMap.get(activeTab.id);
+          if (activeState) {
+            setProject(activeState.project);
+            setNodes(activeState.nodes);
+          }
+        }
+
+        workspaceRestoredRef.current = true;
+      } catch (error) {
+        console.error('[mindmap/workspace] 탭 상태 복원 실패', error);
+      }
+    };
+
+    restoreWorkspace();
+  }, [user, authLoading]);
 
   // 탭 상태가 변경될 때 워크스페이스 스냅샷 저장
   useEffect(() => {
@@ -527,17 +573,23 @@ export default function MindMapWorkspace() {
         setFocusNodeId(null);
 
         const newTabId = `project_${initialProjectId}`;
-        setTabs((prev) => [
-          ...prev,
-          {
-            id: newTabId,
-            label: targetProject.name,
-            nodeId: null,
-            href: `/mindmap?projectId=${initialProjectId}`,
-            type: 'project',
-            projectId: initialProjectId,
-          },
-        ]);
+        setTabs((prev) => {
+          // 같은 id를 가진 탭이 이미 있으면 추가하지 않음
+          if (prev.some((t) => t.id === newTabId)) {
+            return prev;
+          }
+          return [
+            ...prev,
+            {
+              id: newTabId,
+              label: targetProject.name,
+              nodeId: null,
+              href: `/mindmap?projectId=${initialProjectId}`,
+              type: 'project',
+              projectId: initialProjectId,
+            },
+          ];
+        });
         setActiveTabId(newTabId);
 
         setTabStates((prev) => {
