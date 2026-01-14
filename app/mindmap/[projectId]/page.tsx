@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { MindMapNode, MindMapProject, GapTag, NodeType, LayoutType, LayoutConfig, MindMapSettings } from '@/types';
+import { MindMapNode, MindMapProject, GapTag, NodeType, LayoutType, LayoutConfig, MindMapSettings, STARAsset, COMPETENCY_KEYWORDS } from '@/types';
 import { mindMapProjectStorage, currentProjectStorage, assetStorage, mindMapOnboardingStorage } from '@/lib/storage';
 import { useUnifiedAuth } from '@/lib/auth/unified-auth-context';
 import MindMapCanvas, { MindMapCanvasHandle } from '@/components/mindmap/MindMapCanvas';
@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { ChevronLeft, ChevronRight, MessageSquare, Check, X, BarChart3, FileText, CheckCircle2, AlertCircle, Loader2, Share2, Link2, Copy, Users, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MessageSquare, Check, X, BarChart3, FileText, CheckCircle2, AlertCircle, Loader2, Share2, Link2, Copy, Users, Search, Filter, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -91,6 +91,12 @@ export default function MindMapProjectPage() {
   const [searchResults, setSearchResults] = useState<Array<{ nodeId: string; nodeLabel: string; projectId: string; projectName: string; nodePath: string[] }>>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  
+  // 역량 필터 상태
+  const [selectedCompetencies, setSelectedCompetencies] = useState<string[]>([]);
+  const [isCompetencyFilterOpen, setIsCompetencyFilterOpen] = useState(false);
+  const [competencyStats, setCompetencyStats] = useState<Array<{ competency: string; count: number; nodeIds: string[] }>>([]);
+  const competencyFilterRef = useRef<HTMLDivElement>(null);
 
   // DB 업데이트 디바운싱을 위한 ref
   const supabaseUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -529,6 +535,101 @@ export default function MindMapProjectPage() {
 
     performSearch();
   }, [searchQuery, getNodePath]);
+
+  // 역량 통계 계산 (프로젝트와 노드가 로드된 후)
+  useEffect(() => {
+    const calculateCompetencyStats = async () => {
+      if (!project || !nodes || nodes.length === 0 || !user) {
+        setCompetencyStats([]);
+        return;
+      }
+
+      try {
+        // 현재 프로젝트의 모든 노드에 대한 STAR Asset 로드
+        const starAssets: STARAsset[] = [];
+        for (const node of nodes) {
+          const asset = await assetStorage.getByNodeId(node.id);
+          if (asset && asset.tags && asset.tags.length > 0) {
+            starAssets.push(asset);
+          }
+        }
+
+        // 역량별로 노드 ID 집계
+        const competencyMap = new Map<string, Set<string>>();
+        
+        // COMPETENCY_KEYWORDS의 모든 역량을 초기화
+        COMPETENCY_KEYWORDS.forEach(competency => {
+          competencyMap.set(competency, new Set());
+        });
+
+        // STAR Asset의 태그를 기반으로 역량별 노드 ID 수집
+        starAssets.forEach(asset => {
+          if (asset.tags && asset.tags.length > 0) {
+            asset.tags.forEach(tag => {
+              const competency = tag.trim();
+              if (competency) {
+                if (!competencyMap.has(competency)) {
+                  competencyMap.set(competency, new Set());
+                }
+                competencyMap.get(competency)!.add(asset.nodeId);
+              }
+            });
+          }
+        });
+
+        // 통계 배열로 변환 (개수가 0보다 큰 것만)
+        const stats = Array.from(competencyMap.entries())
+          .map(([competency, nodeIds]) => ({
+            competency,
+            count: nodeIds.size,
+            nodeIds: Array.from(nodeIds),
+          }))
+          .filter(stat => stat.count > 0)
+          .sort((a, b) => b.count - a.count); // 개수 순으로 정렬
+
+        setCompetencyStats(stats);
+      } catch (error) {
+        console.error('Failed to calculate competency stats:', error);
+        setCompetencyStats([]);
+      }
+    };
+
+    calculateCompetencyStats();
+  }, [project, nodes, user]);
+
+  // 하이라이트된 노드 ID 집합 계산
+  const highlightedNodeIds = useMemo(() => {
+    if (selectedCompetencies.length === 0) {
+      return new Set<string>();
+    }
+
+    const highlightedSet = new Set<string>();
+    selectedCompetencies.forEach(competency => {
+      const stat = competencyStats.find(s => s.competency === competency);
+      if (stat) {
+        stat.nodeIds.forEach(nodeId => highlightedSet.add(nodeId));
+      }
+    });
+
+    return highlightedSet;
+  }, [selectedCompetencies, competencyStats]);
+
+  // 역량 필터 외부 클릭 감지
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        competencyFilterRef.current &&
+        !competencyFilterRef.current.contains(event.target as Node)
+      ) {
+        setIsCompetencyFilterOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // 검색어 하이라이트 함수
   const highlightText = (text: string, query: string) => {
@@ -1281,68 +1382,151 @@ export default function MindMapProjectPage() {
                 )}
               </div>
 
-              {/* 검색바 (마인드맵 명칭 오른쪽) */}
+              {/* 검색바 및 역량 필터 (마인드맵 명칭 오른쪽) */}
               {user && (
-                <div className="relative hidden md:block" ref={searchRef}>
-                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
-                  <input
-                    type="text"
-                    placeholder="경험 검색..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onFocus={() => {
-                      if (searchQuery.trim() && searchResults.length > 0) {
-                        setShowSearchResults(true);
-                      }
-                    }}
-                    className="h-9 pl-10 pr-4 bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg text-sm text-gray-900 dark:text-[#e5e5e5] placeholder-gray-500 dark:placeholder-[#606060] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64 transition-colors"
-                  />
-                  
-                  {/* 검색 결과 드롭다운 */}
-                  {showSearchResults && searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 glass-card rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
-                      {searchResults.map((result, index) => (
-                        <button
-                          key={`${result.projectId}-${result.nodeId}-${index}`}
-                          onClick={() => handleSearchResultClick(result)}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 transition-colors border-b border-gray-100 dark:border-[#2a2a2a] last:border-b-0"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              {/* 노드 이름 */}
-                              <div className="font-medium text-sm text-gray-900 dark:text-[#e5e5e5] truncate">
-                                {highlightText(result.nodeLabel, searchQuery)}
-                              </div>
-                              
-                              {/* 경로 */}
-                              <div className="flex items-center gap-1 mt-1 text-xs text-gray-500 dark:text-[#a0a0a0]">
-                                <span className="truncate">
-                                  {highlightText(result.projectName, searchQuery)}
-                                </span>
-                                {result.nodePath.length > 0 && (
-                                  <>
-                                    <ChevronRight className="w-3 h-3 flex-shrink-0" />
-                                    <span className="truncate">
-                                      {result.nodePath.join(' > ')}
-                                    </span>
-                                  </>
-                                )}
+                <div className="flex items-center gap-2">
+                  {/* 검색바 */}
+                  <div className="relative hidden md:block" ref={searchRef}>
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+                    <input
+                      type="text"
+                      placeholder="경험 검색..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onFocus={() => {
+                        if (searchQuery.trim() && searchResults.length > 0) {
+                          setShowSearchResults(true);
+                        }
+                      }}
+                      className="h-9 pl-10 pr-4 bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg text-sm text-gray-900 dark:text-[#e5e5e5] placeholder-gray-500 dark:placeholder-[#606060] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64 transition-colors"
+                    />
+                    
+                    {/* 검색 결과 드롭다운 */}
+                    {showSearchResults && searchResults.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-2 glass-card rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
+                        {searchResults.map((result, index) => (
+                          <button
+                            key={`${result.projectId}-${result.nodeId}-${index}`}
+                            onClick={() => handleSearchResultClick(result)}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 transition-colors border-b border-gray-100 dark:border-[#2a2a2a] last:border-b-0"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                {/* 노드 이름 */}
+                                <div className="font-medium text-sm text-gray-900 dark:text-[#e5e5e5] truncate">
+                                  {highlightText(result.nodeLabel, searchQuery)}
+                                </div>
+                                
+                                {/* 경로 */}
+                                <div className="flex items-center gap-1 mt-1 text-xs text-gray-500 dark:text-[#a0a0a0]">
+                                  <span className="truncate">
+                                    {highlightText(result.projectName, searchQuery)}
+                                  </span>
+                                  {result.nodePath.length > 0 && (
+                                    <>
+                                      <ChevronRight className="w-3 h-3 flex-shrink-0" />
+                                      <span className="truncate">
+                                        {result.nodePath.join(' > ')}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
-                  {/* 검색 결과 없음 */}
-                  {showSearchResults && searchQuery.trim() && searchResults.length === 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 glass-card rounded-lg shadow-lg p-4 z-50">
-                      <p className="text-sm text-gray-500 dark:text-[#a0a0a0] text-center">
-                        검색 결과가 없습니다
-                      </p>
-                    </div>
-                  )}
+                    {/* 검색 결과 없음 */}
+                    {showSearchResults && searchQuery.trim() && searchResults.length === 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-2 glass-card rounded-lg shadow-lg p-4 z-50">
+                        <p className="text-sm text-gray-500 dark:text-[#a0a0a0] text-center">
+                          검색 결과가 없습니다
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 역량 필터 드롭다운 */}
+                  <div className="relative hidden md:block" ref={competencyFilterRef}>
+                    <button
+                      onClick={() => setIsCompetencyFilterOpen(!isCompetencyFilterOpen)}
+                      className={`h-9 px-3 flex items-center gap-2 bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg text-sm text-gray-900 dark:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors ${
+                        selectedCompetencies.length > 0 ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''
+                      }`}
+                    >
+                      <Filter className="w-4 h-4 text-gray-400" />
+                      <span>역량 필터</span>
+                      {selectedCompetencies.length > 0 && (
+                        <Badge className="ml-1 bg-blue-500 dark:bg-blue-400 text-white text-xs px-1.5 py-0.5">
+                          {selectedCompetencies.length}
+                        </Badge>
+                      )}
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isCompetencyFilterOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {/* 역량 필터 드롭다운 메뉴 */}
+                    {isCompetencyFilterOpen && (
+                      <div className="absolute top-full right-0 mt-2 w-64 glass-card rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
+                        <div className="p-2">
+                          {/* 필터 초기화 버튼 */}
+                          {selectedCompetencies.length > 0 && (
+                            <button
+                              onClick={() => {
+                                setSelectedCompetencies([]);
+                                setIsCompetencyFilterOpen(false);
+                              }}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#2a2a2a] rounded-md transition-colors flex items-center gap-2 mb-1"
+                            >
+                              <X className="w-4 h-4" />
+                              <span>필터 초기화</span>
+                            </button>
+                          )}
+
+                          {/* 역량 목록 */}
+                          {competencyStats.length > 0 ? (
+                            <div className="space-y-1">
+                              {competencyStats.map((stat) => {
+                                const isSelected = selectedCompetencies.includes(stat.competency);
+                                return (
+                                  <button
+                                    key={stat.competency}
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        setSelectedCompetencies(prev => prev.filter(c => c !== stat.competency));
+                                      } else {
+                                        setSelectedCompetencies(prev => [...prev, stat.competency]);
+                                      }
+                                    }}
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-[#2a2a2a] rounded-md transition-colors flex items-center justify-between"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
+                                        isSelected 
+                                          ? 'bg-blue-500 dark:bg-blue-400 border-blue-500 dark:border-blue-400' 
+                                          : 'border-gray-300 dark:border-gray-600'
+                                      }`}>
+                                        {isSelected && <Check className="w-3 h-3 text-white" />}
+                                      </div>
+                                      <span className="text-gray-900 dark:text-[#e5e5e5]">{stat.competency}</span>
+                                    </div>
+                                    <span className="text-xs text-gray-500 dark:text-[#a0a0a0]">
+                                      {stat.count}개
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="px-3 py-4 text-center text-sm text-gray-500 dark:text-[#a0a0a0]">
+                              역량 태그가 있는 에피소드가 없습니다
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -1570,6 +1754,7 @@ export default function MindMapProjectPage() {
             colorTheme={settings.colorTheme}
             isReadOnly={isReadOnly}
             cursorMode={cursorMode}
+            highlightedNodeIds={highlightedNodeIds}
             onNodesChange={(newNodes) => {
             if (isNodeView && activeTab?.nodeId) {
               // 노드 중심 뷰에서는 "좌표만" 원래 좌표계로 되돌리고,

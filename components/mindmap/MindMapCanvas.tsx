@@ -52,6 +52,7 @@ interface MindMapCanvasProps {
   onCanvasAddNode?: (x: number, y: number) => void; // 캔버스 클릭 시 노드 추가
   onNodeConnect?: (nodeId: string, parentId: string) => void; // 노드 연결 핸들러
   cursorMode?: 'select' | 'move'; // 커서 모드 ('select' | 'move')
+  highlightedNodeIds?: Set<string>; // 하이라이트할 노드 ID 집합
 }
 
 const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(function MindMapCanvas({
@@ -81,6 +82,7 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
   onCanvasAddNode,
   onNodeConnect,
   cursorMode = 'select',
+  highlightedNodeIds = new Set(),
 }, ref) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -1105,6 +1107,7 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
                 isEditing={editingNodeId === node.id}
                 isSharedPath={sharedPathMap[node.id] ?? false}
                 isSnapTarget={snapTargetNodeId === node.id}
+                isHighlighted={highlightedNodeIds.has(node.id)}
                 onSelect={onNodeSelect}
                 onEdit={onNodeEdit}
                 onAddChild={handleAddChild}

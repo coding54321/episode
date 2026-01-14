@@ -18,6 +18,7 @@ interface MindMapNodeProps {
   isEditing: boolean;
   isSharedPath: boolean;
   isSnapTarget?: boolean; // 스냅 연결 대상인지 여부
+  isHighlighted?: boolean; // 역량 필터로 하이라이트된 노드인지 여부
   onSelect: (nodeId: string) => void;
   onEdit: (nodeId: string, label: string) => void;
   onAddChild: (nodeId: string, direction?: 'right' | 'left' | 'top' | 'bottom') => void;
@@ -43,6 +44,7 @@ export default function MindMapNode({
   isEditing,
   isSharedPath,
   isSnapTarget = false,
+  isHighlighted = false,
   onSelect,
   onEdit,
   onAddChild,
@@ -235,6 +237,11 @@ export default function MindMapNode({
               ${
                 isSnapTarget
                   ? 'ring-4 ring-[#5B6EFF] ring-opacity-60 border-[#5B6EFF] shadow-[0_0_15px_rgba(91,110,255,0.4)]'
+                  : ''
+              }
+              ${
+                isHighlighted && !isSelected && !isSnapTarget
+                  ? 'ring-2 ring-blue-500 dark:ring-blue-400 border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20 shadow-lg shadow-blue-500/50'
                   : ''
               }
             `}
