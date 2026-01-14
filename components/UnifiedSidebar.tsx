@@ -82,6 +82,9 @@ function GapTagCard({ tag, onRemove, onShowQuestions }: { tag: GapTag; onRemove:
     }),
   });
 
+  // "(부족 n건)" 텍스트 제거
+  const displaySource = tag.source?.replace(/\s*\(부족\s*\d+건\)/g, '') || '';
+
   return (
     <div
       ref={drag as any}
@@ -90,42 +93,43 @@ function GapTagCard({ tag, onRemove, onShowQuestions }: { tag: GapTag; onRemove:
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: isDragging ? 0.5 : 1, y: 0 }}
+        transition={{ duration: 0.2 }}
       >
-      <Card className="p-4 hover:shadow-md transition-shadow bg-gradient-to-br from-white to-gray-50 dark:from-[#1a1a1a] dark:to-[#2a2a2a] border border-gray-200 dark:border-[#2a2a2a]">
-        <div className="flex items-start justify-between gap-3">
+      <Card className="group relative p-5 rounded-[16px] bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-lg transition-all duration-200">
+        <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant="outline" className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800">
-                {tag.label}
-              </Badge>
-            </div>
-            <p className="text-xs text-gray-600 dark:text-[#a0a0a0] mb-2">{tag.source}</p>
+            <Badge className="mb-3 bg-blue-50 text-blue-700 hover:bg-blue-50 border-0 font-semibold px-3 py-1">
+              {tag.category}
+            </Badge>
+            {/* category와 label이 같으면 label은 표시하지 않음 */}
+            {tag.category !== tag.label && (
+              <h4 className="font-bold text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight">{tag.label}</h4>
+            )}
+            <p className="text-sm text-gray-500 dark:text-gray-400">{displaySource}</p>
             {tag.questions && tag.questions.length > 0 && onShowQuestions && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onShowQuestions(tag);
                 }}
-                className="text-xs text-[#5B6EFF] dark:text-[#7B8FFF] hover:text-[#4B5EEF] dark:hover:text-[#8B9FFF] font-medium"
+                className="text-xs text-blue-600 dark:text-blue-400 mt-2 font-medium hover:underline"
               >
-                관련 질문 {tag.questions.length}개 보기
+                클릭하여 질문 보기 ({tag.questions.length}개)
               </button>
             )}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove(tag.id);
-              }}
-              className="w-6 h-6 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-full transition-colors"
-            >
-              <X className="h-3 w-3 text-gray-500 dark:text-[#a0a0a0]" />
-            </button>
-          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(tag.id);
+            }}
+            className="w-8 h-8 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all flex-shrink-0 opacity-0 group-hover:opacity-100"
+          >
+            <X className="h-4 w-4 text-gray-400 hover:text-red-600 dark:hover:text-red-400" />
+          </button>
         </div>
-        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-[#2a2a2a]">
-          <span className="text-xs text-gray-500 dark:text-[#a0a0a0]">드래그하여 추가</span>
+        <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-xs text-gray-400 font-medium">드래그하여 추가</span>
         </div>
       </Card>
       </motion.div>
@@ -1028,7 +1032,7 @@ export default function UnifiedSidebar({
                 </div>
                 
                 <ScrollArea className="flex-1 px-6 py-5 min-h-0">
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                     {gapTags.map((tag) => (
                       <GapTagCard
                         key={tag.id}

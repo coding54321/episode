@@ -306,8 +306,8 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
       setIsPanning(true);
       setPanStart({ x: e.clientX, y: e.clientY });
     } else if (e.button === 0) {
-      // 커서 모드가 'move'이거나 스페이스바를 누른 경우, 또는 빈 공간 클릭 시 패닝 모드 활성화
-      if (cursorMode === 'move' || spacePressed || (isCanvasClick && !isNodeOrButton)) {
+      // 커서 모드가 'move'이거나 스페이스바를 누른 경우 패닝 모드 활성화
+      if (cursorMode === 'move' || spacePressed) {
         setIsPanning(true);
         setPanStart({ x: e.clientX, y: e.clientY });
         e.preventDefault();
