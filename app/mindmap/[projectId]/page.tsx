@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { MindMapNode, MindMapProject, GapTag, NodeType, LayoutType, LayoutConfig, MindMapSettings } from '@/types';
 import { mindMapProjectStorage, currentProjectStorage, assetStorage, mindMapOnboardingStorage } from '@/lib/storage';
@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { ChevronLeft, MessageSquare, Check, X, BarChart3, FileText, CheckCircle2, AlertCircle, Loader2, Share2, Link2, Copy, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MessageSquare, Check, X, BarChart3, FileText, CheckCircle2, AlertCircle, Loader2, Share2, Link2, Copy, Users, Search } from 'lucide-react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -86,6 +86,10 @@ export default function MindMapProjectPage() {
   const [activeEditors, setActiveEditors] = useState<ActiveEditor[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [isAddNodeMode, setIsAddNodeMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ nodeId: string; nodeLabel: string; projectId: string; projectName: string; nodePath: string[] }>>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   // DB 업데이트 디바운싱을 위한 ref
   const supabaseUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -422,6 +426,141 @@ export default function MindMapProjectPage() {
   const nodeMap = useMemo(() => {
     return new Map(nodes.map(n => [n.id, n]));
   }, [nodes]);
+
+  // 노드까지의 경로를 가져오는 함수 (호이스팅 문제 해결을 위해 useEffect 이전에 정의)
+  const getNodePath = useCallback((node: MindMapNode, allNodes: MindMapNode[]): string[] => {
+    const path: string[] = [];
+    let currentNode: MindMapNode | undefined = node;
+
+    while (currentNode) {
+      const label = typeof currentNode.label === 'string' ? currentNode.label : '노드';
+      // 모든 노드 타입을 경로에 포함 (제외 로직 제거)
+      path.unshift(label);
+      
+      if (!currentNode.parentId) break;
+      currentNode = allNodes.find((n) => n.id === currentNode!.parentId);
+    }
+
+    return path;
+  }, []);
+
+  // 검색 기능
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    if (showSearchResults) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSearchResults]);
+
+  // 검색 실행
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        setShowSearchResults(false);
+        return;
+      }
+
+      try {
+        const projects = await mindMapProjectStorage.loadWithNodes();
+        const results: Array<{ nodeId: string; nodeLabel: string; projectId: string; projectName: string; nodePath: string[] }> = [];
+
+        // 검색어를 소문자로 변환
+        const query = searchQuery.toLowerCase();
+
+        for (const proj of projects) {
+          // 프로젝트 이름으로 검색
+          const projectMatches = proj.name.toLowerCase().includes(query);
+
+          // nodes가 없거나 빈 배열인 경우 건너뛰기
+          if (!proj.nodes || !Array.isArray(proj.nodes) || proj.nodes.length === 0) {
+            continue;
+          }
+
+          for (const node of proj.nodes) {
+            // 노드 이름으로 검색
+            const nodeLabel = typeof node.label === 'string' ? node.label : '';
+            const nodeMatches = nodeLabel.toLowerCase().includes(query);
+
+            // 프로젝트 또는 노드가 매칭되면 결과에 추가
+            if (projectMatches || nodeMatches) {
+              // 모든 노드 타입을 검색 가능하도록 변경 (제외 로직 제거)
+              
+              // 노드까지의 경로 생성
+              const path = getNodePath(node, proj.nodes);
+
+              results.push({
+                nodeId: node.id,
+                nodeLabel,
+                projectId: proj.id,
+                projectName: proj.name,
+                nodePath: path,
+              });
+            }
+          }
+        }
+
+        // 결과를 프로젝트별, 경로 깊이별로 정렬
+        results.sort((a, b) => {
+          if (a.projectName !== b.projectName) {
+            return a.projectName.localeCompare(b.projectName);
+          }
+          return a.nodePath.length - b.nodePath.length;
+        });
+
+        setSearchResults(results.slice(0, 10)); // 최대 10개만 표시
+        setShowSearchResults(true);
+      } catch (error) {
+        console.error('검색 중 오류 발생:', error);
+        setSearchResults([]);
+        setShowSearchResults(false);
+      }
+    };
+
+    performSearch();
+  }, [searchQuery, getNodePath]);
+
+  // 검색어 하이라이트 함수
+  const highlightText = (text: string, query: string) => {
+    if (!query.trim()) return text;
+    
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return (
+      <>
+        {parts.map((part, index) => 
+          part.toLowerCase() === query.toLowerCase() ? (
+            <mark key={index} className="bg-yellow-200 dark:bg-yellow-600 text-gray-900 dark:text-gray-100">
+              {part}
+            </mark>
+          ) : (
+            <span key={index}>{part}</span>
+          )
+        )}
+      </>
+    );
+  };
+
+  // 검색 결과 클릭 핸들러
+  const handleSearchResultClick = (result: { nodeId: string; projectId: string; nodeLabel: string; projectName: string; nodePath: string[] }) => {
+    // 같은 프로젝트 내 노드면 현재 페이지에서 포커스 이동
+    if (result.projectId === projectId) {
+      router.push(`/mindmap/${result.projectId}?nodeId=${result.nodeId}&focus=true`, { scroll: false });
+    } else {
+      // 다른 프로젝트면 해당 프로젝트로 이동
+      router.push(`/mindmap/${result.projectId}?nodeId=${result.nodeId}&focus=true`);
+    }
+    setSearchQuery('');
+    setShowSearchResults(false);
+  };
 
   const selectedNode = selectedNodeId ? nodeMap.get(selectedNodeId) : null;
   const activeTab = tabs.find(t => t.id === activeTabId);
@@ -1094,51 +1233,114 @@ export default function MindMapProjectPage() {
                 <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
               </Button>
             </Link>
-            <div className="flex items-center gap-2">
-              {!isNodeView && isEditingTitle ? (
-                <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="flex items-center gap-2">
+                {!isNodeView && isEditingTitle ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={editedTitle}
+                      onChange={(e) => setEditedTitle(e.target.value)}
+                      onKeyDown={handleTitleKeyDown}
+                      onBlur={handleTitleSave}
+                      autoFocus
+                      className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5] border-b-2 border-[#5B6EFF] dark:border-[#7B8FFF] bg-transparent focus:outline-none px-1"
+                      style={{ width: `${Math.max(editedTitle.length * 10, 100)}px` }}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleTitleSave}
+                      className="h-7 w-7 p-0"
+                    >
+                      <Check className="h-4 w-4 text-green-600" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsEditingTitle(false)}
+                      className="h-7 w-7 p-0"
+                    >
+                      <X className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div>
+                    <h1 
+                      className={`text-lg font-bold text-gray-900 dark:text-[#e5e5e5] ${!isNodeView && !isReadOnly ? 'cursor-pointer hover:text-blue-600 dark:hover:text-[#60A5FA] transition-colors' : ''}`}
+                      onClick={!isNodeView && !isReadOnly ? handleTitleEdit : undefined}
+                      title={!isNodeView && !isReadOnly ? '클릭하여 제목 수정' : isReadOnly ? '편집하려면 로그인이 필요합니다' : ''}
+                    >
+                      {isNodeView && activeTab ? activeTab.label : project.name}
+                    </h1>
+                    {isNodeView && (
+                      <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">노드 중심 뷰</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* 검색바 (마인드맵 명칭 오른쪽) */}
+              {user && (
+                <div className="relative hidden md:block" ref={searchRef}>
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
                   <input
                     type="text"
-                    value={editedTitle}
-                    onChange={(e) => setEditedTitle(e.target.value)}
-                    onKeyDown={handleTitleKeyDown}
-                    onBlur={handleTitleSave}
-                    autoFocus
-                    className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5] border-b-2 border-[#5B6EFF] dark:border-[#7B8FFF] bg-transparent focus:outline-none px-1"
-                    style={{ width: `${Math.max(editedTitle.length * 10, 100)}px` }}
+                    placeholder="경험 검색..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => {
+                      if (searchQuery.trim() && searchResults.length > 0) {
+                        setShowSearchResults(true);
+                      }
+                    }}
+                    className="h-9 pl-10 pr-4 bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg text-sm text-gray-900 dark:text-[#e5e5e5] placeholder-gray-500 dark:placeholder-[#606060] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64 transition-colors"
                   />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleTitleSave}
-                    className="h-7 w-7 p-0"
-                  >
-                    <Check className="h-4 w-4 text-green-600" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsEditingTitle(false)}
-                    className="h-7 w-7 p-0"
-                  >
-                    <X className="h-4 w-4 text-red-600" />
-                  </Button>
-                </div>
-              ) : (
-                <div>
-                  <h1 
-                    className={`text-lg font-bold text-gray-900 dark:text-[#e5e5e5] ${!isNodeView && !isReadOnly ? 'cursor-pointer hover:text-blue-600 dark:hover:text-[#60A5FA] transition-colors' : ''}`}
-                    onClick={!isNodeView && !isReadOnly ? handleTitleEdit : undefined}
-                    title={!isNodeView && !isReadOnly ? '클릭하여 제목 수정' : isReadOnly ? '편집하려면 로그인이 필요합니다' : ''}
-                  >
-                    {isNodeView && activeTab ? activeTab.label : project.name}
-                  </h1>
-                  {isNodeView ? (
-                    <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">노드 중심 뷰</p>
-                  ) : (
-                    project.description && (
-                      <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">{project.description}</p>
-                    )
+                  
+                  {/* 검색 결과 드롭다운 */}
+                  {showSearchResults && searchResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 glass-card rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
+                      {searchResults.map((result, index) => (
+                        <button
+                          key={`${result.projectId}-${result.nodeId}-${index}`}
+                          onClick={() => handleSearchResultClick(result)}
+                          className="w-full px-4 py-3 text-left hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 transition-colors border-b border-gray-100 dark:border-[#2a2a2a] last:border-b-0"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              {/* 노드 이름 */}
+                              <div className="font-medium text-sm text-gray-900 dark:text-[#e5e5e5] truncate">
+                                {highlightText(result.nodeLabel, searchQuery)}
+                              </div>
+                              
+                              {/* 경로 */}
+                              <div className="flex items-center gap-1 mt-1 text-xs text-gray-500 dark:text-[#a0a0a0]">
+                                <span className="truncate">
+                                  {highlightText(result.projectName, searchQuery)}
+                                </span>
+                                {result.nodePath.length > 0 && (
+                                  <>
+                                    <ChevronRight className="w-3 h-3 flex-shrink-0" />
+                                    <span className="truncate">
+                                      {result.nodePath.join(' > ')}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 검색 결과 없음 */}
+                  {showSearchResults && searchQuery.trim() && searchResults.length === 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 glass-card rounded-lg shadow-lg p-4 z-50">
+                      <p className="text-sm text-gray-500 dark:text-[#a0a0a0] text-center">
+                        검색 결과가 없습니다
+                      </p>
+                    </div>
                   )}
                 </div>
               )}

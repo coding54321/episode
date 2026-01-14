@@ -1,8 +1,9 @@
-import { 
-  getProjects, 
-  getProject, 
-  createProject, 
-  updateProject, 
+import {
+  getProjects,
+  getProjectsWithNodes,
+  getProject,
+  createProject,
+  updateProject,
   deleteProject,
   getNodes,
   saveNodes,
@@ -95,6 +96,13 @@ export const mindMapProjectStorage = {
       return [];
     }
     return await getProjects(userId);
+  },
+  loadWithNodes: async (): Promise<MindMapProject[]> => {
+    const userId = (await getCurrentUser())?.id;
+    if (!userId) {
+      return [];
+    }
+    return await getProjectsWithNodes(userId);
   },
   add: async (project: MindMapProject): Promise<void> => {
     await createProject(project);

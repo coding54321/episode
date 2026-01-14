@@ -96,6 +96,9 @@ export const mindMapProjectStorage = {
   load: async (): Promise<MindMapProject[]> => {
     return await supabaseStorage.mindMapProjectStorage.load();
   },
+  loadWithNodes: async (): Promise<MindMapProject[]> => {
+    return await supabaseStorage.mindMapProjectStorage.loadWithNodes();
+  },
   add: async (project: MindMapProject): Promise<void> => {
     await supabaseStorage.mindMapProjectStorage.add(project);
   },

@@ -187,6 +187,7 @@ export default function Header({
   };
 
   const isHomePage = pathname === '/';
+  const isMindMapProjectPage = /^\/mindmap\/[^/]+$/.test(pathname); // 개별 마인드맵 페이지인지 확인
 
   return (
     <header className={`bg-white dark:bg-[#0a0a0a] border-b border-gray-200 dark:border-[#2a2a2a] px-5 py-4 flex items-center justify-between z-[60] transition-colors ${isHomePage ? '' : 'sticky top-0'}`}>
@@ -226,8 +227,8 @@ export default function Header({
           </nav>
         )}
 
-        {/* 검색 (로그인된 경우, 데스크톱에서만 표시) */}
-        {user && showSearch && (
+        {/* 검색 (로그인된 경우, 데스크톱에서만 표시, 개별 마인드맵 페이지에서는 숨김) */}
+        {user && showSearch && !isMindMapProjectPage && (
           <div className="relative hidden md:block" ref={searchRef}>
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
             <input

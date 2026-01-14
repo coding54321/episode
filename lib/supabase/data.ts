@@ -55,6 +55,99 @@ export async function getProjects(userId: string): Promise<MindMapProject[]> {
   }
 }
 
+/**
+ * 검색용: 모든 프로젝트와 노드 데이터를 함께 조회
+ * 검색 기능에서 노드 라벨을 검색할 수 있도록 실제 노드 데이터를 포함
+ */
+export async function getProjectsWithNodes(userId: string): Promise<MindMapProject[]> {
+  try {
+    // 프로젝트 조회
+    const { data: projectsData, error: projectsError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('user_id' as any, userId as any)
+      .order('is_favorite', { ascending: false })
+      .order('updated_at', { ascending: false });
+
+    if (projectsError) throw projectsError;
+    if (!projectsData || projectsData.length === 0) return [];
+
+    // 모든 프로젝트의 노드를 한 번에 조회
+    const projectIds = projectsData.map((p: any) => p.id);
+    const { data: nodesData, error: nodesError } = await supabase
+      .from('nodes')
+      .select('*')
+      .in('project_id' as any, projectIds as any);
+
+    if (nodesError) throw nodesError;
+
+    // 프로젝트별로 노드 그룹화
+    const nodesByProject = new Map<string, MindMapNode[]>();
+    const nodeMap = new Map<string, MindMapNode>();
+    
+    if (nodesData) {
+      // 먼저 모든 노드를 맵에 저장
+      for (const node of nodesData as any[]) {
+        const projectId = node.project_id;
+        const mindMapNode: MindMapNode = {
+          id: node.id,
+          label: node.label,
+          x: node.x,
+          y: node.y,
+          level: node.level,
+          parentId: node.parent_id,
+          nodeType: node.node_type,
+          color: node.color,
+          children: [],
+          createdAt: new Date(node.created_at || '').getTime(),
+          updatedAt: new Date(node.updated_at || '').getTime(),
+        } as MindMapNode;
+        
+        nodeMap.set(node.id, mindMapNode);
+        
+        if (!nodesByProject.has(projectId)) {
+          nodesByProject.set(projectId, []);
+        }
+        nodesByProject.get(projectId)!.push(mindMapNode);
+      }
+      
+      // 부모-자식 관계 구성 (children 배열 채우기)
+      for (const node of nodeMap.values()) {
+        if (node.parentId) {
+          const parent = nodeMap.get(node.parentId);
+          if (parent) {
+            parent.children.push(node.id);
+          }
+        }
+      }
+    }
+
+    return (projectsData as any[]).map((p: any) => {
+      const nodes = nodesByProject.get(p.id) || [];
+      return {
+        id: p.id,
+        name: p.name,
+        description: p.description || '',
+        badges: (p.badges as BadgeType[]) || [],
+        nodes,
+        nodeCount: nodes.length,
+        layoutType: p.layout_type || 'radial',
+        layoutConfig: p.layout_config || { autoLayout: true, spacing: { horizontal: 150, vertical: 120, radial: 160 } },
+        createdAt: new Date(p.created_at || '').getTime(),
+        updatedAt: new Date(p.updated_at || '').getTime(),
+        isDefault: p.is_default || false,
+        isFavorite: p.is_favorite || false,
+        isShared: p.is_shared || false,
+        sharedBy: p.shared_by || undefined,
+        sharedByUser: p.shared_by_user || undefined,
+      };
+    });
+  } catch (error) {
+    console.error('Failed to get projects with nodes:', error);
+    return [];
+  }
+}
+
 export async function getProject(projectId: string, userId: string): Promise<MindMapProject | null> {
   try {
     const { data, error } = await supabase
