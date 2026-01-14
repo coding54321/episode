@@ -9,7 +9,6 @@ import {
   Redo2,
   Download,
   Share2,
-  Settings,
   Plus,
 } from 'lucide-react';
 import {
@@ -36,7 +35,6 @@ interface MindMapToolbarProps {
   canRedo?: boolean;
   onExport?: (type: 'image' | 'pdf') => void;
   onShare?: () => void;
-  onSettings?: () => void;
   onToggleAddNodeMode?: () => void;
   isAddNodeMode?: boolean;
 }
@@ -51,7 +49,6 @@ export default function MindMapToolbar({
   canRedo = false,
   onExport,
   onShare,
-  onSettings,
   onToggleAddNodeMode,
   isAddNodeMode = false,
 }: MindMapToolbarProps) {
@@ -210,25 +207,6 @@ export default function MindMapToolbar({
           </TooltipTrigger>
           <TooltipContent side="right">
             <p>공유</p>
-          </TooltipContent>
-        </Tooltip>
-      )}
-
-      {/* 설정 */}
-      {onSettings && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onSettings}
-              className="h-9 w-9 p-0 bg-white dark:bg-[#1a1a1a] shadow-lg border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            <p>설정</p>
           </TooltipContent>
         </Tooltip>
       )}

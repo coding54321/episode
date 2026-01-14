@@ -11,7 +11,6 @@ import UnifiedSidebar from '@/components/UnifiedSidebar';
 import STAREditor from '@/components/star/STAREditor';
 import LayoutSelector from '@/components/mindmap/LayoutSelector';
 import MindMapToolbar from '@/components/mindmap/MindMapToolbar';
-import MindMapSettingsDialog from '@/components/mindmap/MindMapSettingsDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -73,7 +72,6 @@ export default function MindMapProjectPage() {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [showGrid, setShowGrid] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | null>(null);
-  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [settings, setSettings] = useState<MindMapSettings>({
     colorTheme: 'default',
     showGrid: false,
@@ -1354,15 +1352,6 @@ export default function MindMapProjectPage() {
                 }
               }}
               onShare={isReadOnly ? undefined : handleOpenShareDialog}
-              onSettings={() => {
-                if (isReadOnly) {
-                  if (!user) {
-                    router.push('/login');
-                  }
-                  return;
-                }
-                setShowSettingsDialog(true);
-              }}
             />
           )}
           
@@ -1905,40 +1894,6 @@ export default function MindMapProjectPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 설정 다이얼로그 */}
-      <MindMapSettingsDialog
-        isOpen={showSettingsDialog}
-        onClose={() => setShowSettingsDialog(false)}
-        settings={settings}
-        currentLayout={project?.layoutType || 'radial'}
-        onLayoutChange={async (newLayout: LayoutType) => {
-          if (!project || !user) return;
-          const updatedProject = {
-            ...project,
-            layoutType: newLayout,
-            updatedAt: Date.now(),
-          };
-          await updateProject(projectId, { layoutType: newLayout });
-          await mindMapProjectStorage.update(projectId, updatedProject);
-          setProject(updatedProject);
-          applyLayout(nodes, newLayout, project.layoutConfig || {});
-        }}
-        onSettingsChange={async (newSettings) => {
-          setSettings(newSettings);
-          setShowGrid(newSettings.showGrid || false);
-
-          // 설정을 프로젝트에 저장
-          if (project) {
-            const updatedProject = {
-              ...project,
-              settings: newSettings,
-              updatedAt: Date.now(),
-            };
-            await mindMapProjectStorage.update(projectId, updatedProject);
-            setProject(updatedProject);
-          }
-        }}
-      />
 
       {/* 공유 다이얼로그 */}
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
