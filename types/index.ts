@@ -210,7 +210,8 @@ export interface MindMapProject {
   updatedAt: number;
   isDefault?: boolean;
   isFavorite?: boolean;
-  isShared?: boolean; // 공유된 마인드맵인지 여부
+  projectType?: 'personal' | 'collaborative'; // 프로젝트 타입 (개인/공동)
+  isShared?: boolean; // 공유된 마인드맵인지 여부 (공동 마인드맵에서만 사용)
   sharedBy?: string; // 공유한 사용자 ID
   sharedByUser?: { id: string; name: string; email?: string }; // 공유한 사용자 정보
 }

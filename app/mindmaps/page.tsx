@@ -132,9 +132,9 @@ export default function MindMapsPage() {
   const getFilteredProjects = (): MindMapProject[] => {
     switch (activeTab) {
       case 'personal':
-        return projects.filter(p => !p.isShared);
+        return projects.filter(p => p.projectType === 'personal');
       case 'shared':
-        return projects.filter(p => p.isShared);
+        return projects.filter(p => p.projectType === 'collaborative');
       case 'all':
       default:
         return projects;
@@ -142,7 +142,7 @@ export default function MindMapsPage() {
   };
 
   const handleCreateNew = () => {
-    router.push('/badge-selection');
+    router.push('/project-type-selection');
   };
 
   const handleEditStart = (project: MindMapProject, e: React.MouseEvent) => {
@@ -345,7 +345,7 @@ export default function MindMapsPage() {
                       ? 'border-[#5B6EFF] dark:border-[#5B6EFF] bg-[#5B6EFF]/10/50 dark:bg-[#5B6EFF]/20'
                       : 'border-gray-200 dark:border-[#2a2a2a]'
                   }`}>
-                    <Link href={`/mindmap/${project.id}`} className="flex-1 flex flex-col">
+                    <Link href={`/mindmap?projectId=${project.id}`} className="flex-1 flex flex-col">
                       <div className="mb-5 flex-1">
                         {editingProjectId === project.id ? (
                           <div className="flex items-center gap-2 mb-3" onClick={(e) => e.preventDefault()}>
@@ -478,7 +478,7 @@ export default function MindMapsPage() {
                     {/* 액션 버튼 */}
                     <div className="flex items-center gap-2 pt-5 flex-shrink-0">
                       <Link
-                        href={`/mindmap/${project.id}`}
+                        href={`/mindmap?projectId=${project.id}`}
                         className="flex-1"
                       >
                         <Button

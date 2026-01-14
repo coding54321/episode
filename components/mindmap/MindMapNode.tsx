@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MindMapNode as NodeType, GapTag, ColorTheme } from '@/types';
 import { getNodeColors } from '@/lib/mindmap-theme';
-import { Plus, ExternalLink, FileText } from 'lucide-react';
+import { Plus, FileText } from 'lucide-react';
 import { useDrop } from 'react-dnd';
 import {
   ContextMenu,
@@ -430,12 +430,6 @@ export default function MindMapNode({
           <ContextMenuItem onClick={() => onOpenSTAREditor(node.id)}>
             <FileText className="w-4 h-4 mr-2" />
             STAR 정리하기
-          </ContextMenuItem>
-        )}
-        {onOpenInNewTab && (
-          <ContextMenuItem onClick={() => onOpenInNewTab(node.id)}>
-            <ExternalLink className="w-4 h-4 mr-2" />
-            새 탭에서 열기
           </ContextMenuItem>
         )}
         {!isReadOnly && canDelete && (

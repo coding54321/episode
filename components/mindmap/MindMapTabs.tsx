@@ -1,6 +1,6 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import Link from 'next/link';
 
 export interface Tab {
@@ -8,14 +8,17 @@ export interface Tab {
   label: string;
   nodeId: string | null; // null이면 메인 뷰
   href: string;
+  type?: 'node' | 'project' | 'external' | 'new'; // 탭 타입
+  projectId?: string; // 프로젝트 탭인 경우
 }
 
 interface MindMapTabsProps {
   tabs: Tab[];
   activeTabId: string;
-  projectId: string;
+  projectId?: string;
   onTabClick: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
+  onAddTab?: () => void; // + 버튼 클릭 핸들러
 }
 
 export default function MindMapTabs({
@@ -24,6 +27,7 @@ export default function MindMapTabs({
   projectId,
   onTabClick,
   onTabClose,
+  onAddTab,
 }: MindMapTabsProps) {
   return (
     <div className="bg-gray-100 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 flex items-center overflow-x-auto">
@@ -37,10 +41,7 @@ export default function MindMapTabs({
           onClick={() => onTabClick(tab.id)}
         >
           <span className="flex-1 truncate text-sm text-gray-900 dark:text-gray-100">{tab.label}</span>
-          {!tab.nodeId && (
-            <span className="text-xs text-gray-500 dark:text-gray-400 px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded">메인</span>
-          )}
-          {tab.nodeId && (
+          {(tab.nodeId || tab.type === 'project' || tab.type === 'new') && (
             <button
               onClick={(e) => {
                 e.preventDefault();
@@ -60,6 +61,17 @@ export default function MindMapTabs({
           )}
         </div>
       ))}
+      
+      {/* + 버튼 */}
+      {onAddTab && (
+        <button
+          onClick={onAddTab}
+          className="flex items-center justify-center w-8 h-8 mx-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
+          title="탭 추가"
+        >
+          <Plus className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+        </button>
+      )}
     </div>
   );
 }

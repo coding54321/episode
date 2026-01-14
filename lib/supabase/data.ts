@@ -11,25 +11,54 @@ import type { Database } from './types';
 
 export async function getProjects(userId: string): Promise<MindMapProject[]> {
   try {
-    // 프로젝트와 노드 개수를 함께 조회
+    // 프로젝트 조회 (nodes count는 별도로 조회하여 RLS 문제 방지)
     const { data, error } = await supabase
       .from('projects')
-      .select(`
-        *,
-        nodes(count)
-      `)
+      .select('*')
       .eq('user_id' as any, userId as any)
       .order('is_favorite', { ascending: false }) // 즐겨찾기 우선 정렬
       .order('updated_at', { ascending: false }); // 그 다음 최신순
 
-    if (error) throw error;
+    if (error) {
+      console.error('getProjects error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        error: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+      });
+      throw error;
+    }
     if (!data) return [];
 
+    // 프로젝트별 노드 개수 조회 (별도 쿼리로 RLS 문제 방지)
+    const projectIds = (data as any[]).map((p: any) => p.id);
+    let nodeCountsMap = new Map<string, number>();
+    
+    if (projectIds.length > 0) {
+      try {
+        const { data: nodesData, error: nodesError } = await supabase
+          .from('nodes')
+          .select('project_id')
+          .in('project_id' as any, projectIds as any);
+        
+        if (!nodesError && nodesData) {
+          // 프로젝트별 노드 개수 계산
+          const counts = new Map<string, number>();
+          for (const node of nodesData as any[]) {
+            const pid = node.project_id;
+            counts.set(pid, (counts.get(pid) || 0) + 1);
+          }
+          nodeCountsMap = counts;
+        }
+      } catch (nodesErr) {
+        console.warn('Failed to get node counts:', nodesErr);
+        // 노드 개수 조회 실패해도 프로젝트는 반환
+      }
+    }
+
     return (data as any[]).map((p: any) => {
-      // Supabase의 count 결과는 배열 형태로 반환됨: [{ count: number }]
-      const nodeCount = Array.isArray(p.nodes) && p.nodes.length > 0 
-        ? p.nodes[0].count 
-        : 0;
+      const nodeCount = nodeCountsMap.get(p.id) || 0;
 
       return {
         id: p.id,
@@ -44,6 +73,7 @@ export async function getProjects(userId: string): Promise<MindMapProject[]> {
         updatedAt: new Date(p.updated_at || '').getTime(),
         isDefault: p.is_default || false,
         isFavorite: p.is_favorite || false,
+        projectType: (p.project_type as 'personal' | 'collaborative') || 'personal',
         isShared: p.is_shared || false,
         sharedBy: p.shared_by || undefined,
         sharedByUser: p.shared_by_user || undefined,
@@ -51,6 +81,13 @@ export async function getProjects(userId: string): Promise<MindMapProject[]> {
     });
   } catch (error) {
     console.error('Failed to get projects:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+      });
+    }
     return [];
   }
 }
@@ -137,6 +174,7 @@ export async function getProjectsWithNodes(userId: string): Promise<MindMapProje
         updatedAt: new Date(p.updated_at || '').getTime(),
         isDefault: p.is_default || false,
         isFavorite: p.is_favorite || false,
+        projectType: (p.project_type as 'personal' | 'collaborative') || 'personal',
         isShared: p.is_shared || false,
         sharedBy: p.shared_by || undefined,
         sharedByUser: p.shared_by_user || undefined,
@@ -189,6 +227,7 @@ export async function getProject(projectId: string, userId: string): Promise<Min
       updatedAt: new Date(projectData.updated_at || '').getTime(),
       isDefault: projectData.is_default || false,
       isFavorite: projectData.is_favorite || false,
+      projectType: (projectData.project_type as 'personal' | 'collaborative') || 'personal',
       isShared: projectData.is_shared || false,
       sharedBy: projectData.shared_by || undefined,
       sharedByUser: projectData.shared_by_user || undefined,
@@ -214,6 +253,7 @@ export async function getSharedProject(projectId: string): Promise<MindMapProjec
       .select('*')
       .eq('id' as any, projectId as any)
       .eq('is_shared' as any, true as any)
+      .eq('project_type' as any, 'collaborative' as any) // 공동 마인드맵만 허용
       .maybeSingle();
 
     if (error) {
@@ -230,6 +270,11 @@ export async function getSharedProject(projectId: string): Promise<MindMapProjec
 
     const projectData = data as any;
 
+    // 개인 마인드맵은 절대 공유 링크로 접근 불가
+    if (projectData.project_type !== 'collaborative') {
+      return null;
+    }
+
     return {
       id: projectData.id,
       name: projectData.name,
@@ -243,6 +288,7 @@ export async function getSharedProject(projectId: string): Promise<MindMapProjec
       updatedAt: new Date(projectData.updated_at || '').getTime(),
       isDefault: projectData.is_default || false,
       isFavorite: projectData.is_favorite || false,
+      projectType: 'collaborative' as const,
       isShared: projectData.is_shared || false,
       sharedBy: projectData.shared_by || undefined,
       sharedByUser: projectData.shared_by_user || undefined,
@@ -262,10 +308,17 @@ export async function createProject(
 ): Promise<MindMapProject | null> {
   try {
     // 사용자가 users 테이블에 존재하는지 확인하고 없으면 생성
-    const userId = project.userId || (await ensureUserExists());
+    let userId: string | undefined = project.userId;
 
     if (!userId) {
-      console.error('Cannot create project: No valid user ID provided');
+      userId = (await ensureUserExists()) ?? undefined;
+    }
+
+    if (!userId) {
+      console.error('Cannot create project: No valid user ID provided', {
+        hasProjectUserId: !!project.userId,
+        ensureUserResult: userId,
+      });
       return null;
     }
 
@@ -283,6 +336,7 @@ export async function createProject(
       }
     }
 
+    const projectType = project.projectType || 'personal';
     const insertData: any = {
       user_id: userId,
       name: project.name,
@@ -291,6 +345,8 @@ export async function createProject(
       is_default: project.isDefault || false,
       layout_type: project.layoutType || 'radial',
       layout_config: project.layoutConfig || { autoLayout: true, spacing: { horizontal: 150, vertical: 120, radial: 160 } },
+      project_type: projectType,
+      is_shared: projectType === 'collaborative' ? (project.isShared ?? true) : false, // 공동 마인드맵은 기본 공유 활성화
     };
 
     // id가 제공된 경우에만 포함 (그렇지 않으면 DB에서 자동 생성)
@@ -305,6 +361,13 @@ export async function createProject(
       .single();
 
     if (error) {
+      console.error('createProject insert error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        insertData: JSON.stringify(insertData, null, 2),
+      });
       // 409 충돌 에러 처리
       if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
         console.warn('Project creation conflict (duplicate ID):', error.message);
@@ -367,7 +430,15 @@ export async function updateProject(
     if (updates.isFavorite !== undefined) updateData.is_favorite = updates.isFavorite;
     if (updates.layoutType !== undefined) updateData.layout_type = updates.layoutType;
     if (updates.layoutConfig !== undefined) updateData.layout_config = updates.layoutConfig;
-    if (updates.isShared !== undefined) updateData.is_shared = updates.isShared;
+    if (updates.projectType !== undefined) updateData.project_type = updates.projectType;
+    
+    // 개인 마인드맵은 is_shared 변경 불가 (강제로 false)
+    if (updates.projectType === 'personal') {
+      updateData.is_shared = false;
+    } else if (updates.isShared !== undefined) {
+      updateData.is_shared = updates.isShared;
+    }
+    
     if (updates.sharedBy !== undefined) updateData.shared_by = updates.sharedBy;
     if (updates.sharedByUser !== undefined) updateData.shared_by_user = updates.sharedByUser;
 

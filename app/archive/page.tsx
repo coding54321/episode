@@ -19,6 +19,7 @@ import {
 import { Search, Filter, Download, Edit, Plus, Save, X, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import FloatingHeader from '@/components/FloatingHeader';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 const BADGE_LABELS: Record<BadgeType, string> = {
   intern: '인턴',
@@ -54,6 +55,7 @@ export default function ArchivePage() {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [projects, setProjects] = useState<MindMapProject[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | 'all'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'personal' | 'collaborative'>('all');
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{
     situation: string;
@@ -122,64 +124,36 @@ export default function ArchivePage() {
         continue;
       }
 
-      // 노드를 레벨별로 그룹화
-      const nodesByLevel = groupNodesByLevel(project.nodes);
-      
-      // 대분류(배지) 노드들 (level 1)
-      const categoryNodes = nodesByLevel[1] || [];
-      
-      // 대분류가 없으면 프로젝트만 표시
-      if (categoryNodes.length === 0) {
-        items.push({
-          id: `${project.id}_${centerNode.id}`,
-          projectId: project.id,
-          projectName: project.name,
-          category: 'other',
-          categoryLabel: '-',
-          experienceName: '-',
-          episodeName: '-',
-          star: null,
-          tags: [],
-          nodePath: [project.name],
-          createdAt: project.createdAt,
-          updatedAt: project.updatedAt,
-        });
-        continue;
-      }
-      
-      for (const categoryNode of categoryNodes) {
-        const badgeType = categoryNode.badgeType || 'other';
-        // '기타'인 경우 customLabel 사용, 없으면 label 사용
-        const categoryLabel = categoryNode.customLabel || categoryNode.label || BADGE_LABELS[badgeType];
-        
-        // 경험 노드들 (level 2)
+      // 공동 마인드맵과 개인 마인드맵 구조 분기 처리
+      if (project.projectType === 'collaborative') {
+        // 공동 마인드맵: 중앙 노드(level 0) = 경험 층위, 경험 노드(level 1), 에피소드 노드(level 2)
         const experienceNodes = project.nodes.filter(
-          (n) => n.parentId === categoryNode.id && n.level === 2
+          (n) => n.parentId === centerNode.id && n.level === 1 && n.nodeType === 'experience'
         );
         
-        // 경험이 없으면 대분류까지만 표시
+        // 경험이 없으면 프로젝트만 표시
         if (experienceNodes.length === 0) {
           items.push({
-            id: `${project.id}_${categoryNode.id}`,
+            id: `${project.id}_${centerNode.id}`,
             projectId: project.id,
             projectName: project.name,
-            category: badgeType,
-            categoryLabel: categoryLabel,
+            category: 'other',
+            categoryLabel: '-',
             experienceName: '-',
             episodeName: '-',
             star: null,
             tags: [],
-            nodePath: [project.name, categoryLabel],
-            createdAt: categoryNode.createdAt,
-            updatedAt: categoryNode.updatedAt,
+            nodePath: [project.name],
+            createdAt: project.createdAt,
+            updatedAt: project.updatedAt,
           });
           continue;
         }
         
         for (const experienceNode of experienceNodes) {
-          // 에피소드 노드들 (level 3)
+          // 에피소드 노드들 (level 2)
           const episodeNodes = project.nodes.filter(
-            (n) => n.parentId === experienceNode.id && n.level === 3
+            (n) => n.parentId === experienceNode.id && n.level === 2
           );
           
           // 에피소드가 없으면 경험까지만 표시
@@ -188,15 +162,14 @@ export default function ArchivePage() {
               id: `${project.id}_${experienceNode.id}`,
               projectId: project.id,
               projectName: project.name,
-              category: badgeType,
-              categoryLabel: categoryLabel,
+              category: 'other',
+              categoryLabel: '-',
               experienceName: typeof experienceNode.label === 'string' ? experienceNode.label : '',
               episodeName: '-',
               star: null,
               tags: [],
               nodePath: [
                 project.name,
-                categoryLabel,
                 typeof experienceNode.label === 'string' ? experienceNode.label : '',
               ],
               createdAt: experienceNode.createdAt,
@@ -208,32 +181,140 @@ export default function ArchivePage() {
           for (const episodeNode of episodeNodes) {
             // 해당 에피소드의 STAR 에셋 찾기 (없어도 표시)
             const starAsset = await assetStorage.getByNodeId(episodeNode.id);
-            // readonly string[]을 string[]로 변환 (스프레드 연산자 사용)
             const tags = starAsset?.tags ? [...starAsset.tags] : [];
             
             // 태그 수집
             tags.forEach(tag => tagsSet.add(tag));
             
-            // STAR 데이터가 없어도 에피소드는 표에 표시
             items.push({
               id: `${project.id}_${episodeNode.id}`,
               projectId: project.id,
               projectName: project.name,
-              category: badgeType,
-              categoryLabel: categoryLabel,
+              category: 'other',
+              categoryLabel: '-',
               experienceName: typeof experienceNode.label === 'string' ? experienceNode.label : '',
               episodeName: typeof episodeNode.label === 'string' ? episodeNode.label : '',
-              star: starAsset || null, // STAR가 없으면 null
+              star: starAsset || null,
               tags,
               nodePath: [
                 project.name,
-                categoryLabel,
                 typeof experienceNode.label === 'string' ? experienceNode.label : '',
                 typeof episodeNode.label === 'string' ? episodeNode.label : '',
               ],
               createdAt: episodeNode.createdAt,
               updatedAt: episodeNode.updatedAt,
             });
+          }
+        }
+      } else {
+        // 개인 마인드맵: 중앙 노드(level 0), 배지 노드(level 1), 경험 노드(level 2), 에피소드 노드(level 3)
+        const nodesByLevel = groupNodesByLevel(project.nodes);
+        
+        // 대분류(배지) 노드들 (level 1)
+        const categoryNodes = nodesByLevel[1] || [];
+        
+        // 대분류가 없으면 프로젝트만 표시
+        if (categoryNodes.length === 0) {
+          items.push({
+            id: `${project.id}_${centerNode.id}`,
+            projectId: project.id,
+            projectName: project.name,
+            category: 'other',
+            categoryLabel: '-',
+            experienceName: '-',
+            episodeName: '-',
+            star: null,
+            tags: [],
+            nodePath: [project.name],
+            createdAt: project.createdAt,
+            updatedAt: project.updatedAt,
+          });
+          continue;
+        }
+        
+        for (const categoryNode of categoryNodes) {
+          const badgeType = categoryNode.badgeType || 'other';
+          const categoryLabel = categoryNode.customLabel || categoryNode.label || BADGE_LABELS[badgeType];
+          
+          // 경험 노드들 (level 2)
+          const experienceNodes = project.nodes.filter(
+            (n) => n.parentId === categoryNode.id && n.level === 2
+          );
+          
+          // 경험이 없으면 대분류까지만 표시
+          if (experienceNodes.length === 0) {
+            items.push({
+              id: `${project.id}_${categoryNode.id}`,
+              projectId: project.id,
+              projectName: project.name,
+              category: badgeType,
+              categoryLabel: categoryLabel,
+              experienceName: '-',
+              episodeName: '-',
+              star: null,
+              tags: [],
+              nodePath: [project.name, categoryLabel],
+              createdAt: categoryNode.createdAt,
+              updatedAt: categoryNode.updatedAt,
+            });
+            continue;
+          }
+          
+          for (const experienceNode of experienceNodes) {
+            // 에피소드 노드들 (level 3)
+            const episodeNodes = project.nodes.filter(
+              (n) => n.parentId === experienceNode.id && n.level === 3
+            );
+            
+            // 에피소드가 없으면 경험까지만 표시
+            if (episodeNodes.length === 0) {
+              items.push({
+                id: `${project.id}_${experienceNode.id}`,
+                projectId: project.id,
+                projectName: project.name,
+                category: badgeType,
+                categoryLabel: categoryLabel,
+                experienceName: typeof experienceNode.label === 'string' ? experienceNode.label : '',
+                episodeName: '-',
+                star: null,
+                tags: [],
+                nodePath: [
+                  project.name,
+                  categoryLabel,
+                  typeof experienceNode.label === 'string' ? experienceNode.label : '',
+                ],
+                createdAt: experienceNode.createdAt,
+                updatedAt: experienceNode.updatedAt,
+              });
+              continue;
+            }
+            
+            for (const episodeNode of episodeNodes) {
+              const starAsset = await assetStorage.getByNodeId(episodeNode.id);
+              const tags = starAsset?.tags ? [...starAsset.tags] : [];
+              
+              tags.forEach(tag => tagsSet.add(tag));
+              
+              items.push({
+                id: `${project.id}_${episodeNode.id}`,
+                projectId: project.id,
+                projectName: project.name,
+                category: badgeType,
+                categoryLabel: categoryLabel,
+                experienceName: typeof experienceNode.label === 'string' ? experienceNode.label : '',
+                episodeName: typeof episodeNode.label === 'string' ? episodeNode.label : '',
+                star: starAsset || null,
+                tags,
+                nodePath: [
+                  project.name,
+                  categoryLabel,
+                  typeof experienceNode.label === 'string' ? experienceNode.label : '',
+                  typeof episodeNode.label === 'string' ? episodeNode.label : '',
+                ],
+                createdAt: episodeNode.createdAt,
+                updatedAt: episodeNode.updatedAt,
+              });
+            }
           }
         }
       }
@@ -283,9 +364,30 @@ export default function ArchivePage() {
     return grouped;
   };
 
+  // 프로젝트 타입별 필터링 함수
+  const getFilteredItemsByType = (): ArchiveItem[] => {
+    let filtered = [...archiveItems];
+
+    // 프로젝트 타입 필터
+    if (activeTab === 'personal') {
+      filtered = filtered.filter((item) => {
+        const project = projects.find(p => p.id === item.projectId);
+        return project?.projectType === 'personal';
+      });
+    } else if (activeTab === 'collaborative') {
+      filtered = filtered.filter((item) => {
+        const project = projects.find(p => p.id === item.projectId);
+        return project?.projectType === 'collaborative';
+      });
+    }
+    // 'all'인 경우 필터링 없음
+
+    return filtered;
+  };
+
   // 필터링 및 검색
   useEffect(() => {
-    let filtered = [...archiveItems];
+    let filtered = getFilteredItemsByType();
 
     // 프로젝트 필터
     if (selectedProjectId !== 'all') {
@@ -319,7 +421,7 @@ export default function ArchivePage() {
     }
 
     setFilteredItems(filtered);
-  }, [searchQuery, selectedCategory, selectedTag, selectedProjectId, archiveItems]);
+  }, [searchQuery, selectedCategory, selectedTag, selectedProjectId, archiveItems, activeTab, projects]);
 
   const handleStartEdit = (item: ArchiveItem) => {
     // 에피소드가 없는 경우 (episodeName이 '-'인 경우) 편집 불가
@@ -328,7 +430,7 @@ export default function ArchivePage() {
         description: '마인드맵 페이지로 이동하여 에피소드를 추가한 후 다시 시도해주세요.',
         action: {
           label: '마인드맵으로 이동',
-          onClick: () => router.push(`/mindmap/${item.projectId}`),
+          onClick: () => router.push(`/mindmap?projectId=${item.projectId}`),
         },
         duration: 5000,
       });
@@ -499,7 +601,33 @@ export default function ArchivePage() {
         {/* 페이지 헤더 */}
         <div className="mb-10">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-2">에피소드 아카이브</h1>
-          <p className="text-gray-600 dark:text-[#a0a0a0]">모든 경험을 STAR 기법으로 정리하여 확인하세요</p>
+          <p className="text-gray-600 dark:text-[#a0a0a0] mb-6">모든 경험을 STAR 기법으로 정리하여 확인하세요</p>
+          
+          {/* 탭 */}
+          <div className="border-b border-gray-200 dark:border-[#2a2a2a] -mx-5 px-5">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'personal' | 'collaborative')}>
+              <TabsList className="bg-transparent rounded-none p-0 h-auto w-auto justify-start">
+                <TabsTrigger 
+                  value="all" 
+                  className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                >
+                  전체
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="personal"
+                  className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                >
+                  개인 마인드맵
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="collaborative"
+                  className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                >
+                  공동 마인드맵
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
 
         {/* 검색 및 필터 */}
@@ -748,7 +876,7 @@ export default function ArchivePage() {
                             <td
                               rowSpan={projectRowSpan}
                               className="px-4 py-4 text-sm text-gray-900 dark:text-[#e5e5e5] font-medium border-r border-gray-200 dark:border-[#2a2a2a] bg-gray-50/50 dark:bg-[#0a0a0a]/50 align-top cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-                              onClick={() => router.push(`/mindmap/${item.projectId}`)}
+                              onClick={() => router.push(`/mindmap?projectId=${item.projectId}`)}
                               title="클릭하여 마인드맵으로 이동"
                             >
                               <div className="flex items-center gap-2">
