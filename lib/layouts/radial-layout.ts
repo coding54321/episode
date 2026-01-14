@@ -365,10 +365,5 @@ export function calculateRadialLayout(
   }
   
   const result = Array.from(nodeMap.values());
-  console.log('[radial-layout] 레이아웃 적용 완료', {
-    nodeCount: result.length,
-    layoutedNodes: result.map(n => ({ id: n.id, x: n.x, y: n.y, level: n.level })),
-  });
-  
   return result;
 }

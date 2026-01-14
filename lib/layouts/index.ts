@@ -10,12 +10,6 @@ export function applyLayout(
   layoutType: LayoutType = 'radial',
   config: LayoutConfig = {}
 ): MindMapNode[] {
-  console.log('[layout] 레이아웃 적용 시작', {
-    layoutType,
-    nodeCount: nodes.length,
-    config,
-  });
-  
   let result: MindMapNode[];
   
   switch (layoutType) {
@@ -34,21 +28,6 @@ export function applyLayout(
     default:
       result = calculateRadialLayout(nodes, config);
   }
-  
-  console.log('[layout] 레이아웃 적용 완료', {
-    layoutType,
-    originalNodeCount: nodes.length,
-    resultNodeCount: result.length,
-    positionChanges: result.map(n => {
-      const original = nodes.find(orig => orig.id === n.id);
-      return {
-        id: n.id,
-        original: original ? { x: original.x, y: original.y } : null,
-        new: { x: n.x, y: n.y },
-        changed: original ? (original.x !== n.x || original.y !== n.y) : true,
-      };
-    }),
-  });
   
   return result;
 }

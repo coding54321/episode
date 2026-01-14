@@ -58,6 +58,9 @@ export default function MindMapWorkspace() {
   // 현재 활성 탭의 프로젝트 ID (탭 전환 시 변경됨, DB 작업 등에 사용)
   const [activeProjectId, setActiveProjectId] = useState<string | null>(initialProjectId);
 
+  const WORKSPACE_STORAGE_KEY = 'episode_mindmap_workspace_v1';
+  const workspaceRestoredRef = useRef(false);
+
   const shareUrl = useMemo(
     () => activeProjectId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/mindmap/${activeProjectId}` : '',
     [activeProjectId]
@@ -162,10 +165,94 @@ export default function MindMapWorkspace() {
     return false;
   }, [tabStates]);
 
+  // 워크스페이스 탭 상태 복원 (새로고침 대비)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const raw = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as {
+        tabs?: Tab[];
+        activeTabId?: string;
+        activeProjectId?: string | null;
+        tabStates?: Array<{
+          tabId: string;
+          project: MindMapProject | null;
+          nodes: MindMapNode[];
+          selectedNodeId: string | null;
+          focusNodeId: string | null;
+        }>;
+      };
+
+      if (!parsed.tabs || parsed.tabs.length === 0) return;
+
+      setTabs(parsed.tabs);
+      setActiveTabId(parsed.activeTabId || 'main');
+      setActiveProjectId(parsed.activeProjectId || null);
+
+      const stateMap = new Map<string, TabState>();
+      (parsed.tabStates || []).forEach((s) => {
+        stateMap.set(s.tabId, {
+          project: s.project,
+          nodes: s.nodes || [],
+          selectedNodeId: s.selectedNodeId,
+          focusNodeId: s.focusNodeId,
+        });
+      });
+      setTabStates(stateMap);
+
+      // 활성 프로젝트 탭 상태 복원
+      const activeTab = parsed.tabs.find(
+        (t) => t.id === (parsed.activeTabId || 'main') && t.type === 'project' && t.projectId,
+      );
+      if (activeTab) {
+        const activeState = stateMap.get(activeTab.id);
+        if (activeState) {
+          setProject(activeState.project);
+          setNodes(activeState.nodes);
+        }
+      }
+
+      workspaceRestoredRef.current = true;
+    } catch (error) {
+      console.error('[mindmap/workspace] 탭 상태 복원 실패', error);
+    }
+  }, []);
+
+  // 탭 상태가 변경될 때 워크스페이스 스냅샷 저장
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const snapshot = {
+        tabs,
+        activeTabId,
+        activeProjectId,
+        tabStates: Array.from(tabStates.entries()).map(([tabId, state]) => ({
+          tabId,
+          project: state.project,
+          nodes: state.nodes,
+          selectedNodeId: state.selectedNodeId,
+          focusNodeId: state.focusNodeId,
+        })),
+      };
+      window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(snapshot));
+    } catch (error) {
+      console.error('[mindmap/workspace] 탭 상태 저장 실패', error);
+    }
+  }, [tabs, activeTabId, activeProjectId, tabStates]);
+
   // 초기 프로젝트 로드 (쿼리 파라미터에서 projectId가 있을 때만, 이후 탭 변경에는 관여하지 않음)
   useEffect(() => {
     // 인증 로딩 중이면 대기
     if (authLoading) {
+      return;
+    }
+
+    // 워크스페이스가 이미 복원된 경우, 초기 로드는 건너뜀
+    if (workspaceRestoredRef.current) {
       return;
     }
 

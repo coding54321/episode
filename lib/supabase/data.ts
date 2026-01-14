@@ -520,12 +520,6 @@ export async function getNodes(projectId: string): Promise<MindMapNode[]> {
       }
     });
 
-    console.log('[data.ts] getNodes: 노드 로드 완료', {
-      projectId,
-      nodeCount: nodes.length,
-      nodesWithChildren: nodes.filter(n => n.children.length > 0).length,
-    });
-
     return nodes;
   } catch (error) {
     console.error('[data.ts] getNodes: 노드 로드 실패', {
