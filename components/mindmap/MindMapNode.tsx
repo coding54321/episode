@@ -413,10 +413,10 @@ export default function MindMapNode({
       </ContextMenuTrigger>
       <ContextMenuContent>
         {!isReadOnly && (
-          <ContextMenuItem onClick={() => onAddChild(node.id, 'right')}>
-            <Plus className="w-4 h-4 mr-2" />
-            하위 노드 추가
-          </ContextMenuItem>
+            <ContextMenuItem onClick={() => onAddChild(node.id, 'right')}>
+              <Plus className="w-4 h-4 mr-2" />
+              하위 노드 추가
+            </ContextMenuItem>
         )}
         {/* 에피소드 노드일 때만 STAR 정리하기 표시 */}
         {(node.nodeType === 'episode' || node.level === 3) && onOpenSTAREditor && (

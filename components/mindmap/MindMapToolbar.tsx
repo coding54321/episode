@@ -10,6 +10,8 @@ import {
   Download,
   Share2,
   Plus,
+  Move,
+  MousePointer2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -25,6 +27,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+type CursorMode = 'select' | 'move';
+
 interface MindMapToolbarProps {
   onFitToScreen: () => void;
   onToggleGrid: () => void;
@@ -37,6 +41,8 @@ interface MindMapToolbarProps {
   onShare?: () => void;
   onToggleAddNodeMode?: () => void;
   isAddNodeMode?: boolean;
+  cursorMode?: CursorMode;
+  onCursorModeChange?: (mode: CursorMode) => void;
 }
 
 export default function MindMapToolbar({
@@ -51,11 +57,68 @@ export default function MindMapToolbar({
   onShare,
   onToggleAddNodeMode,
   isAddNodeMode = false,
+  cursorMode = 'select',
+  onCursorModeChange,
 }: MindMapToolbarProps) {
 
   return (
     <TooltipProvider delayDuration={300}>
       <div className="absolute top-4 left-4 z-50 flex flex-col gap-2">
+        {/* 커서 모드 선택 (선택/무브) */}
+        {onCursorModeChange && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`h-9 w-9 p-0 bg-white dark:bg-[#1a1a1a] shadow-lg border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg ${
+                      cursorMode === 'move' ? 'bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/20 border-[#5B6EFF]' : ''
+                    }`}
+                  >
+                    {cursorMode === 'select' ? (
+                      <MousePointer2 className="h-4 w-4" />
+                    ) : (
+                      <Move className="h-4 w-4" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-40">
+                  <DropdownMenuItem
+                    onClick={() => onCursorModeChange('select')}
+                    className={cursorMode === 'select' ? 'bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/20' : ''}
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      {cursorMode === 'select' && <span className="text-[#5B6EFF]">✓</span>}
+                      <MousePointer2 className="h-4 w-4" />
+                      <span>선택</span>
+                      <span className="ml-auto text-xs text-gray-500">V</span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onCursorModeChange('move')}
+                    className={cursorMode === 'move' ? 'bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/20' : ''}
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      {cursorMode === 'move' && <span className="text-[#5B6EFF]">✓</span>}
+                      <Move className="h-4 w-4" />
+                      <span>이동</span>
+                      <span className="ml-auto text-xs text-gray-500">H</span>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>{cursorMode === 'select' ? '선택 모드' : '이동 모드'}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* 구분선 */}
+        {onCursorModeChange && <div className="h-px bg-gray-200 dark:bg-[#2a2a2a] my-1" />}
+
         {/* 전체 보기 */}
         <Tooltip>
           <TooltipTrigger asChild>

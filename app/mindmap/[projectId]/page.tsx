@@ -86,6 +86,7 @@ export default function MindMapProjectPage() {
   const [activeEditors, setActiveEditors] = useState<ActiveEditor[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [isAddNodeMode, setIsAddNodeMode] = useState(false);
+  const [cursorMode, setCursorMode] = useState<'select' | 'move'>('select');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{ nodeId: string; nodeLabel: string; projectId: string; projectName: string; nodePath: string[] }>>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -1536,6 +1537,8 @@ export default function MindMapProjectPage() {
               showGrid={showGrid}
               onToggleAddNodeMode={() => setIsAddNodeMode(!isAddNodeMode)}
               isAddNodeMode={isAddNodeMode}
+              cursorMode={cursorMode}
+              onCursorModeChange={setCursorMode}
               onExport={async (type: 'image' | 'pdf') => {
                 if (!project) return;
 
@@ -1566,6 +1569,7 @@ export default function MindMapProjectPage() {
             showGrid={showGrid}
             colorTheme={settings.colorTheme}
             isReadOnly={isReadOnly}
+            cursorMode={cursorMode}
             onNodesChange={(newNodes) => {
             if (isNodeView && activeTab?.nodeId) {
               // 노드 중심 뷰에서는 "좌표만" 원래 좌표계로 되돌리고,

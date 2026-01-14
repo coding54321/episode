@@ -51,6 +51,7 @@ interface MindMapCanvasProps {
   isAddNodeMode?: boolean; // 노드 추가 모드 활성화 여부
   onCanvasAddNode?: (x: number, y: number) => void; // 캔버스 클릭 시 노드 추가
   onNodeConnect?: (nodeId: string, parentId: string) => void; // 노드 연결 핸들러
+  cursorMode?: 'select' | 'move'; // 커서 모드 ('select' | 'move')
 }
 
 const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(function MindMapCanvas({
@@ -79,6 +80,7 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
   isAddNodeMode = false,
   onCanvasAddNode,
   onNodeConnect,
+  cursorMode = 'select',
 }, ref) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -304,14 +306,14 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
       setIsPanning(true);
       setPanStart({ x: e.clientX, y: e.clientY });
     } else if (e.button === 0) {
-      // 스페이스바를 누른 경우 또는 빈 공간 클릭인 경우
-      if (spacePressed || (isCanvasClick && !isNodeOrButton)) {
+      // 커서 모드가 'move'이거나 스페이스바를 누른 경우, 또는 빈 공간 클릭 시 패닝 모드 활성화
+      if (cursorMode === 'move' || spacePressed || (isCanvasClick && !isNodeOrButton)) {
         setIsPanning(true);
         setPanStart({ x: e.clientX, y: e.clientY });
         e.preventDefault();
       }
     }
-  }, [spacePressed, editingNodeId, isAddNodeMode]);
+  }, [spacePressed, editingNodeId, isAddNodeMode, cursorMode, onCanvasAddNode, pan, zoom]);
 
   // 줌 인 함수
   const handleZoomIn = useCallback(() => {
@@ -577,9 +579,9 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
 
           // 스냅 연결이 없었으면 일반 위치 업데이트만 수행
           if (!snapTargetNodeId || !onNodeConnect) {
-            // 드래그 종료 시 실제 상태 업데이트 (isDrag=false로 전달하여 즉시 업데이트)
-            // onNodesChange에서 이미 DB 저장을 처리하므로 여기서는 중복 저장하지 않음
-            onNodesChange(updatedNodes, false);
+          // 드래그 종료 시 실제 상태 업데이트 (isDrag=false로 전달하여 즉시 업데이트)
+          // onNodesChange에서 이미 DB 저장을 처리하므로 여기서는 중복 저장하지 않음
+          onNodesChange(updatedNodes, false);
           }
         }
       }
@@ -676,8 +678,8 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
   const handleNodeDragStart = useCallback((nodeId: string, e: React.MouseEvent) => {
     // 읽기 전용이면 드래그 안 함
     if (isReadOnly) return;
-    // 중앙 노드나 편집 중이거나 팬 중이면 드래그 안 함
-    if (nodeId === 'center' || editingNodeId || spacePressed || isPanning) return;
+    // 중앙 노드나 편집 중이거나 팬 중이거나 이동 모드이면 드래그 안 함
+    if (nodeId === 'center' || editingNodeId || spacePressed || isPanning || cursorMode === 'move') return;
 
     // 버튼이나 아이콘 클릭은 무시
     const target = e.target as HTMLElement;
@@ -720,7 +722,7 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
     setDragPositions(new Map());
 
     e.stopPropagation();
-  }, [isReadOnly, editingNodeId, spacePressed, isPanning, nodeMap, pan, zoom, getDescendantIds]);
+  }, [isReadOnly, editingNodeId, spacePressed, isPanning, cursorMode, nodeMap, pan, zoom, getDescendantIds]);
 
   // 노드 추가 (방향 기반) - prop 핸들러로 위임
   const handleAddChild = useCallback((parentId: string, direction: 'right' | 'left' | 'top' | 'bottom' = 'right') => {
@@ -765,6 +767,11 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
 
   // 캔버스 클릭 시 선택 해제 및 편집 모드 종료 또는 노드 추가
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
+    // 이동 모드일 때는 노드 선택/추가 동작을 하지 않음
+    if (cursorMode === 'move') {
+      return;
+    }
+
     const target = e.target as HTMLElement;
     const isCanvasClick = target === canvasRef.current || target.closest('.canvas-container');
     
@@ -788,7 +795,7 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
         onEndEdit();
       }
     }
-  }, [isAddNodeMode, onCanvasAddNode, isReadOnly, pan, zoom, onNodeSelect, editingNodeId, onEndEdit]);
+  }, [isAddNodeMode, onCanvasAddNode, isReadOnly, pan, zoom, onNodeSelect, editingNodeId, onEndEdit, cursorMode]);
 
   // 공유 경로 여부 계산 (노드 자신 또는 조상 중 공유된 노드가 있는 경우)
   const sharedPathMap = useMemo(() => {
@@ -930,21 +937,21 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div
-          ref={canvasRef}
+    <div
+      ref={canvasRef}
           className={`w-full h-full overflow-hidden bg-gray-50 dark:bg-[#0a0a0a] relative transition-all duration-200 ${
-            spacePressed || isPanning
+            cursorMode === 'move' || spacePressed || isPanning
               ? 'cursor-grab active:cursor-grabbing'
               : isAddNodeMode
                 ? 'cursor-crosshair'
                 : draggedNodeId
                   ? 'cursor-move'
-                  : 'cursor-grab'
+                  : 'cursor-default'
           }`}
-          onMouseDown={handleMouseDown}
-          onWheel={handleWheel}
-          onClick={handleCanvasClick}
-        >
+      onMouseDown={handleMouseDown}
+      onWheel={handleWheel}
+      onClick={handleCanvasClick}
+    >
       {/* 그리드 배경 - 라이트 모드 */}
       {showGrid && (
         <div
@@ -1026,16 +1033,16 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
             const y2 = nodeY - canvasBounds.minY;
 
             // 직선으로 연결 (연결선 스타일 기능 제거됨)
-            return (
+              return (
               <line
-                key={`line_${node.id}`}
+                  key={`line_${node.id}`}
                 x1={x1}
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke={isSharedLine ? themeColors.lineShared : themeColors.line}
-                strokeWidth={isSharedLine ? 2.6 : 2}
-                strokeLinecap="round"
+                  stroke={isSharedLine ? themeColors.lineShared : themeColors.line}
+                  strokeWidth={isSharedLine ? 2.6 : 2}
+                  strokeLinecap="round"
               />
             );
           })}
@@ -1125,7 +1132,7 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
 
       {/* 줌 컨트롤 */}
       <ZoomControl zoom={zoom} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
-        </div>
+    </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
         {contextMenuPosition && !isReadOnly && onCanvasAddNode && (
