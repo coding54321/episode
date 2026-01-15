@@ -47,6 +47,7 @@ import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { saveNodes, updateNode, updateProject, getSharedProject, updateActiveEditor, getActiveEditors, removeActiveEditor, type ActiveEditor } from '@/lib/supabase/data';
 import { applyLayout, applyAutoLayoutForNewNode, applyAutoLayoutAfterDelete } from '@/lib/layouts';
+import { assignColorToExperience, getNodeColor, assignColorsToAllExperiences } from '@/lib/mindmap-design-system';
 import { Lock } from 'lucide-react';
 
 export default function MindMapWorkspace() {
@@ -78,7 +79,7 @@ export default function MindMapWorkspace() {
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
   const [isSTAREditorOpen, setIsSTAREditorOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [sidebarMainTab, setSidebarMainTab] = useState<'gap' | 'assistant' | 'star'>('assistant');
+  const [sidebarMainTab, setSidebarMainTab] = useState<'gap' | 'star'>('gap');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [starData, setStarData] = useState<{
@@ -415,13 +416,14 @@ export default function MindMapWorkspace() {
 
         // 자동 레이아웃이 활성화되어 있고 노드가 있으면 레이아웃 적용
         const layoutConfig = loadedProject.layoutConfig || { autoLayout: true };
+        let nodesToSet = loadedProject.nodes;
         if (layoutConfig.autoLayout && loadedProject.nodes.length > 0) {
           const layoutType = loadedProject.layoutType || 'radial';
-          const layoutedNodes = applyLayout(loadedProject.nodes, layoutType, layoutConfig);
-          setNodes(layoutedNodes);
-        } else {
-          setNodes(loadedProject.nodes);
+          nodesToSet = applyLayout(loadedProject.nodes, layoutType, layoutConfig);
         }
+        // 색상 할당 (기존 색상이 없으면 할당)
+        const nodesWithColors = assignColorsToAllExperiences(nodesToSet);
+        setNodes(nodesWithColors);
 
         currentProjectStorage.save(initialProjectId);
 
@@ -1066,13 +1068,14 @@ export default function MindMapWorkspace() {
             
             // 자동 레이아웃 적용
             const layoutConfig = targetProject.layoutConfig || { autoLayout: true };
+            let nodesToSet = targetProject.nodes;
             if (layoutConfig.autoLayout && targetProject.nodes.length > 0) {
               const layoutType = targetProject.layoutType || 'radial';
-              const layoutedNodes = applyLayout(targetProject.nodes, layoutType, layoutConfig);
-              setNodes(layoutedNodes);
-            } else {
-              setNodes(targetProject.nodes);
+              nodesToSet = applyLayout(targetProject.nodes, layoutType, layoutConfig);
             }
+            // 색상 할당
+            const nodesWithColors = assignColorsToAllExperiences(nodesToSet);
+            setNodes(nodesWithColors);
             
             setActiveTabId(targetTabId);
             setFocusNodeId(result.nodeId);
@@ -1336,6 +1339,34 @@ export default function MindMapWorkspace() {
       defaultLabel = '새 노드'; // 자유롭게 작성
     }
 
+    // 색상 할당: 경험 노드(level 1)면 새 색상, 아니면 부모 경험의 색상 상속
+    let nodeColor: string | undefined;
+    if (newLevel === 1 || nodeType === 'experience') {
+      // 경험 노드: 기존 경험 노드들의 색상 확인하여 새 색상 할당
+      const existingExperienceColors = new Set(
+        nodes
+          .filter(n => n.level === 1 || n.nodeType === 'experience')
+          .map(n => n.color)
+          .filter((c): c is string => !!c)
+      );
+      const tempNode: MindMapNode = {
+        id: '',
+        label: '',
+        parentId: null,
+        children: [],
+        x: 0,
+        y: 0,
+        level: newLevel,
+        nodeType,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      nodeColor = assignColorToExperience(tempNode, existingExperienceColors);
+    } else {
+      // 하위 노드: 부모 경험의 색상 상속
+      nodeColor = getNodeColor(parent, nodes);
+    }
+
     const newChild: MindMapNode = {
       id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       label: defaultLabel,
@@ -1345,6 +1376,7 @@ export default function MindMapWorkspace() {
       y: parent.y,
       level: newLevel,
       nodeType,
+      color: nodeColor,
       isManuallyPositioned: false, // 자동 레이아웃으로 배치
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -1372,6 +1404,7 @@ export default function MindMapWorkspace() {
   const handleCanvasAddNode = (x: number, y: number) => {
     if (isReadOnly || !project) return;
 
+    // 독립 노드는 기본 색상 할당 (나중에 연결되면 부모 색상 상속)
     const newNode: MindMapNode = {
       id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       label: '새 노드',
@@ -1381,6 +1414,7 @@ export default function MindMapWorkspace() {
       y,
       level: 4, // detail 레벨로 시작
       nodeType: 'detail',
+      color: 'violet', // 기본 색상
       isManuallyPositioned: true, // 수동 배치
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -1430,12 +1464,14 @@ export default function MindMapWorkspace() {
       return node;
     });
 
-    // 연결할 노드의 parentId와 level 업데이트
+    // 연결할 노드의 parentId, level, color 업데이트
     const newLevel = parentNode.level + 1;
+    const parentColor = getNodeColor(parentNode, nodes);
     const updatedNode = {
       ...nodeToConnect,
       parentId: parentId,
       level: newLevel,
+      color: parentColor, // 부모 경험의 색상 상속
       updatedAt: Date.now(),
     };
 
@@ -1613,13 +1649,14 @@ export default function MindMapWorkspace() {
 
           // 자동 레이아웃 적용
           const layoutConfig = targetProject.layoutConfig || { autoLayout: true };
+          let nodesToSet = targetProject.nodes;
           if (layoutConfig.autoLayout && targetProject.nodes.length > 0) {
             const layoutType = targetProject.layoutType || 'radial';
-            const layoutedNodes = applyLayout(targetProject.nodes, layoutType, layoutConfig);
-            setNodes(layoutedNodes);
-          } else {
-            setNodes(targetProject.nodes);
+            nodesToSet = applyLayout(targetProject.nodes, layoutType, layoutConfig);
           }
+          // 색상 할당
+          const nodesWithColors = assignColorsToAllExperiences(nodesToSet);
+          setNodes(nodesWithColors);
 
           setSelectedNodeId(null);
           setFocusNodeId(null);
@@ -1837,9 +1874,9 @@ export default function MindMapWorkspace() {
     setDroppedTag(null);
     setNewNodeName('');
 
-    // AI 어시스턴트 열기 및 노드 선택
+    // 공백 진단 사이드바 열기 및 노드 선택
     setSelectedNodeId(newNodeId);
-    setSidebarMainTab('assistant');
+    setSidebarMainTab('gap');
     setIsSidebarOpen(true);
   };
 
@@ -2173,36 +2210,6 @@ export default function MindMapWorkspace() {
               <FileText className="h-4 w-4" />
               <span>STAR 정리하기</span>
             </Button>
-            
-            {/* 어시스턴트 토글 버튼 */}
-            <Button
-              variant={isSidebarOpen && sidebarMainTab === 'assistant' ? "default" : "ghost"}
-              size="sm"
-              disabled={isReadOnly}
-              onClick={() => {
-                if (isReadOnly) {
-                  if (!user) {
-                    router.push('/login');
-                  }
-                  return;
-                }
-                if (isSidebarOpen && sidebarMainTab === 'assistant') {
-                  setIsSidebarOpen(false);
-                } else {
-                  setSidebarMainTab('assistant');
-                  setIsSidebarOpen(true);
-                }
-              }}
-              className={`px-3 py-2 gap-2 transition-all duration-200 ${
-                isSidebarOpen && sidebarMainTab === 'assistant'
-                  ? 'bg-[#5B6EFF] text-white hover:bg-[#4B5EEF]' 
-                  : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
-              }`}
-              title={isSidebarOpen && sidebarMainTab === 'assistant' ? '어시스턴트 닫기' : '어시스턴트 열기'}
-            >
-              <MessageSquare className="h-4 w-4" />
-              <span>어시스턴트</span>
-            </Button>
            </div>
          </div>
        </div>
@@ -2282,13 +2289,14 @@ export default function MindMapWorkspace() {
 
                 // 자동 레이아웃 적용
                 const layoutConfig = targetProject.layoutConfig || { autoLayout: true };
+                let nodesToSet = targetProject.nodes;
                 if (layoutConfig.autoLayout && targetProject.nodes.length > 0) {
                   const layoutType = targetProject.layoutType || 'radial';
-                  const layoutedNodes = applyLayout(targetProject.nodes, layoutType, layoutConfig);
-                  setNodes(layoutedNodes);
-                } else {
-                  setNodes(targetProject.nodes);
+                  nodesToSet = applyLayout(targetProject.nodes, layoutType, layoutConfig);
                 }
+                // 색상 할당
+                const nodesWithColors = assignColorsToAllExperiences(nodesToSet);
+                setNodes(nodesWithColors);
 
                 setSelectedNodeId(null);
                 setFocusNodeId(null);
@@ -2381,7 +2389,9 @@ export default function MindMapWorkspace() {
                 // 워크스페이스 상태 업데이트
                 setActiveProjectId(projectId);
                 setProject(newProject);
-                setNodes(layoutedNodes);
+                // 색상 할당
+                const nodesWithColors = assignColorsToAllExperiences(layoutedNodes);
+                setNodes(nodesWithColors);
                 setSelectedNodeId(null);
                 setFocusNodeId(null);
 

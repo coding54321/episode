@@ -422,11 +422,6 @@ export default function MindMapsPage() {
                             </button>
                           </div>
                         )}
-                        {project.description && (
-                          <p className="text-sm text-gray-600 dark:text-[#a0a0a0] line-clamp-2 leading-relaxed">
-                            {project.description}
-                          </p>
-                        )}
                       </div>
 
                       {/* 배지 */}

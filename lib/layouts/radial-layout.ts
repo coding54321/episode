@@ -4,9 +4,9 @@ import { findCenterNode, buildNodeTree } from './layout-utils';
 const DEFAULT_CONFIG: Required<LayoutConfig> = {
   autoLayout: true,
   spacing: {
-    horizontal: 150,
-    vertical: 120,
-    radial: 300, // 중심 ↔ 메인 토픽 간격 (XMind: 280-320px)
+    horizontal: 350, // 노드 간 가로 거리 증가
+    vertical: 280,   // 노드 간 세로 거리 증가
+    radial: 450,     // 중심 ↔ 메인 토픽 간격 증가
   },
   preserveManualPositions: false,
 };

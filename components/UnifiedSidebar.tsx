@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { ChatMessage, STARPhase, STARProgress, GapTag, MindMapNode, NodeType } from '@/types';
+import { useState, useEffect } from 'react';
+import { GapTag, MindMapNode, NodeType } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -42,36 +42,13 @@ interface UnifiedSidebarProps {
   onNodeLabelUpdate?: (nodeId: string, newLabel: string) => void; // 노드 라벨 업데이트 콜백
   onClose: () => void;
   onTagDrop?: (tag: GapTag, targetNodeId: string) => void;
-  defaultMainTab?: 'gap' | 'assistant' | 'star';
+  defaultMainTab?: 'gap' | 'star';
   defaultGapTab?: 'analysis' | 'inventory';
   initialWidth?: number; // 초기 너비 (기본값: 384px = w-96)
   minWidth?: number; // 최소 너비 (기본값: 320px)
 }
 
 type GapStep = 'company' | 'job' | 'questions' | 'result';
-
-const STAR_QUESTIONS: Record<STARPhase, string[]> = {
-  situation: [
-    '어떤 상황이었나요?',
-    '언제, 어디서 일어난 일인가요?',
-    '당시의 배경이나 환경은 어땠나요?',
-  ],
-  task: [
-    '당신에게 주어진 과제나 목표는 무엇이었나요?',
-    '어떤 역할을 맡았나요?',
-    '해결해야 할 문제는 무엇이었나요?',
-  ],
-  action: [
-    '구체적으로 어떤 행동을 취했나요?',
-    '어떤 과정을 거쳤나요?',
-    '어떤 방법을 사용했나요?',
-  ],
-  result: [
-    '결과는 어땠나요?',
-    '어떤 성과를 얻었나요?',
-    '배운 점이나 개선된 점은 무엇인가요?',
-  ],
-};
 
 function GapTagCard({ tag, onRemove, onShowQuestions }: { tag: GapTag; onRemove: (id: string) => void; onShowQuestions?: (tag: GapTag) => void }) {
   const [{ isDragging }, drag] = useDrag({
@@ -154,7 +131,7 @@ export default function UnifiedSidebar({
   minWidth = 320,
 }: UnifiedSidebarProps) {
   // 메인 탭 상태 (공백진단하기 / 어시스턴트 / STAR 정리하기)
-  const [mainTab, setMainTab] = useState<'gap' | 'assistant' | 'star'>(defaultMainTab);
+  const [mainTab, setMainTab] = useState<'gap' | 'star'>(defaultMainTab);
   
   // 사이드바 너비 상태
   const [sidebarWidth, setSidebarWidth] = useState(initialWidth);
@@ -202,9 +179,6 @@ export default function UnifiedSidebar({
     }
   }, [mainTab, selectedNodeId, nodes]);
   
-  // 어시스턴트 탭 상태 (대화)
-  const [assistantTab, setAssistantTab] = useState<'chat'>('chat');
-  
   // 공백진단 상태
   const [gapStep, setGapStep] = useState<GapStep>('company');
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
@@ -221,28 +195,6 @@ export default function UnifiedSidebar({
   const [gapTags, setGapTags] = useState<GapTag[]>([]);
   const [selectedTagForQuestions, setSelectedTagForQuestions] = useState<GapTag | null>(null);
   
-  // 어시스턴트 상태
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [starProgress, setStarProgress] = useState<STARProgress>({
-    situation: false,
-    task: false,
-    action: false,
-    result: false,
-  });
-  const [starData, setStarData] = useState<Record<STARPhase, string>>({
-    situation: '',
-    task: '',
-    action: '',
-    result: '',
-  });
-  const [currentPhase, setCurrentPhase] = useState<STARPhase | null>(null);
-  const [conversationState, setConversationState] = useState<'category' | 'experience' | 'episode' | 'star'>('category');
-  const [pendingNodeLabel, setPendingNodeLabel] = useState<string>('');
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
   // STAR 정리하기 상태
   const [selectedEpisodeNodeId, setSelectedEpisodeNodeId] = useState<string | null>(null);
   const [starEditorTitle, setStarEditorTitle] = useState('');
@@ -452,214 +404,6 @@ export default function UnifiedSidebar({
     return aData.half === '하반기' ? -1 : 1;
   });
 
-  // 노드 선택 시 대화 시작
-  useEffect(() => {
-    if (mainTab === 'assistant' && selectedNodeId && selectedNodeLabel && selectedNodeType !== undefined) {
-      let initialMessage = '';
-      let state: 'category' | 'experience' | 'episode' | 'star' = 'category';
-
-      switch (selectedNodeType) {
-        case 'category':
-          initialMessage = `"${selectedNodeLabel}" 카테고리에 어떤 경험이 있으신가요? 구체적인 경험을 말씀해주세요.`;
-          state = 'category';
-          break;
-        case 'experience':
-          initialMessage = `"${selectedNodeLabel}" 경험에서 어떤 에피소드가 있었나요? 기억에 남는 에피소드를 말씀해주세요.`;
-          state = 'experience';
-          break;
-        case 'episode':
-          initialMessage = `"${selectedNodeLabel}" 에피소드에 대해 STAR 방식으로 정리해볼까요? 먼저 어떤 상황(Situation)이었는지 말씀해주세요.`;
-          state = 'episode';
-          setCurrentPhase('situation');
-          break;
-        default:
-          initialMessage = `"${selectedNodeLabel}"에 대해 이야기해볼까요?`;
-          state = 'category';
-      }
-
-      setMessages([
-        {
-          id: `msg_${Date.now()}`,
-          role: 'assistant',
-          content: initialMessage,
-          timestamp: Date.now(),
-        },
-      ]);
-      setConversationState(state);
-      setStarProgress({ situation: false, task: false, action: false, result: false });
-      setStarData({ situation: '', task: '', action: '', result: '' });
-    }
-  }, [mainTab, selectedNodeId, selectedNodeLabel, selectedNodeType]);
-
-  // 다음 질문 생성
-  const getNextQuestion = (phase: STARPhase): string => {
-    const questions = STAR_QUESTIONS[phase];
-    const answeredCount = messages.filter(m => m.phase === phase && m.role === 'user').length;
-    return questions[Math.min(answeredCount, questions.length - 1)];
-  };
-
-  // AI 응답 생성 (시뮬레이션)
-  const generateAIResponse = async (userMessage: string, state: 'category' | 'experience' | 'episode' | 'star', phase: STARPhase | null): Promise<string> => {
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
-
-    const keywords = userMessage.toLowerCase();
-    let response = '';
-
-    if (state === 'category') {
-      setPendingNodeLabel(userMessage.trim());
-      response = `"${userMessage.trim()}" 경험이군요! 이 경험에서 어떤 에피소드가 있었나요?`;
-      return response;
-    }
-
-    if (state === 'experience') {
-      setPendingNodeLabel(userMessage.trim());
-      response = `"${userMessage.trim()}" 에피소드네요! 그럼 이제 STAR 방식으로 정리해볼까요? 먼저 어떤 상황(Situation)이었는지 말씀해주세요.`;
-      return response;
-    }
-
-    if (state === 'episode' || state === 'star') {
-      if (!phase) {
-        return '어떤 경험에 대해 이야기하고 싶으신가요?';
-      }
-
-      if (phase === 'situation') {
-        response = '상황을 잘 이해했습니다.';
-      } else if (phase === 'task') {
-        response = '과제와 당신의 역할을 잘 이해했습니다.';
-      } else if (phase === 'action') {
-        response = '실행 과정과 행동을 잘 이해했습니다.';
-      } else {
-        response = '완벽합니다! STAR 초안을 생성할 수 있습니다.';
-      }
-
-      return response;
-    }
-
-    return '어떤 경험에 대해 이야기하고 싶으신가요?';
-  };
-
-  // 어시스턴트 메시지 처리
-  const handleSend = async () => {
-    if (!input.trim() || !selectedNodeId || isTyping) return;
-
-    const userMessage: ChatMessage = {
-      id: `msg_${Date.now()}`,
-      role: 'user',
-      content: input.trim(),
-      timestamp: Date.now(),
-      phase: currentPhase || undefined,
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    const userInput = input;
-    setInput('');
-    setIsTyping(true);
-
-    // 대화 상태에 따른 처리
-    if (conversationState === 'category') {
-      const experienceLabel = userInput.trim();
-      
-      if (onNodeAdd && selectedNodeId) {
-        onNodeAdd(selectedNodeId, experienceLabel, 'experience');
-      }
-
-      const aiResponse = await generateAIResponse(userInput, conversationState, null);
-      
-      const aiMessage: ChatMessage = {
-        id: `msg_${Date.now() + 1}`,
-        role: 'assistant',
-        content: aiResponse,
-        timestamp: Date.now(),
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
-      setIsTyping(false);
-      setConversationState('experience');
-      
-    } else if (conversationState === 'experience') {
-      const episodeLabel = userInput.trim();
-      
-      if (onNodeAdd && selectedNodeId) {
-        onNodeAdd(selectedNodeId, episodeLabel, 'episode');
-      }
-
-      const aiResponse = await generateAIResponse(userInput, conversationState, null);
-      
-      const aiMessage: ChatMessage = {
-        id: `msg_${Date.now() + 1}`,
-        role: 'assistant',
-        content: aiResponse,
-        timestamp: Date.now(),
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
-      setIsTyping(false);
-      setConversationState('star');
-      setCurrentPhase('situation');
-      
-    } else if ((conversationState === 'episode' || conversationState === 'star') && currentPhase) {
-      const updatedStarData: Record<STARPhase, string> = {
-        ...starData,
-        [currentPhase]: (starData[currentPhase] ? starData[currentPhase] + ' ' : '') + userInput,
-      };
-
-      setStarData(updatedStarData);
-
-      const aiResponse = await generateAIResponse(userInput, conversationState, currentPhase);
-      
-      const aiMessage: ChatMessage = {
-        id: `msg_${Date.now() + 1}`,
-        role: 'assistant',
-        content: aiResponse,
-        timestamp: Date.now(),
-        phase: currentPhase,
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
-      setIsTyping(false);
-
-      const phaseOrder: STARPhase[] = ['situation', 'task', 'action', 'result'];
-      const currentIndex = phaseOrder.indexOf(currentPhase);
-      
-      if (currentIndex < phaseOrder.length - 1) {
-        const nextPhase = phaseOrder[currentIndex + 1];
-        setCurrentPhase(nextPhase);
-        
-        setTimeout(() => {
-          const nextQuestion: ChatMessage = {
-            id: `msg_${Date.now() + 2}`,
-            role: 'assistant',
-            content: getNextQuestion(nextPhase),
-            timestamp: Date.now(),
-            phase: nextPhase,
-          };
-          setMessages(prev => [...prev, nextQuestion]);
-        }, 500);
-      } else {
-        setStarProgress(prev => ({ ...prev, [currentPhase]: true }));
-        setCurrentPhase(null);
-        
-        setTimeout(() => {
-          const completeMessage: ChatMessage = {
-            id: `msg_${Date.now() + 3}`,
-            role: 'assistant',
-            content: '🎉 모든 정보를 수집했습니다! STAR 초안을 생성할 수 있습니다.',
-            timestamp: Date.now(),
-          };
-          setMessages(prev => [...prev, completeMessage]);
-          onSTARComplete(updatedStarData);
-        }, 500);
-      }
-
-      setStarProgress(prev => ({ ...prev, [currentPhase]: true }));
-    }
-  };
-
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
 
   // 사이드바 너비 조절 핸들러
   useEffect(() => {
@@ -1340,101 +1084,6 @@ export default function UnifiedSidebar({
         </div>
       )}
 
-      {/* 어시스턴트 탭 */}
-      {mainTab === 'assistant' && (
-        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-          {/* 헤더 */}
-          <div className="flex items-center gap-3 px-6 pt-4 pb-2 flex-shrink-0 border-b border-gray-100 dark:border-[#2a2a2a]">
-            <div className="flex-1">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5]">어시스턴트</h2>
-            </div>
-            <button
-              onClick={onClose}
-              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100/50 dark:hover:bg-[#2a2a2a]/50 rounded-full transition-colors flex-shrink-0"
-              title="닫기"
-            >
-              <ChevronRight className="h-5 w-5 text-gray-600 dark:text-[#a0a0a0]" />
-            </button>
-          </div>
-
-          {!selectedNodeId && (
-            <div className="mx-6 mt-4 p-5 rounded-[16px] bg-gradient-to-br from-[#5B6EFF]/10 to-[#5B6EFF]/20/30 dark:from-[#5B6EFF]/30 dark:to-[#5B6EFF]/20 border border-[#5B6EFF]/20 dark:border-[#5B6EFF]/30 flex-shrink-0">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-white dark:bg-[#2a2a2a] rounded-[12px] flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <Sparkles className="h-5 w-5 text-blue-600 dark:text-[#7B8FFF]" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-gray-900 dark:text-[#e5e5e5] mb-1.5">노드를 선택해보세요</p>
-                  <p className="text-xs text-gray-600 dark:text-[#a0a0a0] leading-relaxed">
-                    마인드맵에서 경험 노드를 선택하면<br />AI가 STAR 기법으로 경험을 구조화합니다.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <ScrollArea className="flex-1 min-h-0 px-6 py-6" ref={scrollRef}>
-            <div className="space-y-4">
-              {messages.map(message => (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[80%] rounded-[20px] px-5 py-3.5 ${
-                      message.role === 'user'
-                        ? 'bg-gradient-to-br from-[#5B6EFF]/100 to-[#6B7EFF] text-white shadow-sm'
-                        : 'bg-gray-50 dark:bg-[#1a1a1a] text-gray-900 dark:text-[#e5e5e5]'
-                    }`}
-                  >
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                  </div>
-                </motion.div>
-              ))}
-              {isTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 dark:bg-[#1a1a1a] rounded-[20px] px-5 py-4">
-                    <div className="flex gap-1.5">
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-[#606060] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-[#606060] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 bg-gray-400 dark:bg-[#606060] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          </ScrollArea>
-
-          <div className="px-6 py-5 border-t border-gray-100 dark:border-[#2a2a2a] flex-shrink-0 bg-white dark:bg-[#0a0a0a]">
-            <div className="flex gap-3">
-              <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder="메시지를 입력하세요..."
-                disabled={!selectedNodeId || isTyping}
-                className="flex-1 h-12 rounded-[12px] border-gray-200 dark:border-[#2a2a2a] focus:border-[#5B6EFF] dark:focus:border-[#7B8FFF] focus:ring-2 focus:ring-[#5B6EFF]/20 dark:focus:ring-[#5B6EFF]/30 bg-gray-50 dark:bg-[#1a1a1a] focus:bg-white dark:focus:bg-[#2a2a2a] transition-colors text-gray-900 dark:text-[#e5e5e5]"
-              />
-              <Button
-                onClick={handleSend}
-                disabled={!input.trim() || !selectedNodeId || isTyping}
-                className="h-12 w-12 p-0 bg-gradient-to-br from-[#5B6EFF]/100 to-[#6B7EFF] hover:from-[#4B5EEF] hover:to-[#5B6EFF] rounded-[12px] shadow-sm disabled:opacity-50"
-                size="icon"
-              >
-                <Send className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 질문 리스트 모달 */}
       {selectedTagForQuestions && selectedTagForQuestions.questions && (

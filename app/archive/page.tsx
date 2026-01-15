@@ -20,6 +20,12 @@ import { Search, Filter, Download, Edit, Plus, Save, X, ChevronDown } from 'luci
 import { toast } from 'sonner';
 import FloatingHeader from '@/components/FloatingHeader';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const BADGE_LABELS: Record<BadgeType, string> = {
   intern: '인턴',
@@ -64,6 +70,7 @@ export default function ArchivePage() {
     result: string;
     tags: string[];
   } | null>(null);
+  const [showTagDialog, setShowTagDialog] = useState(false);
 
   useEffect(() => {
     // 인증 로딩 중이면 대기
@@ -782,353 +789,410 @@ export default function ArchivePage() {
               마인드맵 작성하기
             </Button>
           </div>
-        ) : (
+        ) : editingItemId && editFormData ? (
+          // 편집 뷰: 왼쪽 에피소드 목록, 중앙 STAR 입력, 오른쪽 강점/역량 + 저장/취소
           <div className="bg-white dark:bg-[#1a1a1a] rounded-[16px] border border-gray-200 dark:border-[#2a2a2a] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-[#0a0a0a] border-b border-gray-200 dark:border-[#2a2a2a]">
-                  <tr>
-                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 dark:text-[#e5e5e5] uppercase tracking-wider w-[120px]">
-                      프로젝트
-                    </th>
-                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 dark:text-[#e5e5e5] uppercase tracking-wider w-[100px]">
-                      대분류
-                    </th>
-                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 dark:text-[#e5e5e5] uppercase tracking-wider w-[140px]">
-                      경험
-                    </th>
-                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 dark:text-[#e5e5e5] uppercase tracking-wider w-[140px]">
-                      에피소드
-                    </th>
-                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 dark:text-[#e5e5e5] uppercase tracking-wider">
-                      Situation
-                    </th>
-                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 dark:text-[#e5e5e5] uppercase tracking-wider">
-                      Task
-                    </th>
-                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 dark:text-[#e5e5e5] uppercase tracking-wider">
-                      Action
-                    </th>
-                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 dark:text-[#e5e5e5] uppercase tracking-wider">
-                      Result
-                    </th>
-                    <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 dark:text-[#e5e5e5] uppercase tracking-wider w-[150px]">
-                      강점/역량
-                    </th>
-                    <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 dark:text-[#e5e5e5] uppercase tracking-wider w-[80px]">
-                      작업
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-[#2a2a2a]">
+            <div className="flex h-[600px]">
+              {/* 왼쪽: 에피소드 목록 (프로젝트별 그룹화) */}
+              <div className="w-64 border-r border-gray-200 dark:border-[#2a2a2a] overflow-y-auto bg-gray-50 dark:bg-[#0a0a0a]">
+                <div className="p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">에피소드</h3>
+                </div>
+                <div className="p-2">
                   {(() => {
-                    const rows: React.ReactElement[] = [];
-                    let lastProject = '';
-                    let lastCategory = '';
-                    let lastExperience = '';
-                    let projectRowSpan = 0;
-                    let categoryRowSpan = 0;
-                    let experienceRowSpan = 0;
-
-                    // 프로젝트, 대분류, 경험별로 rowSpan 계산
-                    const itemsWithSpan = filteredItems.map((item, index) => {
-                      const projectKey = item.projectId; // 프로젝트 ID로 구분
-                      const categoryKey = `${projectKey}_${item.categoryLabel}`;
-                      const experienceKey = `${categoryKey}_${item.experienceName}`;
-                      
-                      return {
-                        ...item,
-                        projectKey,
-                        categoryKey,
-                        experienceKey,
-                      };
-                    });
-
-                    itemsWithSpan.forEach((item, index) => {
-                      const episodeNodeId = item.id.split('_')[1];
-                      const isEditing = editingItemId === item.id;
-                      
-                      // rowSpan 계산
-                      const showProject = item.projectKey !== lastProject;
-                      const showCategory = item.categoryKey !== lastCategory;
-                      const showExperience = item.experienceKey !== lastExperience;
-                      
-                      if (showProject) {
-                        projectRowSpan = itemsWithSpan.filter(i => i.projectKey === item.projectKey).length;
-                        lastProject = item.projectKey;
+                    // 프로젝트별로 그룹화
+                    const groupedByProject = filteredItems.reduce((acc, item) => {
+                      if (!acc[item.projectId]) {
+                        acc[item.projectId] = [];
                       }
-                      if (showCategory) {
-                        categoryRowSpan = itemsWithSpan.filter(i => i.categoryKey === item.categoryKey).length;
-                        lastCategory = item.categoryKey;
-                      }
-                      if (showExperience) {
-                        experienceRowSpan = itemsWithSpan.filter(i => i.experienceKey === item.experienceKey).length;
-                        lastExperience = item.experienceKey;
-                      }
+                      acc[item.projectId].push(item);
+                      return acc;
+                    }, {} as Record<string, ArchiveItem[]>);
 
-                      rows.push(
-                        <tr
-                          key={item.id}
-                          className={`${isEditing ? 'bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-[#2a2a2a]'} transition-colors`}
-                        >
-                          {/* 프로젝트 (병합) */}
-                          {showProject && (
-                            <td
-                              rowSpan={projectRowSpan}
-                              className="px-4 py-4 text-sm text-gray-900 dark:text-[#e5e5e5] font-medium border-r border-gray-200 dark:border-[#2a2a2a] bg-gray-50/50 dark:bg-[#0a0a0a]/50 align-top cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-                              onClick={() => router.push(`/mindmap?projectId=${item.projectId}`)}
-                              title="클릭하여 마인드맵으로 이동"
-                            >
-                              <div className="flex items-center gap-2">
-                                <span className="hover:text-blue-600 dark:hover:text-[#60A5FA] transition-colors">
-                                  {item.projectName}
-                                </span>
-                                <svg
-                                  className="w-4 h-4 text-gray-400 dark:text-[#606060]"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
+                    return Object.entries(groupedByProject).map(([projectId, items]) => {
+                      const project = projects.find(p => p.id === projectId);
+                      return (
+                        <div key={projectId} className="mb-4">
+                          <div className="px-2 py-2 mb-2">
+                            <h4 className="text-xs font-semibold text-gray-700 dark:text-[#a0a0a0] uppercase">
+                              {project?.name || '알 수 없음'}
+                            </h4>
+                          </div>
+                          <div className="space-y-2">
+                            {items.map((item) => {
+                              const isSelected = editingItemId === item.id;
+                              return (
+                                <div
+                                  key={item.id}
+                                  onClick={() => {
+                                    if (item.episodeName !== '-' && item.episodeName && item.episodeName.trim() !== '') {
+                                      handleStartEdit(item);
+                                    }
+                                  }}
+                                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                                    isSelected
+                                      ? 'bg-[#5B6EFF] text-white border-2 border-white'
+                                      : 'bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+                                  } ${item.episodeName === '-' || !item.episodeName || item.episodeName.trim() === '' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                                  />
-                                </svg>
-                              </div>
-                            </td>
-                          )}
-
-                          {/* 대분류 (병합) */}
-                          {showCategory && (
-                            <td
-                              rowSpan={categoryRowSpan}
-                              className="px-4 py-4 border-r border-gray-200 dark:border-[#2a2a2a] bg-gray-50/30 dark:bg-[#0a0a0a]/30 align-top"
-                            >
-                              <Badge
-                                className={`${BADGE_COLORS[item.category]} border font-medium text-xs`}
-                              >
-                                {item.categoryLabel}
-                              </Badge>
-                            </td>
-                          )}
-
-                          {/* 경험 (병합) */}
-                          {showExperience && (
-                            <td
-                              rowSpan={experienceRowSpan}
-                              className="px-4 py-4 text-sm text-gray-700 dark:text-[#e5e5e5] border-r border-gray-200 dark:border-[#2a2a2a] align-top"
-                            >
-                              {item.experienceName}
-                            </td>
-                          )}
-
-                          {/* 에피소드 */}
-                          <td className="px-4 py-4 text-sm text-gray-900 dark:text-[#e5e5e5] font-medium border-r border-gray-200 dark:border-[#2a2a2a]">
-                            {item.episodeName}
-                          </td>
-
-                          {/* STAR 항목들 - 편집 모드에 따라 다르게 표시 */}
-                          {isEditing && editFormData ? (
-                            <>
-                              {/* Situation */}
-                              <td className="px-4 py-4" colSpan={4}>
-                                <div className="space-y-3">
-                                  <div>
-                                    <label className="text-xs font-medium text-gray-700 dark:text-[#e5e5e5] mb-1 block">Situation</label>
-                                    <Textarea
-                                      value={editFormData.situation}
-                                      onChange={(e) => setEditFormData({ ...editFormData, situation: e.target.value })}
-                                      className="min-h-[60px] text-sm bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-900 dark:text-[#e5e5e5]"
-                                      placeholder="상황을 입력하세요"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-xs font-medium text-gray-700 dark:text-[#e5e5e5] mb-1 block">Task</label>
-                                    <Textarea
-                                      value={editFormData.task}
-                                      onChange={(e) => setEditFormData({ ...editFormData, task: e.target.value })}
-                                      className="min-h-[60px] text-sm bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-900 dark:text-[#e5e5e5]"
-                                      placeholder="과제를 입력하세요"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-xs font-medium text-gray-700 dark:text-[#e5e5e5] mb-1 block">Action</label>
-                                    <Textarea
-                                      value={editFormData.action}
-                                      onChange={(e) => setEditFormData({ ...editFormData, action: e.target.value })}
-                                      className="min-h-[60px] text-sm bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-900 dark:text-[#e5e5e5]"
-                                      placeholder="행동을 입력하세요"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-xs font-medium text-gray-700 dark:text-[#e5e5e5] mb-1 block">Result</label>
-                                    <Textarea
-                                      value={editFormData.result}
-                                      onChange={(e) => setEditFormData({ ...editFormData, result: e.target.value })}
-                                      className="min-h-[60px] text-sm bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-900 dark:text-[#e5e5e5]"
-                                      placeholder="결과를 입력하세요"
-                                    />
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* 역량 태그 편집 */}
-                              <td className="px-4 py-4">
-                                <div className="space-y-2">
-                                  <label className="text-xs font-medium text-gray-700 dark:text-[#e5e5e5] block">역량 선택</label>
-                                  <div className="flex flex-wrap gap-1 max-h-[200px] overflow-y-auto">
-                                    {COMPETENCY_KEYWORDS.map((keyword) => (
-                                      <Badge
-                                        key={keyword}
-                                        variant={editFormData.tags.includes(keyword) ? "default" : "outline"}
-                                        className={`cursor-pointer transition-all text-xs ${
-                                          editFormData.tags.includes(keyword)
-                                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                            : 'hover:bg-gray-100 dark:hover:bg-[#2a2a2a] border-gray-200 dark:border-[#2a2a2a] text-gray-700 dark:text-[#e5e5e5]'
-                                        }`}
-                                        onClick={() => handleToggleTag(keyword)}
-                                      >
-                                        {keyword}
+                                  <div className={`text-xs font-medium mb-1 ${isSelected ? 'text-white/80' : 'text-gray-500 dark:text-[#a0a0a0]'}`}>
+                                    {item.categoryLabel !== '-' ? (
+                                      <Badge className={`${BADGE_COLORS[item.category]} border text-xs`}>
+                                        {item.categoryLabel}
                                       </Badge>
-                                    ))}
+                                    ) : null}
+                                  </div>
+                                  <div className={`text-sm font-semibold mb-1 ${isSelected ? 'text-white' : 'text-gray-900 dark:text-[#e5e5e5]'}`}>
+                                    {item.experienceName !== '-' ? item.experienceName : item.projectName}
+                                  </div>
+                                  <div className={`text-xs line-clamp-2 ${isSelected ? 'text-white/90' : 'text-gray-600 dark:text-[#a0a0a0]'}`}>
+                                    {item.episodeName !== '-' ? item.episodeName : '에피소드 없음'}
                                   </div>
                                 </div>
-                              </td>
-
-                              {/* 저장/취소 버튼 */}
-                              <td className="px-4 py-4 text-center">
-                                <div className="flex flex-col gap-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleSaveEdit(item)}
-                                    className="bg-blue-600 hover:bg-blue-700 h-8"
-                                  >
-                                    <Save className="h-3 w-3 mr-1" />
-                                    저장
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={handleCancelEdit}
-                                    className="h-8"
-                                  >
-                                    <X className="h-3 w-3 mr-1" />
-                                    취소
-                                  </Button>
-                                </div>
-                              </td>
-                            </>
-                          ) : (
-                            <>
-                              {/* Situation */}
-                              <td className="px-4 py-4 text-sm text-gray-700 dark:text-[#e5e5e5] max-w-[200px]">
-                                {item.star?.situation ? (
-                                  <div className="line-clamp-3" title={item.star.situation}>
-                                    {item.star.situation}
-                                  </div>
-                                ) : (
-                                  <div className="h-5 flex items-center">
-                                    <span className="text-gray-300 dark:text-[#606060] text-xs">-</span>
-                                  </div>
-                                )}
-                              </td>
-
-                              {/* Task */}
-                              <td className="px-4 py-4 text-sm text-gray-700 dark:text-[#e5e5e5] max-w-[200px]">
-                                {item.star?.task ? (
-                                  <div className="line-clamp-3" title={item.star.task}>
-                                    {item.star.task}
-                                  </div>
-                                ) : (
-                                  <div className="h-5 flex items-center">
-                                    <span className="text-gray-300 dark:text-[#606060] text-xs">-</span>
-                                  </div>
-                                )}
-                              </td>
-
-                              {/* Action */}
-                              <td className="px-4 py-4 text-sm text-gray-700 dark:text-[#e5e5e5] max-w-[200px]">
-                                {item.star?.action ? (
-                                  <div className="line-clamp-3" title={item.star.action}>
-                                    {item.star.action}
-                                  </div>
-                                ) : (
-                                  <div className="h-5 flex items-center">
-                                    <span className="text-gray-300 dark:text-[#606060] text-xs">-</span>
-                                  </div>
-                                )}
-                              </td>
-
-                              {/* Result */}
-                              <td className="px-4 py-4 text-sm text-gray-700 dark:text-[#e5e5e5] max-w-[200px]">
-                                {item.star?.result ? (
-                                  <div className="line-clamp-3" title={item.star.result}>
-                                    {item.star.result}
-                                  </div>
-                                ) : (
-                                  <div className="h-5 flex items-center">
-                                    <span className="text-gray-300 dark:text-[#606060] text-xs">-</span>
-                                  </div>
-                                )}
-                              </td>
-
-                              {/* 강점/역량 태그 */}
-                              <td className="px-4 py-4">
-                                <div className="flex flex-wrap gap-1 min-h-[20px]">
-                                  {item.tags.length > 0 ? (
-                                    item.tags.map((tag) => (
-                                      <Badge
-                                        key={tag}
-                                        variant="outline"
-                                        className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-[#60A5FA] border-blue-200 dark:border-blue-600 text-xs"
-                                      >
-                                        {tag}
-                                      </Badge>
-                                    ))
-                                  ) : (
-                                    <span className="text-gray-300 dark:text-[#606060] text-xs">-</span>
-                                  )}
-                                </div>
-                              </td>
-
-                              {/* 편집 버튼 */}
-                              <td className="px-4 py-4 text-center">
-                                {item.episodeName === '-' || !item.episodeName || item.episodeName.trim() === '' ? (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    disabled
-                                    className="h-8 w-8 p-0 opacity-50 cursor-not-allowed"
-                                    title="에피소드를 먼저 생성해주세요"
-                                  >
-                                    <Edit className="h-4 w-4 text-gray-400 dark:text-[#606060]" />
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleStartEdit(item)}
-                                    className="h-8 w-8 p-0 hover:bg-blue-50 dark:hover:bg-[#2a2a2a]"
-                                  >
-                                    <Edit className="h-4 w-4 text-gray-600 dark:text-[#a0a0a0]" />
-                                  </Button>
-                                )}
-                              </td>
-                            </>
-                          )}
-                        </tr>
+                              );
+                            })}
+                          </div>
+                        </div>
                       );
                     });
-
-                    return rows;
                   })()}
-                </tbody>
-              </table>
+                </div>
+              </div>
+
+              {/* 중앙: STAR 입력 필드 */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">SITUATION</label>
+                    <Textarea
+                      value={editFormData.situation}
+                      onChange={(e) => setEditFormData({ ...editFormData, situation: e.target.value })}
+                      className="min-h-[120px] text-sm bg-gray-50 dark:bg-[#0a0a0a] border-gray-300 dark:border-[#404040] text-gray-900 dark:text-[#e5e5e5] resize-none"
+                      placeholder="상황을 입력하세요"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">TASK</label>
+                    <Textarea
+                      value={editFormData.task}
+                      onChange={(e) => setEditFormData({ ...editFormData, task: e.target.value })}
+                      className="min-h-[120px] text-sm bg-gray-50 dark:bg-[#0a0a0a] border-gray-300 dark:border-[#404040] text-gray-900 dark:text-[#e5e5e5] resize-none"
+                      placeholder="과제를 입력하세요"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">ACTION</label>
+                    <Textarea
+                      value={editFormData.action}
+                      onChange={(e) => setEditFormData({ ...editFormData, action: e.target.value })}
+                      className="min-h-[120px] text-sm bg-gray-50 dark:bg-[#0a0a0a] border-gray-300 dark:border-[#404040] text-gray-900 dark:text-[#e5e5e5] resize-none"
+                      placeholder="행동을 입력하세요"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">RESULT</label>
+                    <Textarea
+                      value={editFormData.result}
+                      onChange={(e) => setEditFormData({ ...editFormData, result: e.target.value })}
+                      className="min-h-[120px] text-sm bg-gray-50 dark:bg-[#0a0a0a] border-gray-300 dark:border-[#404040] text-gray-900 dark:text-[#e5e5e5] resize-none"
+                      placeholder="결과를 입력하세요"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 오른쪽: 강점/역량 + 저장/취소 */}
+              <div className="w-64 border-l border-gray-200 dark:border-[#2a2a2a] flex flex-col bg-gray-50 dark:bg-[#0a0a0a]">
+                <div className="p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">강점/역량</h3>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  <div className="space-y-2 mb-4">
+                    {editFormData.tags.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {editFormData.tags.map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="outline"
+                            className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-[#60A5FA] border-blue-200 dark:border-blue-600 text-xs cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                            onClick={() => handleToggleTag(tag)}
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowTagDialog(true)}
+                      className="w-full h-10 bg-gray-200 dark:bg-[#2a2a2a] hover:bg-gray-300 dark:hover:bg-[#404040] text-gray-700 dark:text-[#e5e5e5] border-gray-300 dark:border-[#404040]"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      태그 추가
+                    </Button>
+                  </div>
+                </div>
+                <div className="p-4 border-t border-gray-200 dark:border-[#2a2a2a] space-y-2">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const currentItem = filteredItems.find(item => item.id === editingItemId);
+                      if (currentItem) {
+                        handleSaveEdit(currentItem);
+                      }
+                    }}
+                    className="w-full bg-[#5B6EFF] hover:bg-[#4B5EEF] text-white h-10"
+                  >
+                    저장
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCancelEdit}
+                    className="w-full h-10"
+                  >
+                    취소
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
+        ) : (
+          // 표시 뷰: 프로젝트별로 제목과 테이블 분리
+          <div className="space-y-8">
+            {(() => {
+              // 프로젝트별로 그룹화
+              const groupedByProject = filteredItems.reduce((acc, item) => {
+                if (!acc[item.projectId]) {
+                  acc[item.projectId] = [];
+                }
+                acc[item.projectId].push(item);
+                return acc;
+              }, {} as Record<string, ArchiveItem[]>);
+
+              return Object.entries(groupedByProject).map(([projectId, items]) => {
+                const project = projects.find(p => p.id === projectId);
+                return (
+                  <div key={projectId} className="space-y-4">
+                    {/* 프로젝트 제목 */}
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-[#e5e5e5]">
+                        {project?.name || '알 수 없음'}
+                      </h2>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => router.push(`/mindmap?projectId=${projectId}`)}
+                        className="text-sm text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                      >
+                        마인드맵 열기
+                      </Button>
+                    </div>
+
+                    {/* 프로젝트별 테이블 */}
+                    <div className="bg-white dark:bg-[#1a1a1a] rounded-[16px] border border-gray-200 dark:border-[#2a2a2a] overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-white dark:bg-[#0a0a0a] border-b border-gray-200 dark:border-[#2a2a2a]">
+                            <tr>
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] w-[200px]">
+                                에피소드
+                              </th>
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">
+                                SITUATION
+                              </th>
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">
+                                TASK
+                              </th>
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">
+                                ACTION
+                              </th>
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">
+                                RESULT
+                              </th>
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] w-[150px]">
+                                강점/역량
+                              </th>
+                              <th className="px-4 py-4 text-center text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] w-[80px]">
+                                작업
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200 dark:divide-[#2a2a2a]">
+                            {items.map((item) => {
+                              const isEditable = item.episodeName !== '-' && item.episodeName && item.episodeName.trim() !== '';
+                              return (
+                                <tr
+                                  key={item.id}
+                                  className={`hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors ${
+                                    isEditable ? 'cursor-pointer' : ''
+                                  }`}
+                                  onClick={() => {
+                                    if (isEditable) {
+                                      handleStartEdit(item);
+                                    }
+                                  }}
+                                >
+                                  {/* 에피소드 카드 */}
+                                  <td className="px-4 py-4">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        {item.categoryLabel !== '-' && (
+                                          <Badge className={`${BADGE_COLORS[item.category]} border text-xs`}>
+                                            {item.categoryLabel}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <div className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-1">
+                                        {item.experienceName !== '-' ? item.experienceName : item.projectName}
+                                      </div>
+                                      <div className="text-xs text-gray-600 dark:text-[#a0a0a0] line-clamp-2">
+                                        {item.episodeName !== '-' ? item.episodeName : '에피소드 없음'}
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* SITUATION */}
+                                  <td className="px-4 py-4">
+                                    <div className="min-h-[40px] flex items-start">
+                                      {item.star?.situation ? (
+                                        <div className="text-sm text-gray-700 dark:text-[#e5e5e5] line-clamp-3" title={item.star.situation}>
+                                          {item.star.situation}
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-gray-400 dark:text-[#606060]">s</span>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* TASK */}
+                                  <td className="px-4 py-4">
+                                    <div className="min-h-[40px] flex items-start">
+                                      {item.star?.task ? (
+                                        <div className="text-sm text-gray-700 dark:text-[#e5e5e5] line-clamp-3" title={item.star.task}>
+                                          {item.star.task}
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-gray-400 dark:text-[#606060]">t</span>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* ACTION */}
+                                  <td className="px-4 py-4">
+                                    <div className="min-h-[40px] flex items-start">
+                                      {item.star?.action ? (
+                                        <div className="text-sm text-gray-700 dark:text-[#e5e5e5] line-clamp-3" title={item.star.action}>
+                                          {item.star.action}
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-gray-400 dark:text-[#606060]">a</span>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* RESULT */}
+                                  <td className="px-4 py-4">
+                                    <div className="min-h-[40px] flex items-start">
+                                      {item.star?.result ? (
+                                        <div className="text-sm text-gray-700 dark:text-[#e5e5e5] line-clamp-3" title={item.star.result}>
+                                          {item.star.result}
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-gray-400 dark:text-[#606060]">r</span>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* 강점/역량 */}
+                                  <td className="px-4 py-4">
+                                    <div className="min-h-[40px]">
+                                      {item.tags.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                          {item.tags.map((tag) => (
+                                            <Badge
+                                              key={tag}
+                                              variant="outline"
+                                              className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-[#60A5FA] border-blue-200 dark:border-blue-600 text-xs"
+                                            >
+                                              {tag}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <span className="text-xs text-gray-400 dark:text-[#606060]">강점/역량</span>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* 편집 버튼 */}
+                                  <td className="px-4 py-4 text-center">
+                                    {isEditable ? (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleStartEdit(item);
+                                        }}
+                                        className="h-8 w-8 p-0 hover:bg-blue-50 dark:hover:bg-[#2a2a2a]"
+                                      >
+                                        <Edit className="h-4 w-4 text-gray-600 dark:text-[#a0a0a0]" />
+                                      </Button>
+                                    ) : (
+                                      <span className="text-xs text-gray-400 dark:text-[#606060]">-</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
         )}
+
+        {/* 태그 선택 다이얼로그 */}
+        <Dialog open={showTagDialog} onOpenChange={setShowTagDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>추가할 태그를 선택하세요</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-3 gap-3 mt-4">
+              {COMPETENCY_KEYWORDS.map((keyword) => (
+                <button
+                  key={keyword}
+                  onClick={() => {
+                    if (editFormData) {
+                      handleToggleTag(keyword);
+                    }
+                  }}
+                  className={`p-3 rounded-lg border-2 transition-all text-sm font-medium ${
+                    editFormData?.tags.includes(keyword)
+                      ? 'bg-[#5B6EFF] text-white border-[#5B6EFF]'
+                      : 'bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-700 dark:text-[#e5e5e5] hover:border-[#5B6EFF] hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                  }`}
+                >
+                  {keyword}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setShowTagDialog(false)}
+              >
+                닫기
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

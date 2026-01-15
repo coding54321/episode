@@ -4,8 +4,8 @@ import { findCenterNode, buildNodeTree } from './layout-utils';
 const DEFAULT_CONFIG: Required<LayoutConfig> = {
   autoLayout: true,
   spacing: {
-    horizontal: 200,
-    vertical: 150,
+    horizontal: 400, // 노드 간 가로 거리 증가
+    vertical: 280,   // 노드 간 세로 거리 증가
     radial: 180,
   },
   preserveManualPositions: false,

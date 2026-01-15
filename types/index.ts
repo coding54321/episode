@@ -41,6 +41,7 @@ export interface MindMapNode {
   isShared?: boolean;
   sharedLink?: string;
   isManuallyPositioned?: boolean; // 수동으로 위치를 조정했는지 여부
+  color?: string; // 브랜치별 색상 ('violet', 'blue', 'mint' 등)
   createdAt: number;
   updatedAt: number;
 }
@@ -173,7 +174,7 @@ export interface GapQuestion {
 }
 
 // 레이아웃 타입
-export type LayoutType = 'radial' | 'hierarchical' | 'tree' | 'force-directed';
+export type LayoutType = 'radial' | 'hierarchical' | 'tree' | 'force-directed' | 'branch';
 
 // 레이아웃 설정
 export interface LayoutConfig {

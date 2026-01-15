@@ -1,6 +1,7 @@
 import { MindMapNode, LayoutType, LayoutConfig } from '@/types';
 import { calculateRadialLayout } from './radial-layout';
 import { calculateTreeLayout } from './tree-layout';
+import { calculateBranchLayout } from './branch-layout';
 
 /**
  * 레이아웃 타입에 따라 적절한 레이아웃 알고리즘 실행
@@ -18,6 +19,9 @@ export function applyLayout(
       break;
     case 'tree':
       result = calculateTreeLayout(nodes, config);
+      break;
+    case 'branch':
+      result = calculateBranchLayout(nodes, config);
       break;
     case 'hierarchical':
     case 'force-directed':

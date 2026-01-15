@@ -6,6 +6,7 @@ import { mindMapStorage } from '@/lib/storage';
 import MindMapNode from './MindMapNode';
 import ZoomControl from './ZoomControl';
 import { getThemeColors } from '@/lib/mindmap-theme';
+import { getNodeColor, getColorData, getNodeLevelType, NODE_SIZE_CONFIG, CENTER_NODE_COLOR } from '@/lib/mindmap-design-system';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -1012,42 +1013,111 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
             zIndex: 1,
           }}
         >
-          {nodes.map(node => {
-            if (!node.parentId) return null;
-            // 인덱스 맵 사용
-            const parent = nodeMap.get(node.parentId);
-            if (!parent) return null;
+          {(() => {
+            // 부모 노드별로 자식 노드들을 그룹화
+            const childrenByParent = new Map<string, NodeType[]>();
+            nodes.forEach(node => {
+              if (node.parentId) {
+                if (!childrenByParent.has(node.parentId)) {
+                  childrenByParent.set(node.parentId, []);
+                }
+                childrenByParent.get(node.parentId)!.push(node);
+              }
+            });
 
-            // 드래그 중 임시 좌표 사용
-            const parentDragPos = dragPositions.get(parent.id);
-            const nodeDragPos = dragPositions.get(node.id);
-            const parentX = parentDragPos ? parentDragPos.x : parent.x;
-            const parentY = parentDragPos ? parentDragPos.y : parent.y;
-            const nodeX = nodeDragPos ? nodeDragPos.x : node.x;
-            const nodeY = nodeDragPos ? nodeDragPos.y : node.y;
+            const lines: React.ReactElement[] = [];
 
-            const isSharedLine =
-              (node.parentId && sharedPathMap[node.parentId]) || sharedPathMap[node.id];
+            // 각 부모 노드에 대해 분기형 연결선 렌더링
+            childrenByParent.forEach((children, parentId) => {
+              const parent = nodeMap.get(parentId);
+              if (!parent || children.length === 0) return;
 
-            const x1 = parentX - canvasBounds.minX;
-            const y1 = parentY - canvasBounds.minY;
-            const x2 = nodeX - canvasBounds.minX;
-            const y2 = nodeY - canvasBounds.minY;
+              // 드래그 중 임시 좌표 사용
+              const parentDragPos = dragPositions.get(parent.id);
+              const parentX = parentDragPos ? parentDragPos.x : parent.x;
+              const parentY = parentDragPos ? parentDragPos.y : parent.y;
 
-            // 직선으로 연결 (연결선 스타일 기능 제거됨)
-              return (
-              <line
-                  key={`line_${node.id}`}
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                  stroke={isSharedLine ? themeColors.lineShared : themeColors.line}
+              const isSharedLine =
+                sharedPathMap[parentId] || children.some(child => sharedPathMap[child.id]);
+
+              // 부모 노드의 색상 가져오기
+              const parentColorName = getNodeColor(parent, nodes);
+              const colorData = getColorData(parentColorName);
+              const lineColor = isSharedLine ? themeColors.lineShared : colorData.base;
+
+              const parentCenterX = parentX - canvasBounds.minX;
+              const parentCenterY = parentY - canvasBounds.minY;
+
+              // 자식 노드들의 좌표 계산
+              const childrenCoords = children.map(child => {
+                const childDragPos = dragPositions.get(child.id);
+                const childX = childDragPos ? childDragPos.x : child.x;
+                const childY = childDragPos ? childDragPos.y : child.y;
+                return {
+                  id: child.id,
+                  x: childX - canvasBounds.minX,
+                  y: childY - canvasBounds.minY,
+                };
+              });
+
+              // 자식 노드들의 방향 결정 (부모 노드 기준)
+              const dx = childrenCoords[0].x - parentCenterX;
+              const dy = childrenCoords[0].y - parentCenterY;
+              
+              // 주 방향 결정 (가로 또는 세로)
+              const isHorizontal = Math.abs(dx) > Math.abs(dy);
+              
+              // 메인 선의 끝점 계산
+              // 가로 방향: 부모에서 자식들의 평균 X로, Y는 부모와 동일
+              // 세로 방향: 부모에서 자식들의 평균 Y로, X는 부모와 동일
+              let mainLineEndX: number;
+              let mainLineEndY: number;
+              
+              if (isHorizontal) {
+                // 가로 방향 (좌우)
+                const avgX = childrenCoords.reduce((sum, c) => sum + c.x, 0) / childrenCoords.length;
+                mainLineEndX = avgX;
+                mainLineEndY = parentCenterY;
+              } else {
+                // 세로 방향 (상하)
+                const avgY = childrenCoords.reduce((sum, c) => sum + c.y, 0) / childrenCoords.length;
+                mainLineEndX = parentCenterX;
+                mainLineEndY = avgY;
+              }
+
+              // 메인 선 렌더링
+              lines.push(
+                <line
+                  key={`main-line-${parentId}`}
+                  x1={parentCenterX}
+                  y1={parentCenterY}
+                  x2={mainLineEndX}
+                  y2={mainLineEndY}
+                  stroke={lineColor}
                   strokeWidth={isSharedLine ? 2.6 : 2}
                   strokeLinecap="round"
-              />
-            );
-          })}
+                />
+              );
+
+              // 각 자식 노드로 분기선 렌더링
+              childrenCoords.forEach(childCoord => {
+                lines.push(
+                  <line
+                    key={`branch-line-${childCoord.id}`}
+                    x1={mainLineEndX}
+                    y1={mainLineEndY}
+                    x2={childCoord.x}
+                    y2={childCoord.y}
+                    stroke={lineColor}
+                    strokeWidth={isSharedLine ? 2.6 : 2}
+                    strokeLinecap="round"
+                  />
+                );
+              });
+            });
+
+            return lines;
+          })()}
 
           {/* 가상 연결선 (스냅 연결 중) */}
           {snapTargetNodeId && draggedNodeId && dragPositions.size > 0 && (() => {
@@ -1061,13 +1131,18 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
             const x2 = targetNode.x - canvasBounds.minX;
             const y2 = targetNode.y - canvasBounds.minY;
 
+            // 가상 연결선 색상 (부모 노드의 색상 사용)
+            const parentColorName = getNodeColor(targetNode, nodes);
+            const colorData = getColorData(parentColorName);
+            const virtualLineColor = colorData.base;
+
             return (
               <line
                 x1={x1}
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke="#5B6EFF"
+                stroke={virtualLineColor}
                 strokeWidth="2"
                 strokeDasharray="5,5"
                 opacity="0.6"
@@ -1103,28 +1178,33 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
               <MindMapNode
                 key={node.id}
                 node={{ ...node, x: displayX, y: displayY }}
+                nodes={nodes}
                 isSelected={selectedNodeId === node.id}
                 isEditing={editingNodeId === node.id}
                 isSharedPath={sharedPathMap[node.id] ?? false}
                 isSnapTarget={snapTargetNodeId === node.id}
                 isHighlighted={highlightedNodeIds.has(node.id)}
+                isDragging={draggedNodeId === node.id}
                 onSelect={onNodeSelect}
                 onEdit={onNodeEdit}
                 onAddChild={handleAddChild}
                 onDelete={handleDelete}
-                onOpenInNewTab={onNodeOpenInNewTab}
                 onOpenSTAREditor={onNodeOpenSTAREditor}
                 onDragStart={handleNodeDragStart}
                 onStartEdit={onStartEdit}
                 onEndEdit={onEndEdit}
+                onMenuClick={(nodeId, position) => {
+                  // 메뉴 버튼 클릭 시 노드 선택 및 컨텍스트 메뉴 표시
+                  onNodeSelect(nodeId);
+                  // 프로그래밍 방식으로 컨텍스트 메뉴를 열기 위해 우클릭 이벤트 시뮬레이션
+                  // (실제로는 노드 선택만 하고, 사용자가 우클릭하면 메뉴가 열림)
+                }}
                 x={displayX - canvasBounds.minX}
                 y={displayY - canvasBounds.minY}
                 centerNodeId={centerNodeId}
                 originalNode={originalNode}
                 onTagDrop={onTagDrop}
                 isReadOnly={isReadOnly}
-                colorTheme={colorTheme}
-                isDarkMode={isDarkMode}
               />
             );
           })}

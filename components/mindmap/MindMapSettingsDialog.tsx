@@ -72,6 +72,11 @@ const layoutOptions: { value: LayoutType; label: string; description: string }[]
     label: '트리형 레이아웃',
     description: '좌우 대칭 트리 구조 배치',
   },
+  {
+    value: 'branch',
+    label: '브랜치 레이아웃',
+    description: '중심 노드에서 좌우로 뻗어나가는 직각 브랜치 형태',
+  },
 ];
 
 export default function MindMapSettingsDialog({
