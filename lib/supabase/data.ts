@@ -7,6 +7,39 @@ import type { Database } from './types';
  * localStorage 대신 Supabase DB를 사용
  */
 
+// ==================== Date Conversion Utilities ====================
+
+/**
+ * DB DATE 문자열 → TypeScript timestamp 변환
+ * @param date DB의 DATE 타입 문자열 (YYYY-MM-DD) 또는 null
+ * @returns timestamp (Date.getTime()) 또는 null
+ */
+function dateToTimestamp(date: string | null | undefined): number | null {
+  if (!date) return null;
+  try {
+    const dateObj = new Date(date);
+    return isNaN(dateObj.getTime()) ? null : dateObj.getTime();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * TypeScript timestamp → DB DATE 문자열 변환
+ * @param timestamp Date.getTime() 값 또는 null/undefined
+ * @returns YYYY-MM-DD 형식 문자열 또는 null
+ */
+function timestampToDate(timestamp: number | null | undefined): string | null {
+  if (!timestamp) return null;
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return null;
+    return date.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+  } catch {
+    return null;
+  }
+}
+
 // ==================== Projects ====================
 
 export async function getProjects(userId: string): Promise<MindMapProject[]> {
@@ -134,10 +167,17 @@ export async function getProjectsWithNodes(userId: string): Promise<MindMapProje
           level: node.level,
           parentId: node.parent_id,
           nodeType: node.node_type,
+          badgeType: node.badge_type,
+          customLabel: node.custom_label,
+          isShared: node.is_shared,
+          sharedLink: node.shared_link,
+          isManuallyPositioned: node.is_manually_positioned,
           color: node.color,
+          startDate: dateToTimestamp(node.start_date),
+          endDate: dateToTimestamp(node.end_date),
           children: [],
-          createdAt: new Date(node.created_at || '').getTime(),
-          updatedAt: new Date(node.updated_at || '').getTime(),
+          createdAt: typeof node.created_at === 'number' ? node.created_at : new Date(node.created_at || '').getTime(),
+          updatedAt: typeof node.updated_at === 'number' ? node.updated_at : new Date(node.updated_at || '').getTime(),
         } as MindMapNode;
         
         nodeMap.set(node.id, mindMapNode);
@@ -505,6 +545,8 @@ export async function getNodes(projectId: string): Promise<MindMapNode[]> {
       isShared: n.is_shared || false,
       sharedLink: n.shared_link || undefined,
       isManuallyPositioned: n.is_manually_positioned || false,
+      startDate: dateToTimestamp(n.start_date),
+      endDate: dateToTimestamp(n.end_date),
       createdAt: n.created_at,
       updatedAt: n.updated_at,
     }));
@@ -575,7 +617,7 @@ const saveNodesInProgress = new Map<string, Promise<boolean>>();
 export async function updateNode(
   projectId: string,
   nodeId: string,
-  updates: Partial<Pick<MindMapNode, 'label' | 'x' | 'y' | 'isShared' | 'sharedLink' | 'customLabel' | 'parentId' | 'children' | 'level' | 'nodeType' | 'badgeType' | 'isManuallyPositioned'>>
+  updates: Partial<Pick<MindMapNode, 'label' | 'x' | 'y' | 'isShared' | 'sharedLink' | 'customLabel' | 'parentId' | 'children' | 'level' | 'nodeType' | 'badgeType' | 'isManuallyPositioned' | 'startDate' | 'endDate'>>
 ): Promise<boolean> {
   try {
     const updateData: any = {
@@ -615,6 +657,12 @@ export async function updateNode(
     }
     if (updates.isManuallyPositioned !== undefined) {
       updateData.is_manually_positioned = updates.isManuallyPositioned;
+    }
+    if (updates.startDate !== undefined) {
+      updateData.start_date = timestampToDate(updates.startDate);
+    }
+    if (updates.endDate !== undefined) {
+      updateData.end_date = timestampToDate(updates.endDate);
     }
 
     const { error } = await supabase
@@ -670,6 +718,8 @@ export async function insertNode(projectId: string, node: MindMapNode): Promise<
       is_shared: node.isShared || false,
       shared_link: node.sharedLink || null,
       is_manually_positioned: node.isManuallyPositioned || false,
+      start_date: timestampToDate(node.startDate),
+      end_date: timestampToDate(node.endDate),
       created_at: node.createdAt || Date.now(),
       updated_at: node.updatedAt || Date.now(),
     };
@@ -817,6 +867,9 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
           customLabel: n.custom_label || undefined,
           isShared: n.is_shared || false,
           sharedLink: n.shared_link || undefined,
+          isManuallyPositioned: n.is_manually_positioned || false,
+          startDate: dateToTimestamp(n.start_date),
+          endDate: dateToTimestamp(n.end_date),
           createdAt: n.created_at,
           updatedAt: n.updated_at,
         }));
@@ -854,6 +907,9 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
               customLabel: n.custom_label || undefined,
               isShared: n.is_shared || false,
               sharedLink: n.shared_link || undefined,
+              isManuallyPositioned: n.is_manually_positioned || false,
+              startDate: dateToTimestamp(n.start_date),
+              endDate: dateToTimestamp(n.end_date),
               createdAt: n.created_at,
               updatedAt: n.updated_at,
             }));
@@ -920,6 +976,8 @@ export async function saveNodes(projectId: string, nodes: MindMapNode[]): Promis
         is_shared: node.isShared || false,
         shared_link: node.sharedLink || null,
         is_manually_positioned: node.isManuallyPositioned || false,
+        start_date: timestampToDate(node.startDate),
+        end_date: timestampToDate(node.endDate),
         created_at: createdAt || nowTimestamp,
         updated_at: updatedAt || nowTimestamp,
       };

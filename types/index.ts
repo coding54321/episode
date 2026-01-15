@@ -42,6 +42,8 @@ export interface MindMapNode {
   sharedLink?: string;
   isManuallyPositioned?: boolean; // 수동으로 위치를 조정했는지 여부
   color?: string; // 브랜치별 색상 ('violet', 'blue', 'mint' 등)
+  startDate?: number | null; // 경험 시작일 (timestamp)
+  endDate?: number | null; // 경험 종료일 (timestamp)
   createdAt: number;
   updatedAt: number;
 }
@@ -240,6 +242,8 @@ export interface ArchiveItem {
   categoryLabel: string;
   experienceName: string; // 경험명
   episodeName: string; // 에피소드명
+  experienceStartDate?: number | null; // 경험 시작일 (timestamp)
+  experienceEndDate?: number | null; // 경험 종료일 (timestamp)
   star: STARAsset | null; // STAR 내용 (작성 전이면 null)
   tags: string[]; // 강점/역량 태그
   nodePath: string[]; // 노드 경로 (breadcrumb용)

@@ -17,6 +17,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Search, Filter, Download, Edit, Plus, Save, X, ChevronDown } from 'lucide-react';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { updateNode } from '@/lib/supabase/data';
 import { toast } from 'sonner';
 import FloatingHeader from '@/components/FloatingHeader';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -63,12 +67,15 @@ export default function ArchivePage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | 'all'>('all');
   const [activeTab, setActiveTab] = useState<'all' | 'personal' | 'collaborative'>('all');
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingExperienceNodeId, setEditingExperienceNodeId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{
     situation: string;
     task: string;
     action: string;
     result: string;
     tags: string[];
+    startDate: number | null;
+    endDate: number | null;
   } | null>(null);
   const [showTagDialog, setShowTagDialog] = useState(false);
 
@@ -173,6 +180,8 @@ export default function ArchivePage() {
               categoryLabel: '-',
               experienceName: typeof experienceNode.label === 'string' ? experienceNode.label : '',
               episodeName: '-',
+              experienceStartDate: experienceNode.startDate || null,
+              experienceEndDate: experienceNode.endDate || null,
               star: null,
               tags: [],
               nodePath: [
@@ -201,6 +210,8 @@ export default function ArchivePage() {
               categoryLabel: '-',
               experienceName: typeof experienceNode.label === 'string' ? experienceNode.label : '',
               episodeName: typeof episodeNode.label === 'string' ? episodeNode.label : '',
+              experienceStartDate: experienceNode.startDate || null,
+              experienceEndDate: experienceNode.endDate || null,
               star: starAsset || null,
               tags,
               nodePath: [
@@ -275,24 +286,26 @@ export default function ArchivePage() {
             
             // 에피소드가 없으면 경험까지만 표시
             if (episodeNodes.length === 0) {
-              items.push({
-                id: `${project.id}_${experienceNode.id}`,
-                projectId: project.id,
-                projectName: project.name,
-                category: badgeType,
-                categoryLabel: categoryLabel,
-                experienceName: typeof experienceNode.label === 'string' ? experienceNode.label : '',
-                episodeName: '-',
-                star: null,
-                tags: [],
-                nodePath: [
-                  project.name,
-                  categoryLabel,
-                  typeof experienceNode.label === 'string' ? experienceNode.label : '',
-                ],
-                createdAt: experienceNode.createdAt,
-                updatedAt: experienceNode.updatedAt,
-              });
+            items.push({
+              id: `${project.id}_${experienceNode.id}`,
+              projectId: project.id,
+              projectName: project.name,
+              category: badgeType,
+              categoryLabel: categoryLabel,
+              experienceName: typeof experienceNode.label === 'string' ? experienceNode.label : '',
+              episodeName: '-',
+              experienceStartDate: experienceNode.startDate || null,
+              experienceEndDate: experienceNode.endDate || null,
+              star: null,
+              tags: [],
+              nodePath: [
+                project.name,
+                categoryLabel,
+                typeof experienceNode.label === 'string' ? experienceNode.label : '',
+              ],
+              createdAt: experienceNode.createdAt,
+              updatedAt: experienceNode.updatedAt,
+            });
               continue;
             }
             
@@ -310,6 +323,8 @@ export default function ArchivePage() {
                 categoryLabel: categoryLabel,
                 experienceName: typeof experienceNode.label === 'string' ? experienceNode.label : '',
                 episodeName: typeof episodeNode.label === 'string' ? episodeNode.label : '',
+                experienceStartDate: experienceNode.startDate || null,
+                experienceEndDate: experienceNode.endDate || null,
                 star: starAsset || null,
                 tags,
                 nodePath: [
@@ -430,7 +445,7 @@ export default function ArchivePage() {
     setFilteredItems(filtered);
   }, [searchQuery, selectedCategory, selectedTag, selectedProjectId, archiveItems, activeTab, projects]);
 
-  const handleStartEdit = (item: ArchiveItem) => {
+  const handleStartEdit = async (item: ArchiveItem) => {
     // 에피소드가 없는 경우 (episodeName이 '-'인 경우) 편집 불가
     if (item.episodeName === '-' || !item.episodeName || item.episodeName.trim() === '') {
       toast.error('에피소드가 없습니다. 먼저 마인드맵에서 에피소드를 생성해주세요.', {
@@ -444,7 +459,25 @@ export default function ArchivePage() {
       return;
     }
     
+    // 경험 노드 ID 찾기
+    const project = await mindMapProjectStorage.get(item.projectId);
+    let experienceNodeId: string | null = null;
+    
+    if (project) {
+      // 에피소드 노드 ID 추출 (item.id 형식: projectId_episodeNodeId)
+      const firstUnderscoreIndex = item.id.indexOf('_');
+      const episodeNodeId = firstUnderscoreIndex !== -1 ? item.id.substring(firstUnderscoreIndex + 1) : null;
+      
+      if (episodeNodeId) {
+        const episodeNode = project.nodes.find(n => n.id === episodeNodeId);
+        if (episodeNode && episodeNode.parentId) {
+          experienceNodeId = episodeNode.parentId;
+        }
+      }
+    }
+    
     setEditingItemId(item.id);
+    setEditingExperienceNodeId(experienceNodeId);
     setEditFormData({
       situation: item.star?.situation || '',
       task: item.star?.task || '',
@@ -452,11 +485,14 @@ export default function ArchivePage() {
       result: item.star?.result || '',
       // readonly string[]을 string[]로 변환 (스프레드 연산자 사용)
       tags: item.star?.tags ? [...item.star.tags] : item.tags || [],
+      startDate: item.experienceStartDate || null,
+      endDate: item.experienceEndDate || null,
     });
   };
 
   const handleCancelEdit = () => {
     setEditingItemId(null);
+    setEditingExperienceNodeId(null);
     setEditFormData(null);
   };
 
@@ -524,10 +560,18 @@ export default function ArchivePage() {
       await assetStorage.add(starAsset);
     }
     
+    // 경험 노드의 기간 정보 업데이트
+    if (editingExperienceNodeId && (editFormData.startDate !== null || editFormData.endDate !== null)) {
+      await updateNode(item.projectId, editingExperienceNodeId, {
+        startDate: editFormData.startDate,
+        endDate: editFormData.endDate,
+      });
+    }
+    
     // 저장 후 해당 노드의 STAR asset을 다시 가져와서 상태 업데이트
     const updatedStarAsset = await assetStorage.getByNodeId(episodeNodeId);
     
-    // 해당 아이템의 STAR asset을 직접 업데이트
+    // 해당 아이템의 STAR asset과 기간 정보를 직접 업데이트
     setArchiveItems(prevItems => {
       return prevItems.map(prevItem => {
         if (prevItem.id === item.id) {
@@ -536,6 +580,8 @@ export default function ArchivePage() {
             star: updatedStarAsset || null,
             // readonly string[]을 string[]로 변환 (스프레드 연산자 사용)
             tags: updatedStarAsset?.tags ? [...updatedStarAsset.tags] : [],
+            experienceStartDate: editFormData.startDate,
+            experienceEndDate: editFormData.endDate,
           };
         }
         return prevItem;
@@ -862,6 +908,17 @@ export default function ArchivePage() {
               {/* 중앙: STAR 입력 필드 */}
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="space-y-4">
+                  {/* 기간 입력 */}
+                  <div>
+                    <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">기간</label>
+                    <DateRangePicker
+                      startDate={editFormData.startDate}
+                      endDate={editFormData.endDate}
+                      onDateChange={(startDate, endDate) => {
+                        setEditFormData({ ...editFormData, startDate, endDate });
+                      }}
+                    />
+                  </div>
                   <div>
                     <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">SITUATION</label>
                     <Textarea
@@ -999,6 +1056,9 @@ export default function ArchivePage() {
                               <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] w-[200px]">
                                 에피소드
                               </th>
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] w-[140px]">
+                                기간
+                              </th>
                               <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">
                                 SITUATION
                               </th>
@@ -1050,6 +1110,19 @@ export default function ArchivePage() {
                                       <div className="text-xs text-gray-600 dark:text-[#a0a0a0] line-clamp-2">
                                         {item.episodeName !== '-' ? item.episodeName : '에피소드 없음'}
                                       </div>
+                                    </div>
+                                  </td>
+
+                                  {/* 기간 */}
+                                  <td className="px-4 py-4">
+                                    <div className="text-xs text-gray-600 dark:text-[#a0a0a0]">
+                                      {item.experienceStartDate && item.experienceEndDate ? (
+                                        `${format(new Date(item.experienceStartDate), 'yyyy.MM.dd', { locale: ko })} - ${format(new Date(item.experienceEndDate), 'yyyy.MM.dd', { locale: ko })}`
+                                      ) : item.experienceStartDate ? (
+                                        `${format(new Date(item.experienceStartDate), 'yyyy.MM.dd', { locale: ko })} - 진행중`
+                                      ) : (
+                                        '-'
+                                      )}
                                     </div>
                                   </td>
 
