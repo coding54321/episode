@@ -224,6 +224,16 @@ export default function Header({
             >
               아카이브
             </Link>
+            <Link
+              href="/gap-diagnosis-standalone"
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                isActive('/gap-diagnosis-standalone')
+                  ? 'text-[#5B6EFF] bg-[#5B6EFF]/10'
+                  : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+              }`}
+            >
+              공백 진단하기
+            </Link>
           </nav>
         )}
 
@@ -277,6 +287,14 @@ export default function Header({
                   >
                     <Archive className="w-4 h-4" />
                     에피소드 아카이브
+                  </Link>
+                  <Link
+                    href="/gap-diagnosis-standalone"
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 flex items-center gap-2 transition-colors"
+                    onClick={() => setShowMenu(false)}
+                  >
+                    <Search className="w-4 h-4" />
+                    공백 진단하기
                   </Link>
                   <button
                     onClick={handleLogout}

@@ -40,7 +40,6 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { ChevronLeft, ChevronRight, MessageSquare, Check, X, BarChart3, FileText, CheckCircle2, AlertCircle, Loader2, Share2, Link2, Copy, Users, Search, Filter, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
-import Header from '@/components/Header';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { DndProvider } from 'react-dnd';

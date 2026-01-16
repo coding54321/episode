@@ -40,7 +40,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { ChevronLeft, ChevronRight, MessageSquare, Check, X, BarChart3, FileText, CheckCircle2, AlertCircle, Loader2, Share2, Link2, Copy, Users, Search, Filter, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
-import Header from '@/components/Header';
+import FloatingHeader from '@/components/FloatingHeader';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { DndProvider } from 'react-dnd';
@@ -1902,7 +1902,7 @@ export default function MindMapWorkspace() {
     <DndProvider backend={HTML5Backend}>
     <div className="h-screen flex flex-col bg-gray-50 dark:bg-[#0a0a0a]">
       {/* 헤더 */}
-      <Header />
+      <FloatingHeader />
       
       {/* 탭 바 */}
       {tabs.length > 0 && (
@@ -1918,7 +1918,7 @@ export default function MindMapWorkspace() {
       
       {/* 프로젝트 정보 */}
       {project && activeTabId !== 'new' && (
-      <div className="bg-white dark:bg-[#0a0a0a] border-b border-gray-100 dark:border-[#2a2a2a] px-5 py-3">
+      <div className={`bg-white dark:bg-[#0a0a0a] border-b border-gray-100 dark:border-[#2a2a2a] px-5 py-3 sticky ${tabs.length > 0 ? 'top-[72px]' : 'top-[56px]'} z-40`}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link href="/mindmaps">
@@ -2473,6 +2473,7 @@ export default function MindMapWorkspace() {
               isAddNodeMode={isAddNodeMode}
               cursorMode={cursorMode}
               onCursorModeChange={setCursorMode}
+              topOffset={tabs.length > 0 ? 120 : 104}
               onExport={async (type: 'image' | 'pdf') => {
                 if (!project) return;
 
@@ -2647,6 +2648,7 @@ export default function MindMapWorkspace() {
                 selectedNodeLevel={selectedNode?.level}
                 nodes={nodes}
                 onSTARComplete={handleSTARComplete}
+                topOffset={tabs.length > 0 ? 120 : 104}
                 onNodeAdd={(parentId, label, nodeType) => {
                   // 새 노드 생성 (인덱스 맵 사용)
                   const parent = nodeMap.get(parentId);

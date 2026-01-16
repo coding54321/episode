@@ -26,6 +26,9 @@ export default function FloatingHeader() {
     if (path === '/mindmaps' || path === '/mindmap') {
       return pathname.startsWith('/mindmap');
     }
+    if (path === '/gap-diagnosis-standalone') {
+      return pathname === '/gap-diagnosis-standalone';
+    }
     return pathname === path;
   };
 
@@ -64,6 +67,16 @@ export default function FloatingHeader() {
                   }`}
                 >
                   아카이브
+                </Link>
+                <Link
+                  href="/gap-diagnosis-standalone"
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    isActive('/gap-diagnosis-standalone')
+                      ? 'text-[#5B6EFF] bg-[#5B6EFF]/10'
+                      : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+                  }`}
+                >
+                  공백 진단하기
                 </Link>
               </nav>
             )}

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, X, FolderOpen, Clock, BarChart3, FileText, Plus, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import Header from '@/components/Header';
+import FloatingHeader from '@/components/FloatingHeader';
 import Link from 'next/link';
 
 export default function NewTabPage() {
@@ -115,7 +115,7 @@ export default function NewTabPage() {
   return (
     <div className="h-screen flex flex-col bg-gray-50 dark:bg-[#0a0a0a]">
       {/* 헤더 */}
-      <Header />
+      <FloatingHeader />
       
       {/* 메인 컨텐츠 */}
       <div className="flex-1 overflow-y-auto px-8 py-8">
@@ -136,7 +136,7 @@ export default function NewTabPage() {
 
               {/* 공백 진단 */}
               <button
-                onClick={() => handleQuickAccess('/gap-diagnosis')}
+                onClick={() => handleQuickAccess('/gap-diagnosis-standalone')}
                 className="flex flex-col items-center gap-3 p-6 rounded-xl bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] hover:border-orange-500 dark:hover:border-orange-500 hover:shadow-lg transition-all group"
               >
                 <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform">

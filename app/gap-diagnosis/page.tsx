@@ -27,8 +27,8 @@ export default function GapDiagnosisPage() {
   }, [router]);
 
   const handleResultButtonClick = () => {
-    // 공백 진단 완료 후 마인드맵 페이지로 이동
-    router.push('/mindmaps');
+    // 공백 진단 완료 후 새 마인드맵 생성 페이지로 이동
+    router.push('/project-type-selection');
   };
 
   const handleClose = () => {
@@ -42,7 +42,7 @@ export default function GapDiagnosisPage() {
       <GapDiagnosis
         isOpen={isOpen}
         onClose={handleClose}
-        resultButtonText="추가 경험 정리하기"
+        resultButtonText="경험 정리하러 가기"
         onResultButtonClick={handleResultButtonClick}
       />
     </div>

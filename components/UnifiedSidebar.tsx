@@ -46,6 +46,7 @@ interface UnifiedSidebarProps {
   defaultGapTab?: 'analysis' | 'inventory';
   initialWidth?: number; // 초기 너비 (기본값: 384px = w-96)
   minWidth?: number; // 최소 너비 (기본값: 320px)
+  topOffset?: number; // 상단 오프셋 (프로젝트 정보 헤더 높이 고려)
 }
 
 type GapStep = 'company' | 'job' | 'questions' | 'result';
@@ -125,10 +126,11 @@ export default function UnifiedSidebar({
   onNodeLabelUpdate,
   onClose,
   onTagDrop,
-  defaultMainTab = 'assistant',
+  defaultMainTab = 'gap',
   defaultGapTab = 'analysis',
   initialWidth = 384, // w-96 = 384px
   minWidth = 320,
+  topOffset = 120,
 }: UnifiedSidebarProps) {
   // 메인 탭 상태 (공백진단하기 / 어시스턴트 / STAR 정리하기)
   const [mainTab, setMainTab] = useState<'gap' | 'star'>(defaultMainTab);
@@ -442,7 +444,7 @@ export default function UnifiedSidebar({
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className="absolute right-0 glass-card shadow-2xl z-[55] flex flex-col border-l border-gray-200 dark:border-[#2a2a2a]"
       style={{ 
-        top: 0,
+        top: topOffset || 120,
         bottom: 0,
         width: `${sidebarWidth}px`,
       }}

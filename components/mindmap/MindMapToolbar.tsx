@@ -43,6 +43,7 @@ interface MindMapToolbarProps {
   isAddNodeMode?: boolean;
   cursorMode?: CursorMode;
   onCursorModeChange?: (mode: CursorMode) => void;
+  topOffset?: number; // 상단 오프셋 (프로젝트 정보 헤더 높이 고려)
 }
 
 export default function MindMapToolbar({
@@ -59,11 +60,12 @@ export default function MindMapToolbar({
   isAddNodeMode = false,
   cursorMode = 'select',
   onCursorModeChange,
+  topOffset = 120,
 }: MindMapToolbarProps) {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="absolute top-4 left-4 z-50 flex flex-col gap-2">
+      <div className="absolute left-4 z-50 flex flex-col gap-2" style={{ top: `${topOffset}px` }}>
         {/* 커서 모드 선택 (선택/무브) */}
         {onCursorModeChange && (
           <Tooltip>
