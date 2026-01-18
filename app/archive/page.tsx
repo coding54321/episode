@@ -138,9 +138,9 @@ export default function ArchivePage() {
         continue;
       }
 
-      // 공동 마인드맵과 개인 마인드맵 구조 분기 처리
+      // 팀 마인드맵과 개인 마인드맵 구조 분기 처리
       if (project.projectType === 'collaborative') {
-        // 공동 마인드맵: 중앙 노드(level 0) = 경험 층위, 경험 노드(level 1), 에피소드 노드(level 2)
+        // 팀 마인드맵: 중앙 노드(level 0) = 경험 층위, 경험 노드(level 1), 에피소드 노드(level 2)
         const experienceNodes = project.nodes.filter(
           (n) => n.parentId === centerNode.id && n.level === 1 && n.nodeType === 'experience'
         );
@@ -226,66 +226,66 @@ export default function ArchivePage() {
         }
       } else {
         // 개인 마인드맵: 중앙 노드(level 0), 배지 노드(level 1), 경험 노드(level 2), 에피소드 노드(level 3)
-        const nodesByLevel = groupNodesByLevel(project.nodes);
+      const nodesByLevel = groupNodesByLevel(project.nodes);
+      
+      // 대분류(배지) 노드들 (level 1)
+      const categoryNodes = nodesByLevel[1] || [];
+      
+      // 대분류가 없으면 프로젝트만 표시
+      if (categoryNodes.length === 0) {
+        items.push({
+          id: `${project.id}_${centerNode.id}`,
+          projectId: project.id,
+          projectName: project.name,
+          category: 'other',
+          categoryLabel: '-',
+          experienceName: '-',
+          episodeName: '-',
+          star: null,
+          tags: [],
+          nodePath: [project.name],
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+        });
+        continue;
+      }
+      
+      for (const categoryNode of categoryNodes) {
+        const badgeType = categoryNode.badgeType || 'other';
+        const categoryLabel = categoryNode.customLabel || categoryNode.label || BADGE_LABELS[badgeType];
         
-        // 대분류(배지) 노드들 (level 1)
-        const categoryNodes = nodesByLevel[1] || [];
+        // 경험 노드들 (level 2)
+        const experienceNodes = project.nodes.filter(
+          (n) => n.parentId === categoryNode.id && n.level === 2
+        );
         
-        // 대분류가 없으면 프로젝트만 표시
-        if (categoryNodes.length === 0) {
+        // 경험이 없으면 대분류까지만 표시
+        if (experienceNodes.length === 0) {
           items.push({
-            id: `${project.id}_${centerNode.id}`,
+            id: `${project.id}_${categoryNode.id}`,
             projectId: project.id,
             projectName: project.name,
-            category: 'other',
-            categoryLabel: '-',
+            category: badgeType,
+            categoryLabel: categoryLabel,
             experienceName: '-',
             episodeName: '-',
             star: null,
             tags: [],
-            nodePath: [project.name],
-            createdAt: project.createdAt,
-            updatedAt: project.updatedAt,
+            nodePath: [project.name, categoryLabel],
+            createdAt: categoryNode.createdAt,
+            updatedAt: categoryNode.updatedAt,
           });
           continue;
         }
         
-        for (const categoryNode of categoryNodes) {
-          const badgeType = categoryNode.badgeType || 'other';
-          const categoryLabel = categoryNode.customLabel || categoryNode.label || BADGE_LABELS[badgeType];
-          
-          // 경험 노드들 (level 2)
-          const experienceNodes = project.nodes.filter(
-            (n) => n.parentId === categoryNode.id && n.level === 2
+        for (const experienceNode of experienceNodes) {
+          // 에피소드 노드들 (level 3)
+          const episodeNodes = project.nodes.filter(
+            (n) => n.parentId === experienceNode.id && n.level === 3
           );
           
-          // 경험이 없으면 대분류까지만 표시
-          if (experienceNodes.length === 0) {
-            items.push({
-              id: `${project.id}_${categoryNode.id}`,
-              projectId: project.id,
-              projectName: project.name,
-              category: badgeType,
-              categoryLabel: categoryLabel,
-              experienceName: '-',
-              episodeName: '-',
-              star: null,
-              tags: [],
-              nodePath: [project.name, categoryLabel],
-              createdAt: categoryNode.createdAt,
-              updatedAt: categoryNode.updatedAt,
-            });
-            continue;
-          }
-          
-          for (const experienceNode of experienceNodes) {
-            // 에피소드 노드들 (level 3)
-            const episodeNodes = project.nodes.filter(
-              (n) => n.parentId === experienceNode.id && n.level === 3
-            );
-            
-            // 에피소드가 없으면 경험까지만 표시
-            if (episodeNodes.length === 0) {
+          // 에피소드가 없으면 경험까지만 표시
+          if (episodeNodes.length === 0) {
             items.push({
               id: `${project.id}_${experienceNode.id}`,
               projectId: project.id,
@@ -306,36 +306,36 @@ export default function ArchivePage() {
               createdAt: experienceNode.createdAt,
               updatedAt: experienceNode.updatedAt,
             });
-              continue;
-            }
+            continue;
+          }
+          
+          for (const episodeNode of episodeNodes) {
+            const starAsset = await assetStorage.getByNodeId(episodeNode.id);
+            const tags = starAsset?.tags ? [...starAsset.tags] : [];
             
-            for (const episodeNode of episodeNodes) {
-              const starAsset = await assetStorage.getByNodeId(episodeNode.id);
-              const tags = starAsset?.tags ? [...starAsset.tags] : [];
-              
-              tags.forEach(tag => tagsSet.add(tag));
-              
-              items.push({
-                id: `${project.id}_${episodeNode.id}`,
-                projectId: project.id,
-                projectName: project.name,
-                category: badgeType,
-                categoryLabel: categoryLabel,
-                experienceName: typeof experienceNode.label === 'string' ? experienceNode.label : '',
-                episodeName: typeof episodeNode.label === 'string' ? episodeNode.label : '',
+            tags.forEach(tag => tagsSet.add(tag));
+            
+            items.push({
+              id: `${project.id}_${episodeNode.id}`,
+              projectId: project.id,
+              projectName: project.name,
+              category: badgeType,
+              categoryLabel: categoryLabel,
+              experienceName: typeof experienceNode.label === 'string' ? experienceNode.label : '',
+              episodeName: typeof episodeNode.label === 'string' ? episodeNode.label : '',
                 experienceStartDate: experienceNode.startDate || null,
                 experienceEndDate: experienceNode.endDate || null,
                 star: starAsset || null,
-                tags,
-                nodePath: [
-                  project.name,
-                  categoryLabel,
-                  typeof experienceNode.label === 'string' ? experienceNode.label : '',
-                  typeof episodeNode.label === 'string' ? episodeNode.label : '',
-                ],
-                createdAt: episodeNode.createdAt,
-                updatedAt: episodeNode.updatedAt,
-              });
+              tags,
+              nodePath: [
+                project.name,
+                categoryLabel,
+                typeof experienceNode.label === 'string' ? experienceNode.label : '',
+                typeof episodeNode.label === 'string' ? episodeNode.label : '',
+              ],
+              createdAt: episodeNode.createdAt,
+              updatedAt: episodeNode.updatedAt,
+            });
             }
           }
         }
@@ -651,171 +651,174 @@ export default function ArchivePage() {
 
       {/* 메인 컨텐츠 */}
       <div className="flex-1 px-5 pt-32 pb-12 max-w-7xl mx-auto w-full">
-        {/* 페이지 헤더 */}
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-2">에피소드 아카이브</h1>
-          <p className="text-gray-600 dark:text-[#a0a0a0] mb-6">모든 경험을 STAR 기법으로 정리하여 확인하세요</p>
-          
-          {/* 탭 */}
-          <div className="border-b border-gray-200 dark:border-[#2a2a2a] -mx-5 px-5">
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'personal' | 'collaborative')}>
-              <TabsList className="bg-transparent rounded-none p-0 h-auto w-auto justify-start">
-                <TabsTrigger 
-                  value="all" 
-                  className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
-                >
-                  전체
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="personal"
-                  className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
-                >
-                  개인 마인드맵
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="collaborative"
-                  className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
-                >
-                  공동 마인드맵
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        </div>
-
-        {/* 검색 및 필터 */}
-        <div className="mb-8 space-y-4">
-          {/* 검색바 */}
-          <div className="relative">
-            <Search className="w-5 h-5 text-gray-400 dark:text-[#606060] absolute left-4 top-1/2 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder="에피소드, 경험, STAR 내용 검색..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 h-12 rounded-[12px] border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-[#e5e5e5] placeholder-gray-500 dark:placeholder-[#606060] focus:border-blue-500 dark:focus:border-[#60A5FA] focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50"
-            />
+        {/* Sticky 헤더 영역 */}
+        <div className="sticky top-[64px] z-40 bg-white dark:bg-[#0a0a0a] -mx-5 px-5 pt-4 pb-4 mb-6 border-b border-gray-200 dark:border-[#2a2a2a]">
+          {/* 페이지 헤더 */}
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-2">에피소드 보관함</h1>
+            <p className="text-gray-600 dark:text-[#a0a0a0] mb-4">모든 경험을 STAR 기법으로 정리하여 확인하세요</p>
+            
+            {/* 탭 */}
+            <div className="border-b border-gray-200 dark:border-[#2a2a2a] -mx-5 px-5">
+              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'personal' | 'collaborative')}>
+                <TabsList className="bg-transparent rounded-none p-0 h-auto w-auto justify-start">
+                  <TabsTrigger 
+                    value="all" 
+                    className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                  >
+                    전체
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="personal"
+                    className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                  >
+                    개인 마인드맵
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="collaborative"
+                    className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                  >
+                    팀 마인드맵
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
 
-          {/* 필터 */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* 프로젝트 선택 드롭다운 */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={`h-9 px-4 rounded-full border-2 justify-between ${
-                    selectedProjectId !== 'all'
-                      ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-[#60A5FA] text-blue-700 dark:text-[#60A5FA]'
-                      : 'bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-900 dark:text-[#e5e5e5] hover:bg-gray-50 dark:hover:bg-[#2a2a2a]'
-                  }`}
-                >
-                  <span className="font-semibold text-sm">
-                    {selectedProjectId === 'all'
-                      ? '전체 마인드맵'
-                      : projects.find(p => p.id === selectedProjectId)?.name || '마인드맵 선택'}
-                  </span>
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-[280px] max-h-[400px] overflow-y-auto">
-                <DropdownMenuItem
-                  onClick={() => {
-                    console.log('[archive/page] 전체 마인드맵 선택');
-                    setSelectedProjectId('all');
-                  }}
-                  className={`cursor-pointer ${
-                    selectedProjectId === 'all' ? 'bg-blue-50 dark:bg-blue-900/30' : ''
-                  }`}
-                >
-                  <span className="font-semibold">전체 마인드맵</span>
-                </DropdownMenuItem>
-                {projects.length > 0 ? (
-                  <>
-                    <div className="h-px bg-gray-200 dark:bg-[#2a2a2a] my-1" />
-                    {projects.map((project) => {
-                      console.log('[archive/page] 드롭다운 프로젝트 렌더링', { projectId: project.id, projectName: project.name });
-                      return (
-                        <DropdownMenuItem
-                          key={project.id}
-                          onClick={() => {
-                            console.log('[archive/page] 프로젝트 선택', { projectId: project.id, projectName: project.name });
-                            setSelectedProjectId(project.id);
-                          }}
-                          className={`cursor-pointer ${
-                            selectedProjectId === project.id ? 'bg-blue-50 dark:bg-blue-900/30' : ''
-                          }`}
-                        >
-                          <span className={selectedProjectId === project.id ? 'font-semibold' : ''}>
-                            {project.name}
-                          </span>
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </>
-                ) : (
-                  <DropdownMenuItem disabled className="text-gray-400 dark:text-[#606060]">
-                    {isLoading ? '로딩 중...' : '프로젝트가 없습니다'}
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-gray-500 dark:text-[#a0a0a0]" />
-              <span className="text-sm font-medium text-gray-700 dark:text-[#e5e5e5]">필터:</span>
+          {/* 검색 및 필터 */}
+          <div className="space-y-4 mb-4">
+            {/* 검색바 */}
+            <div className="relative">
+              <Search className="w-5 h-5 text-gray-400 dark:text-[#606060] absolute left-4 top-1/2 -translate-y-1/2" />
+              <Input
+                type="text"
+                placeholder="에피소드, 경험, STAR 내용 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 h-12 rounded-[12px] border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-[#e5e5e5] placeholder-gray-500 dark:placeholder-[#606060] focus:border-blue-500 dark:focus:border-[#60A5FA] focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50"
+              />
             </div>
 
-            {/* 카테고리 필터 */}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={selectedCategory === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedCategory('all')}
-                className="h-9 rounded-full"
-              >
-                전체
-              </Button>
-              {Object.entries(BADGE_LABELS).map(([key, label]) => (
+            {/* 필터 */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* 프로젝트 선택 드롭다운 */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={`h-9 px-4 rounded-full border-2 justify-between ${
+                      selectedProjectId !== 'all'
+                        ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-[#60A5FA] text-blue-700 dark:text-[#60A5FA]'
+                        : 'bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-900 dark:text-[#e5e5e5] hover:bg-gray-50 dark:hover:bg-[#2a2a2a]'
+                    }`}
+                  >
+                    <span className="font-semibold text-sm">
+                      {selectedProjectId === 'all'
+                        ? '전체 마인드맵'
+                        : projects.find(p => p.id === selectedProjectId)?.name || '마인드맵 선택'}
+                    </span>
+                    <ChevronDown className="h-4 w-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[280px] max-h-[400px] overflow-y-auto">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      console.log('[archive/page] 전체 마인드맵 선택');
+                      setSelectedProjectId('all');
+                    }}
+                    className={`cursor-pointer ${
+                      selectedProjectId === 'all' ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                    }`}
+                  >
+                    <span className="font-semibold">전체 마인드맵</span>
+                  </DropdownMenuItem>
+                  {projects.length > 0 ? (
+                    <>
+                      <div className="h-px bg-gray-200 dark:bg-[#2a2a2a] my-1" />
+                      {projects.map((project) => {
+                        console.log('[archive/page] 드롭다운 프로젝트 렌더링', { projectId: project.id, projectName: project.name });
+                        return (
+                          <DropdownMenuItem
+                            key={project.id}
+                            onClick={() => {
+                              console.log('[archive/page] 프로젝트 선택', { projectId: project.id, projectName: project.name });
+                              setSelectedProjectId(project.id);
+                            }}
+                            className={`cursor-pointer ${
+                              selectedProjectId === project.id ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                            }`}
+                          >
+                            <span className={selectedProjectId === project.id ? 'font-semibold' : ''}>
+                              {project.name}
+                            </span>
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <DropdownMenuItem disabled className="text-gray-400 dark:text-[#606060]">
+                      {isLoading ? '로딩 중...' : '프로젝트가 없습니다'}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-gray-500 dark:text-[#a0a0a0]" />
+                <span className="text-sm font-medium text-gray-700 dark:text-[#e5e5e5]">필터:</span>
+              </div>
+
+              {/* 카테고리 필터 */}
+              <div className="flex flex-wrap gap-2">
                 <Button
-                  key={key}
-                  variant={selectedCategory === key ? 'default' : 'outline'}
+                  variant={selectedCategory === 'all' ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setSelectedCategory(key as BadgeType)}
+                  onClick={() => setSelectedCategory('all')}
                   className="h-9 rounded-full"
                 >
-                  {label}
+                  전체
                 </Button>
-              ))}
+                {Object.entries(BADGE_LABELS).map(([key, label]) => (
+                  <Button
+                    key={key}
+                    variant={selectedCategory === key ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedCategory(key as BadgeType)}
+                    className="h-9 rounded-full"
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+
+              {/* 태그 필터 */}
+              {allTags.length > 0 && (
+                <>
+                  <div className="w-px h-6 bg-gray-200" />
+                  <select
+                    value={selectedTag}
+                    onChange={(e) => setSelectedTag(e.target.value)}
+                    className="h-9 px-4 rounded-full border border-gray-200 dark:border-[#2a2a2a] text-sm font-medium text-gray-700 dark:text-[#e5e5e5] bg-white dark:bg-[#1a1a1a] hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors"
+                  >
+                    <option value="all">모든 역량</option>
+                    {allTags.map((tag) => (
+                      <option key={tag} value={tag}>
+                        {tag}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+
             </div>
-
-            {/* 태그 필터 */}
-            {allTags.length > 0 && (
-              <>
-                <div className="w-px h-6 bg-gray-200" />
-                <select
-                  value={selectedTag}
-                  onChange={(e) => setSelectedTag(e.target.value)}
-                  className="h-9 px-4 rounded-full border border-gray-200 dark:border-[#2a2a2a] text-sm font-medium text-gray-700 dark:text-[#e5e5e5] bg-white dark:bg-[#1a1a1a] hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors"
-                >
-                  <option value="all">모든 역량</option>
-                  {allTags.map((tag) => (
-                    <option key={tag} value={tag}>
-                      {tag}
-                    </option>
-                  ))}
-                </select>
-              </>
-            )}
-
           </div>
-        </div>
 
-        {/* 결과 카운트 */}
-        <div className="mb-6">
-          <p className="text-sm text-gray-600 dark:text-[#a0a0a0]">
-            총 <span className="font-semibold text-gray-900 dark:text-[#e5e5e5]">{filteredItems.length}</span>개의 에피소드
-          </p>
+          {/* 결과 카운트 */}
+          <div>
+            <p className="text-sm text-gray-600 dark:text-[#a0a0a0]">
+              총 <span className="font-semibold text-gray-900 dark:text-[#e5e5e5]">{filteredItems.length}</span>개의 에피소드
+            </p>
+          </div>
         </div>
 
         {/* 에피소드 테이블 */}
@@ -854,7 +857,7 @@ export default function ArchivePage() {
                       acc[item.projectId].push(item);
                       return acc;
                     }, {} as Record<string, ArchiveItem[]>);
-
+                      
                     return Object.entries(groupedByProject).map(([projectId, items]) => {
                       const project = projects.find(p => p.id === projectId);
                       return (
@@ -869,7 +872,7 @@ export default function ArchivePage() {
                               const isSelected = editingItemId === item.id;
                               return (
                                 <div
-                                  key={item.id}
+                          key={item.id}
                                   onClick={() => {
                                     if (item.episodeName !== '-' && item.episodeName && item.episodeName.trim() !== '') {
                                       handleStartEdit(item);
@@ -880,12 +883,12 @@ export default function ArchivePage() {
                                       ? 'bg-[#5B6EFF] text-white border-2 border-white'
                                       : 'bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
                                   } ${item.episodeName === '-' || !item.episodeName || item.episodeName.trim() === '' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
+                            >
                                   <div className={`text-xs font-medium mb-1 ${isSelected ? 'text-white/80' : 'text-gray-500 dark:text-[#a0a0a0]'}`}>
                                     {item.categoryLabel !== '-' ? (
                                       <Badge className={`${BADGE_COLORS[item.category]} border text-xs`}>
-                                        {item.categoryLabel}
-                                      </Badge>
+                                {item.categoryLabel}
+                              </Badge>
                                     ) : null}
                                   </div>
                                   <div className={`text-sm font-semibold mb-1 ${isSelected ? 'text-white' : 'text-gray-900 dark:text-[#e5e5e5]'}`}>
@@ -909,7 +912,7 @@ export default function ArchivePage() {
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="space-y-4">
                   {/* 기간 입력 */}
-                  <div>
+                                  <div>
                     <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">기간</label>
                     <DateRangePicker
                       startDate={editFormData.startDate}
@@ -921,41 +924,41 @@ export default function ArchivePage() {
                   </div>
                   <div>
                     <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">SITUATION</label>
-                    <Textarea
-                      value={editFormData.situation}
-                      onChange={(e) => setEditFormData({ ...editFormData, situation: e.target.value })}
+                                    <Textarea
+                                      value={editFormData.situation}
+                                      onChange={(e) => setEditFormData({ ...editFormData, situation: e.target.value })}
                       className="min-h-[120px] text-sm bg-gray-50 dark:bg-[#0a0a0a] border-gray-300 dark:border-[#404040] text-gray-900 dark:text-[#e5e5e5] resize-none"
-                      placeholder="상황을 입력하세요"
-                    />
-                  </div>
-                  <div>
+                                      placeholder="상황을 입력하세요"
+                                    />
+                                  </div>
+                                  <div>
                     <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">TASK</label>
-                    <Textarea
-                      value={editFormData.task}
-                      onChange={(e) => setEditFormData({ ...editFormData, task: e.target.value })}
+                                    <Textarea
+                                      value={editFormData.task}
+                                      onChange={(e) => setEditFormData({ ...editFormData, task: e.target.value })}
                       className="min-h-[120px] text-sm bg-gray-50 dark:bg-[#0a0a0a] border-gray-300 dark:border-[#404040] text-gray-900 dark:text-[#e5e5e5] resize-none"
-                      placeholder="과제를 입력하세요"
-                    />
-                  </div>
-                  <div>
+                                      placeholder="과제를 입력하세요"
+                                    />
+                                  </div>
+                                  <div>
                     <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">ACTION</label>
-                    <Textarea
-                      value={editFormData.action}
-                      onChange={(e) => setEditFormData({ ...editFormData, action: e.target.value })}
+                                    <Textarea
+                                      value={editFormData.action}
+                                      onChange={(e) => setEditFormData({ ...editFormData, action: e.target.value })}
                       className="min-h-[120px] text-sm bg-gray-50 dark:bg-[#0a0a0a] border-gray-300 dark:border-[#404040] text-gray-900 dark:text-[#e5e5e5] resize-none"
-                      placeholder="행동을 입력하세요"
-                    />
-                  </div>
-                  <div>
+                                      placeholder="행동을 입력하세요"
+                                    />
+                                  </div>
+                                  <div>
                     <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">RESULT</label>
-                    <Textarea
-                      value={editFormData.result}
-                      onChange={(e) => setEditFormData({ ...editFormData, result: e.target.value })}
+                                    <Textarea
+                                      value={editFormData.result}
+                                      onChange={(e) => setEditFormData({ ...editFormData, result: e.target.value })}
                       className="min-h-[120px] text-sm bg-gray-50 dark:bg-[#0a0a0a] border-gray-300 dark:border-[#404040] text-gray-900 dark:text-[#e5e5e5] resize-none"
-                      placeholder="결과를 입력하세요"
-                    />
-                  </div>
-                </div>
+                                      placeholder="결과를 입력하세요"
+                                    />
+                                  </div>
+                                </div>
               </div>
 
               {/* 오른쪽: 강점/역량 + 저장/취소 */}
@@ -968,16 +971,16 @@ export default function ArchivePage() {
                     {editFormData.tags.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
                         {editFormData.tags.map((tag) => (
-                          <Badge
+                                      <Badge
                             key={tag}
                             variant="outline"
                             className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-[#60A5FA] border-blue-200 dark:border-blue-600 text-xs cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50"
                             onClick={() => handleToggleTag(tag)}
-                          >
+                                      >
                             {tag}
-                          </Badge>
-                        ))}
-                      </div>
+                                      </Badge>
+                                    ))}
+                                  </div>
                     ) : null}
                     <Button
                       variant="outline"
@@ -988,11 +991,11 @@ export default function ArchivePage() {
                       <Plus className="h-4 w-4 mr-2" />
                       태그 추가
                     </Button>
-                  </div>
+                                </div>
                 </div>
                 <div className="p-4 border-t border-gray-200 dark:border-[#2a2a2a] space-y-2">
-                  <Button
-                    size="sm"
+                                  <Button
+                                    size="sm"
                     onClick={() => {
                       const currentItem = filteredItems.find(item => item.id === editingItemId);
                       if (currentItem) {
@@ -1000,17 +1003,17 @@ export default function ArchivePage() {
                       }
                     }}
                     className="w-full bg-[#5B6EFF] hover:bg-[#4B5EEF] text-white h-10"
-                  >
-                    저장
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleCancelEdit}
+                                  >
+                                    저장
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={handleCancelEdit}
                     className="w-full h-10"
-                  >
-                    취소
-                  </Button>
+                                  >
+                                    취소
+                                  </Button>
                 </div>
               </div>
             </div>
@@ -1110,8 +1113,8 @@ export default function ArchivePage() {
                                       <div className="text-xs text-gray-600 dark:text-[#a0a0a0] line-clamp-2">
                                         {item.episodeName !== '-' ? item.episodeName : '에피소드 없음'}
                                       </div>
-                                    </div>
-                                  </td>
+                                </div>
+                              </td>
 
                                   {/* 기간 */}
                                   <td className="px-4 py-4">
@@ -1129,100 +1132,100 @@ export default function ArchivePage() {
                                   {/* SITUATION */}
                                   <td className="px-4 py-4">
                                     <div className="min-h-[40px] flex items-start">
-                                      {item.star?.situation ? (
+                                {item.star?.situation ? (
                                         <div className="text-sm text-gray-700 dark:text-[#e5e5e5] line-clamp-3" title={item.star.situation}>
-                                          {item.star.situation}
-                                        </div>
-                                      ) : (
+                                    {item.star.situation}
+                                  </div>
+                                ) : (
                                         <span className="text-xs text-gray-400 dark:text-[#606060]">s</span>
-                                      )}
+                                )}
                                     </div>
-                                  </td>
+                              </td>
 
                                   {/* TASK */}
                                   <td className="px-4 py-4">
                                     <div className="min-h-[40px] flex items-start">
-                                      {item.star?.task ? (
+                                {item.star?.task ? (
                                         <div className="text-sm text-gray-700 dark:text-[#e5e5e5] line-clamp-3" title={item.star.task}>
-                                          {item.star.task}
-                                        </div>
-                                      ) : (
+                                    {item.star.task}
+                                  </div>
+                                ) : (
                                         <span className="text-xs text-gray-400 dark:text-[#606060]">t</span>
-                                      )}
+                                )}
                                     </div>
-                                  </td>
+                              </td>
 
                                   {/* ACTION */}
                                   <td className="px-4 py-4">
                                     <div className="min-h-[40px] flex items-start">
-                                      {item.star?.action ? (
+                                {item.star?.action ? (
                                         <div className="text-sm text-gray-700 dark:text-[#e5e5e5] line-clamp-3" title={item.star.action}>
-                                          {item.star.action}
-                                        </div>
-                                      ) : (
+                                    {item.star.action}
+                                  </div>
+                                ) : (
                                         <span className="text-xs text-gray-400 dark:text-[#606060]">a</span>
-                                      )}
+                                )}
                                     </div>
-                                  </td>
+                              </td>
 
                                   {/* RESULT */}
                                   <td className="px-4 py-4">
                                     <div className="min-h-[40px] flex items-start">
-                                      {item.star?.result ? (
+                                {item.star?.result ? (
                                         <div className="text-sm text-gray-700 dark:text-[#e5e5e5] line-clamp-3" title={item.star.result}>
-                                          {item.star.result}
-                                        </div>
-                                      ) : (
+                                    {item.star.result}
+                                  </div>
+                                ) : (
                                         <span className="text-xs text-gray-400 dark:text-[#606060]">r</span>
-                                      )}
+                                )}
                                     </div>
-                                  </td>
+                              </td>
 
                                   {/* 강점/역량 */}
-                                  <td className="px-4 py-4">
+                              <td className="px-4 py-4">
                                     <div className="min-h-[40px]">
-                                      {item.tags.length > 0 ? (
+                                  {item.tags.length > 0 ? (
                                         <div className="flex flex-wrap gap-1">
                                           {item.tags.map((tag) => (
-                                            <Badge
-                                              key={tag}
-                                              variant="outline"
-                                              className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-[#60A5FA] border-blue-200 dark:border-blue-600 text-xs"
-                                            >
-                                              {tag}
-                                            </Badge>
+                                      <Badge
+                                        key={tag}
+                                        variant="outline"
+                                        className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-[#60A5FA] border-blue-200 dark:border-blue-600 text-xs"
+                                      >
+                                        {tag}
+                                      </Badge>
                                           ))}
                                         </div>
-                                      ) : (
+                                  ) : (
                                         <span className="text-xs text-gray-400 dark:text-[#606060]">강점/역량</span>
-                                      )}
-                                    </div>
-                                  </td>
+                                  )}
+                                </div>
+                              </td>
 
-                                  {/* 편집 버튼 */}
-                                  <td className="px-4 py-4 text-center">
+                              {/* 편집 버튼 */}
+                              <td className="px-4 py-4 text-center">
                                     {isEditable ? (
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleStartEdit(item);
                                         }}
-                                        className="h-8 w-8 p-0 hover:bg-blue-50 dark:hover:bg-[#2a2a2a]"
-                                      >
-                                        <Edit className="h-4 w-4 text-gray-600 dark:text-[#a0a0a0]" />
-                                      </Button>
+                                    className="h-8 w-8 p-0 hover:bg-blue-50 dark:hover:bg-[#2a2a2a]"
+                                  >
+                                    <Edit className="h-4 w-4 text-gray-600 dark:text-[#a0a0a0]" />
+                                  </Button>
                                     ) : (
                                       <span className="text-xs text-gray-400 dark:text-[#606060]">-</span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
+                                )}
+                              </td>
+                        </tr>
+                      );
                             })}
-                          </tbody>
-                        </table>
-                      </div>
+                </tbody>
+              </table>
+            </div>
                     </div>
                   </div>
                 );

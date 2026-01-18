@@ -353,7 +353,7 @@ export default function MindMapNode({
                   <div className="w-[3px] h-[3px] bg-white rounded-full" />
                   <div className="w-[3px] h-[3px] bg-white rounded-full" />
                   <div className="w-[3px] h-[3px] bg-white rounded-full" />
-                </div>
+              </div>
               </button>
             )}
 
@@ -606,10 +606,10 @@ export default function MindMapNode({
       </ContextMenuTrigger>
       <ContextMenuContent>
         {!isReadOnly && (
-          <ContextMenuItem onClick={() => onAddChild(node.id, 'right')}>
-            <Plus className="w-4 h-4 mr-2" />
-            하위 노드 추가
-          </ContextMenuItem>
+            <ContextMenuItem onClick={() => onAddChild(node.id, 'right')}>
+              <Plus className="w-4 h-4 mr-2" />
+              하위 노드 추가
+            </ContextMenuItem>
         )}
         {(node.nodeType === 'episode' || node.level === 3) && onOpenSTAREditor && (
           <ContextMenuItem onClick={() => onOpenSTAREditor(node.id)}>

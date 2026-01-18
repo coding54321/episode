@@ -28,7 +28,7 @@ export default function BadgeSelectionClient() {
   const [selectedBadges, setSelectedBadges] = useState<BadgeType[]>([]);
   const [customLabels, setCustomLabels] = useState<Record<string, string>>({});
 
-  // 공동 마인드맵용 경험 입력
+  // 팀 마인드맵용 경험 입력
   const [experiences, setExperiences] = useState<string[]>(['']);
   const [projectName, setProjectName] = useState('');
 
@@ -59,7 +59,7 @@ export default function BadgeSelectionClient() {
     setSelectedBadges((prev) => (prev.includes(badgeId) ? prev.filter((id) => id !== badgeId) : [...prev, badgeId]));
   };
 
-  // 공동 마인드맵용 경험 추가/삭제
+  // 팀 마인드맵용 경험 추가/삭제
   const handleAddExperience = () => {
     setExperiences([...experiences, '']);
   };
@@ -214,7 +214,7 @@ export default function BadgeSelectionClient() {
 
   const handleSkip = async () => {
     if (projectType === 'collaborative') {
-      alert('공동 마인드맵은 최소 1개 이상의 경험을 입력해주세요.');
+      alert('팀 마인드맵은 최소 1개 이상의 경험을 입력해주세요.');
       return;
     }
 
@@ -284,7 +284,7 @@ export default function BadgeSelectionClient() {
               {projectType === 'collaborative' ? (
                 <>
                   <h1 className="text-2xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-3">
-                    공동 마인드맵을
+                    팀 마인드맵을
                     <br />
                     시작해볼까요?
                   </h1>

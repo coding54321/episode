@@ -15,7 +15,6 @@ interface TabState {
   selectedNodeId: string | null;
   focusNodeId: string | null;
 }
-import NewTabPanel from '@/components/mindmap/NewTabPanel';
 import UnifiedSidebar from '@/components/UnifiedSidebar';
 import STAREditor from '@/components/star/STAREditor';
 import LayoutSelector from '@/components/mindmap/LayoutSelector';
@@ -23,6 +22,8 @@ import MindMapToolbar from '@/components/mindmap/MindMapToolbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -38,7 +39,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
-import { ChevronLeft, ChevronRight, MessageSquare, Check, X, BarChart3, FileText, CheckCircle2, AlertCircle, Loader2, Share2, Link2, Copy, Users, Search, Filter, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MessageSquare, Check, X, BarChart3, FileText, CheckCircle2, AlertCircle, Loader2, Share2, Link2, Copy, Users, Search, Filter, ChevronDown, Plus, Trash2, Edit2, Star, MoreVertical, FolderOpen } from 'lucide-react';
 import Link from 'next/link';
 import FloatingHeader from '@/components/FloatingHeader';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -123,6 +124,13 @@ export default function MindMapWorkspace() {
   const [isCompetencyFilterOpen, setIsCompetencyFilterOpen] = useState(false);
   const [competencyStats, setCompetencyStats] = useState<Array<{ competency: string; count: number; nodeIds: string[] }>>([]);
   const competencyFilterRef = useRef<HTMLDivElement>(null);
+  
+  // 새 탭용 프로젝트 목록 상태
+  const [allProjects, setAllProjects] = useState<MindMapProject[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [projectsTab, setProjectsTab] = useState<'all' | 'personal' | 'shared'>('all');
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editedProjectTitle, setEditedProjectTitle] = useState('');
   
 
   // DB 업데이트 디바운싱을 위한 ref
@@ -268,6 +276,24 @@ export default function MindMapWorkspace() {
     restoreWorkspace();
   }, [user, authLoading]);
 
+  // 새 탭일 때 프로젝트 목록 로드
+  useEffect(() => {
+    if (activeTabId === 'new' && user && !authLoading) {
+      const loadProjects = async () => {
+        setProjectsLoading(true);
+        try {
+          const savedProjects = await mindMapProjectStorage.load();
+          setAllProjects(savedProjects);
+        } catch (error) {
+          console.error('Failed to load projects:', error);
+        } finally {
+          setProjectsLoading(false);
+        }
+      };
+      loadProjects();
+    }
+  }, [activeTabId, user, authLoading]);
+
   // 탭 상태가 변경될 때 워크스페이스 스냅샷 저장
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -351,7 +377,7 @@ export default function MindMapWorkspace() {
           const { getSharedProject } = await import('@/lib/supabase/data');
           loadedProject = await getSharedProject(initialProjectId);
           if (loadedProject) {
-            // 공동 마인드맵만 공유 링크로 접근 가능
+            // 팀 마인드맵만 공유 링크로 접근 가능
             if (loadedProject.projectType === 'collaborative') {
               isSharedAccess = true;
               isOwnerFlag = false;
@@ -385,7 +411,7 @@ export default function MindMapWorkspace() {
           }
           setIsReadOnly(false);
         }
-        // 공동 마인드맵 권한 체크
+        // 팀 마인드맵 권한 체크
         else if (loadedProject.projectType === 'collaborative') {
           if (isOwnerFlag) {
             setIsReadOnly(false);
@@ -394,7 +420,7 @@ export default function MindMapWorkspace() {
           } else if (loadedProject.isShared && !user) {
             setIsReadOnly(true); // 비로그인 사용자 읽기 전용
           } else {
-            // 공유되지 않은 공동 마인드맵은 소유자만 접근
+            // 공유되지 않은 팀 마인드맵은 소유자만 접근
             router.push('/mindmaps');
             return;
           }
@@ -461,24 +487,24 @@ export default function MindMapWorkspace() {
           }
         });
 
-        // 초기 탭 상태 저장 (Figma 스타일)
+          // 초기 탭 상태 저장 (Figma 스타일)
         const tabId = tabs.find(t => t.type === 'project' && t.projectId === initialProjectId && !t.nodeId)?.id || 
                      (tabs.length === 0 ? 'main' : `project_${initialProjectId}`);
         const layoutConfigForState = loadedProject.layoutConfig || { autoLayout: true };
         const initialNodes = layoutConfigForState.autoLayout && loadedProject.nodes.length > 0
           ? applyLayout(loadedProject.nodes, loadedProject.layoutType || 'radial', layoutConfigForState)
-          : loadedProject.nodes;
+            : loadedProject.nodes;
 
-        setTabStates(prevStates => {
-          const newMap = new Map(prevStates);
-          newMap.set(tabId, {
-            project: loadedProject,
-            nodes: initialNodes,
-            selectedNodeId: null,
+          setTabStates(prevStates => {
+            const newMap = new Map(prevStates);
+            newMap.set(tabId, {
+              project: loadedProject,
+              nodes: initialNodes,
+              selectedNodeId: null,
             focusNodeId: nodeId || null,
+            });
+            return newMap;
           });
-          return newMap;
-        });
 
         // nodeId가 있으면 포커스 설정
         if (nodeId) {
@@ -643,7 +669,7 @@ export default function MindMapWorkspace() {
     };
   }, [user, project, activeProjectId, isReadOnly]);
 
-  // 활성 편집자 목록 폴링 (공동 마인드맵이고 공유된 프로젝트인 경우)
+  // 활성 편집자 목록 폴링 (팀 마인드맵이고 공유된 프로젝트인 경우)
   useEffect(() => {
     if (project?.projectType !== 'collaborative' || !project?.isShared || !activeProjectId) {
       return;
@@ -690,48 +716,48 @@ export default function MindMapWorkspace() {
       return;
     }
 
-    const node = project.nodes.find(n => n.id === nodeId);
+      const node = project.nodes.find(n => n.id === nodeId);
     if (!node) return;
 
-    // URL 파라미터에 focus=true가 있으면 메인 뷰에서 포커스
-    const isFocusMode = searchParams.get('focus') === 'true';
-    
-    if (isFocusMode) {
-      // 메인 탭으로 이동
-      setActiveTabId('main');
-      // 해당 노드로 포커스
-      setFocusNodeId(nodeId);
-      
-      // 잠시 후 focusNodeId 초기화 (다음 검색을 위해)
-      setTimeout(() => {
-        setFocusNodeId(null);
-      }, 1000);
-      
+        // URL 파라미터에 focus=true가 있으면 메인 뷰에서 포커스
+        const isFocusMode = searchParams.get('focus') === 'true';
+        
+        if (isFocusMode) {
+          // 메인 탭으로 이동
+          setActiveTabId('main');
+          // 해당 노드로 포커스
+          setFocusNodeId(nodeId);
+          
+          // 잠시 후 focusNodeId 초기화 (다음 검색을 위해)
+          setTimeout(() => {
+            setFocusNodeId(null);
+          }, 1000);
+          
       // URL에서 focus 파라미터 제거 (워크스페이스 경로 유지, 히스토리에 남기지 않음)
       if (activeProjectId) {
         router.replace(`/mindmap?projectId=${activeProjectId}`, { scroll: false });
       }
-    } else {
+        } else {
       // 기존 탭 방식: 해당 노드를 위한 탭 생성
-      const tabId = `node_${nodeId}`;
-      
-      setTabs(prev => {
-        const existingTab = prev.find(t => t.id === tabId);
-        
-        if (!existingTab) {
-          const newTab: Tab = {
-            id: tabId,
-            label: typeof node.label === 'string' ? node.label : '노드',
-            nodeId: nodeId,
+          const tabId = `node_${nodeId}`;
+          
+          setTabs(prev => {
+            const existingTab = prev.find(t => t.id === tabId);
+            
+            if (!existingTab) {
+              const newTab: Tab = {
+                id: tabId,
+                label: typeof node.label === 'string' ? node.label : '노드',
+                nodeId: nodeId,
             href: `/mindmap?projectId=${activeProjectId}&nodeId=${nodeId}`,
-            type: 'node',
-          };
-          return [...prev, newTab];
-        }
-        return prev;
-      });
-      
-      setActiveTabId(tabId);
+                type: 'node',
+              };
+              return [...prev, newTab];
+            }
+            return prev;
+          });
+          
+          setActiveTabId(tabId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeId, project, activeProjectId, searchParams]);
@@ -1116,7 +1142,7 @@ export default function MindMapWorkspace() {
   };
 
   useEffect(() => {
-    // 공동 마인드맵이고 공유가 활성화된 경우에만 링크 설정
+    // 팀 마인드맵이고 공유가 활성화된 경우에만 링크 설정
     if (project?.projectType === 'collaborative' && project?.isShared && typeof window !== 'undefined') {
       setShareLink(`${window.location.origin}/mindmap/${activeProjectId}`);
     } else {
@@ -1196,9 +1222,9 @@ export default function MindMapWorkspace() {
 
             // 프로젝트 메타데이터만 업데이트 (nodes는 제외하여 중복 저장 방지)
             if (activeProjectId) {
-              await mindMapProjectStorage.update(activeProjectId, {
-                updatedAt: Date.now(),
-              });
+            await mindMapProjectStorage.update(activeProjectId, {
+              updatedAt: Date.now(),
+            });
             }
 
             // 2초 후 저장 상태 숨김
@@ -1874,7 +1900,7 @@ export default function MindMapWorkspace() {
     setDroppedTag(null);
     setNewNodeName('');
 
-    // 공백 진단 사이드바 열기 및 노드 선택
+    // 기출문항 셀프진단 사이드바 열기 및 노드 선택
     setSelectedNodeId(newNodeId);
     setSidebarMainTab('gap');
     setIsSidebarOpen(true);
@@ -1918,7 +1944,7 @@ export default function MindMapWorkspace() {
       
       {/* 프로젝트 정보 */}
       {project && activeTabId !== 'new' && (
-      <div className={`bg-white dark:bg-[#0a0a0a] border-b border-gray-100 dark:border-[#2a2a2a] px-5 py-3 sticky ${tabs.length > 0 ? 'top-[72px]' : 'top-[56px]'} z-40`}>
+      <div className={`bg-white dark:bg-[#0a0a0a] border-b border-gray-100 dark:border-[#2a2a2a] px-5 py-3 sticky ${tabs.length > 0 ? 'top-[104px]' : 'top-[64px]'} z-40`}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link href="/mindmaps">
@@ -2120,11 +2146,11 @@ export default function MindMapWorkspace() {
                   </div>
                 </div>
               )}
-             </div>
-           </div>
-           
-           {/* 우측 버튼 그룹 */}
-           <div className="flex items-center gap-2">
+            </div>
+          </div>
+          
+          {/* 우측 버튼 그룹 */}
+          <div className="flex items-center gap-2">
             {/* 저장 상태 표시 */}
             {saveStatus && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200">
@@ -2151,35 +2177,37 @@ export default function MindMapWorkspace() {
 
             {/* 레이아웃 선택기는 툴바로 이동 */}
 
-            {/* 공백 진단하기 버튼 */}
-            <Button
-              variant={isSidebarOpen && sidebarMainTab === 'gap' ? "default" : "outline"}
-              size="sm"
-              disabled={isReadOnly}
-              onClick={() => {
-                if (isReadOnly) {
-                  if (!user) {
-                    router.push('/login');
+            {/* 기출문항 셀프진단 버튼 (개인 마인드맵에서만 표시) */}
+            {project?.projectType !== 'collaborative' && (
+              <Button
+                variant={isSidebarOpen && sidebarMainTab === 'gap' ? "default" : "outline"}
+                size="sm"
+                disabled={isReadOnly}
+                onClick={() => {
+                  if (isReadOnly) {
+                    if (!user) {
+                      router.push('/login');
+                    }
+                    return;
                   }
-                  return;
-                }
-                if (isSidebarOpen && sidebarMainTab === 'gap') {
-                  setIsSidebarOpen(false);
-                } else {
-                  setSidebarMainTab('gap');
-                  setIsSidebarOpen(true);
-                }
-              }}
-              className={`px-3 py-2 gap-2 transition-all duration-200 ${
-                isSidebarOpen && sidebarMainTab === 'gap'
-                  ? 'bg-[#5B6EFF] text-white hover:bg-[#4B5EEF]' 
-                  : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] border border-gray-300 dark:border-[#2a2a2a]'
-              }`}
-              title={isSidebarOpen && sidebarMainTab === 'gap' ? '공백 진단하기 닫기' : '공백 진단하기 열기'}
-            >
-              <BarChart3 className="h-4 w-4" />
-              <span>공백 진단하기</span>
-            </Button>
+                  if (isSidebarOpen && sidebarMainTab === 'gap') {
+                    setIsSidebarOpen(false);
+                  } else {
+                    setSidebarMainTab('gap');
+                    setIsSidebarOpen(true);
+                  }
+                }}
+                className={`px-3 py-2 gap-2 transition-all duration-200 ${
+                  isSidebarOpen && sidebarMainTab === 'gap'
+                    ? 'bg-[#5B6EFF] text-white hover:bg-[#4B5EEF]' 
+                    : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] border border-gray-300 dark:border-[#2a2a2a]'
+                }`}
+                title={isSidebarOpen && sidebarMainTab === 'gap' ? '기출문항 셀프진단 닫기' : '기출문항 셀프진단 열기'}
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span>기출문항 셀프진단</span>
+              </Button>
+            )}
             
             {/* STAR 정리하기 버튼 */}
             <Button
@@ -2210,12 +2238,12 @@ export default function MindMapWorkspace() {
               <FileText className="h-4 w-4" />
               <span>STAR 정리하기</span>
             </Button>
-           </div>
-         </div>
-       </div>
+          </div>
+        </div>
+      </div>
       )}
 
-       {/* 읽기 전용 모드 배너 */}
+      {/* 읽기 전용 모드 배너 */}
        {project && activeTabId !== 'new' && isReadOnly && (
         <div className="bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/20 border-b border-[#5B6EFF]/20 dark:border-[#5B6EFF]/30 px-5 py-3">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
@@ -2244,192 +2272,398 @@ export default function MindMapWorkspace() {
 
       {/* 메인 영역 */}
       <div className="flex-1 relative overflow-hidden flex">
-        {/* '새 파일' 탭일 때 NewTabPanel 표시 */}
+        {/* '새 파일' 탭일 때 마인드맵 목록 표시 */}
         {activeTabId === 'new' ? (
-          <NewTabPanel
-            currentProjectId={activeProjectId || ''}
-            onOpenProject={async (targetProjectId: string) => {
-              // 이미 열려있는 탭인지 확인
-              const existingTab = tabs.find(t => t.type === 'project' && t.projectId === targetProjectId);
-              if (existingTab) {
-                // 이미 열려있으면 해당 탭으로 전환 (새 파일 탭 제거)
-                setTabs(prev => prev.filter(t => t.id !== 'new'));
-                await handleTabClick(existingTab.id);
-                return;
-              }
+          <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-[#0a0a0a]">
+            <div className="max-w-7xl mx-auto px-6 py-8">
+              {/* 헤더 */}
+              <div className="mb-8">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-2">마인드맵</h1>
+                <p className="text-gray-600 dark:text-[#a0a0a0]">모든 마인드맵을 관리하세요</p>
+              </div>
 
-              try {
-                // 프로젝트 정보 가져오기
-                const targetProject = await mindMapProjectStorage.get(targetProjectId);
-                if (!targetProject) {
-                  toast.error('프로젝트를 찾을 수 없습니다.');
-                  return;
-                }
+              {/* 탭 필터 */}
+              <Tabs value={projectsTab} onValueChange={(value) => setProjectsTab(value as 'all' | 'personal' | 'shared')} className="mb-6">
+                <TabsList className="bg-gray-100 dark:bg-[#1a1a1a] p-1 rounded-[12px]">
+                  <TabsTrigger value="all" className="rounded-[8px] data-[state=active]:bg-white dark:data-[state=active]:bg-[#2a2a2a]">
+                    전체
+                  </TabsTrigger>
+                  <TabsTrigger value="personal" className="rounded-[8px] data-[state=active]:bg-white dark:data-[state=active]:bg-[#2a2a2a]">
+                    개인 마인드맵
+                  </TabsTrigger>
+                  <TabsTrigger value="shared" className="rounded-[8px] data-[state=active]:bg-white dark:data-[state=active]:bg-[#2a2a2a]">
+                    팀 마인드맵
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
 
-                // activeProjectId 업데이트
-                setActiveProjectId(targetProjectId);
+              {/* 새 마인드맵 버튼 */}
+              <div className="mb-8">
+                <Button
+                  onClick={() => router.push('/project-type-selection')}
+                  className="h-12 px-6 bg-[#5B6EFF] hover:bg-[#4B5EEF] text-white font-semibold rounded-[12px] shadow-sm hover:shadow-md transition-all duration-200"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  새 마인드맵
+                </Button>
+              </div>
 
-                // "새 파일" 탭을 프로젝트 탭으로 변환 (Figma 스타일, URL 변경 없음)
-                const newTabId = `project_${targetProjectId}`;
-                setTabs(prev => prev.map(t =>
-                  t.id === 'new'
-                    ? {
-                        id: newTabId,
-                        label: targetProject.name,
-                        nodeId: null,
-                        href: `/mindmap?projectId=${targetProjectId}`,
-                        type: 'project' as const,
-                        projectId: targetProjectId,
-                      }
-                    : t
-                ));
-
-                // 프로젝트 상태 로드
-                setProject(targetProject);
-
-                // 자동 레이아웃 적용
-                const layoutConfig = targetProject.layoutConfig || { autoLayout: true };
-                let nodesToSet = targetProject.nodes;
-                if (layoutConfig.autoLayout && targetProject.nodes.length > 0) {
-                  const layoutType = targetProject.layoutType || 'radial';
-                  nodesToSet = applyLayout(targetProject.nodes, layoutType, layoutConfig);
-                }
-                // 색상 할당
-                const nodesWithColors = assignColorsToAllExperiences(nodesToSet);
-                setNodes(nodesWithColors);
-
-                setSelectedNodeId(null);
-                setFocusNodeId(null);
-                setActiveTabId(newTabId);
-
-                // 탭 상태 저장
-                setTabStates(prev => {
-                  const newMap = new Map(prev);
-                  newMap.set(newTabId, {
-                    project: targetProject,
-                    nodes: targetProject.nodes,
-                    selectedNodeId: null,
-                    focusNodeId: null,
-                  });
-                  return newMap;
+              {/* 프로젝트 목록 */}
+              {projectsLoading ? (
+                <div className="text-center py-20">
+                  <Loader2 className="h-8 w-8 animate-spin text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-[#a0a0a0]">로딩 중...</p>
+                </div>
+              ) : (() => {
+                const getFilteredProjects = (): MindMapProject[] => {
+                  switch (projectsTab) {
+                    case 'personal':
+                      return allProjects.filter(p => p.projectType === 'personal');
+                    case 'shared':
+                      return allProjects.filter(p => p.projectType === 'collaborative');
+                    case 'all':
+                    default:
+                      return allProjects;
+                  }
+                };
+                const filteredProjects = getFilteredProjects();
+                const sortedProjects = [...filteredProjects].sort((a, b) => {
+                  if (a.isFavorite && !b.isFavorite) return -1;
+                  if (!a.isFavorite && b.isFavorite) return 1;
+                  return b.updatedAt - a.updatedAt;
                 });
-              } catch (error) {
-                console.error('Failed to open project in tab:', error);
-                toast.error('프로젝트를 열 수 없습니다.');
-              }
-            }}
-            onCreateProject={async (projectType) => {
-              if (!user) {
-                router.push('/login');
-                return;
-              }
 
-              try {
-                const projectId = crypto.randomUUID();
-                const now = Date.now();
+                const formatRelativeTime = (timestamp: number) => {
+                  const now = Date.now();
+                  const diff = now - timestamp;
+                  const seconds = Math.floor(diff / 1000);
+                  const minutes = Math.floor(seconds / 60);
+                  const hours = Math.floor(minutes / 60);
+                  const days = Math.floor(hours / 24);
 
-                const centerNodeId = `${projectId}_center`;
-                const centerNode: MindMapNode = {
-                  id: centerNodeId,
-                  label: projectType === 'collaborative' ? '새 경험' : user.name || '나',
-                  parentId: null,
-                  children: [],
-                  x: 500,
-                  y: 300,
-                  level: 0,
-                  nodeType: 'center',
-                  createdAt: now,
-                  updatedAt: now,
+                  if (seconds < 60) return '방금 전 수정됨';
+                  if (minutes < 60) return `${minutes}분 전 수정됨`;
+                  if (hours < 24) return `${hours}시간 전 수정됨`;
+                  if (days < 7) return `${days}일 전 수정됨`;
+                  return new Date(timestamp).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
                 };
 
-                let initialNodes: MindMapNode[] = [centerNode];
+                const handleOpenProject = async (targetProjectId: string) => {
+                  const existingTab = tabs.find(t => t.type === 'project' && t.projectId === targetProjectId);
+                  if (existingTab) {
+                    setTabs(prev => prev.filter(t => t.id !== 'new'));
+                    await handleTabClick(existingTab.id);
+                    return;
+                  }
 
-                if (projectType === 'collaborative') {
-                  const expId = `${projectId}_experience_0`;
-                  centerNode.children.push(expId);
-                  const experienceNode: MindMapNode = {
-                    id: expId,
-                    label: '새 경험',
-                    parentId: centerNodeId,
-                    children: [],
-                    x: 500,
-                    y: 300,
-                    level: 1,
-                    nodeType: 'experience',
-                    isManuallyPositioned: false,
-                    createdAt: now,
-                    updatedAt: now,
-                  };
-                  initialNodes = [centerNode, experienceNode];
+                  try {
+                    const targetProject = await mindMapProjectStorage.get(targetProjectId);
+                    if (!targetProject) {
+                      toast.error('프로젝트를 찾을 수 없습니다.');
+                      return;
+                    }
+
+                    setActiveProjectId(targetProjectId);
+                    const newTabId = `project_${targetProjectId}`;
+                    setTabs(prev => prev.map(t =>
+                      t.id === 'new'
+                        ? {
+                            id: newTabId,
+                            label: targetProject.name,
+                            nodeId: null,
+                            href: `/mindmap?projectId=${targetProjectId}`,
+                            type: 'project' as const,
+                            projectId: targetProjectId,
+                          }
+                        : t
+                    ));
+
+                    setProject(targetProject);
+                    const layoutConfig = targetProject.layoutConfig || { autoLayout: true };
+                    let nodesToSet = targetProject.nodes;
+                    if (layoutConfig.autoLayout && targetProject.nodes.length > 0) {
+                      const layoutType = targetProject.layoutType || 'radial';
+                      nodesToSet = applyLayout(targetProject.nodes, layoutType, layoutConfig);
+                    }
+                    const nodesWithColors = assignColorsToAllExperiences(nodesToSet);
+                    setNodes(nodesWithColors);
+                    setSelectedNodeId(null);
+                    setFocusNodeId(null);
+                    setActiveTabId(newTabId);
+
+                    setTabStates(prev => {
+                      const newMap = new Map(prev);
+                      newMap.set(newTabId, {
+                        project: targetProject,
+                        nodes: targetProject.nodes,
+                        selectedNodeId: null,
+                        focusNodeId: null,
+                      });
+                      return newMap;
+                    });
+                  } catch (error) {
+                    console.error('Failed to open project:', error);
+                    toast.error('프로젝트를 열 수 없습니다.');
+                  }
+                };
+
+                const handleDelete = async (projectId: string, e: React.MouseEvent) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (confirm('정말 이 마인드맵을 삭제하시겠습니까?')) {
+                    await mindMapProjectStorage.delete(projectId);
+                    setAllProjects(prev => prev.filter(p => p.id !== projectId));
+                    toast.success('마인드맵이 삭제되었습니다.');
+                  }
+                };
+
+                const handleEditStart = (project: MindMapProject, e: React.MouseEvent) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setEditingProjectId(project.id);
+                  setEditedProjectTitle(project.name);
+                };
+
+                const handleEditSave = async (projectId: string) => {
+                  if (!editedProjectTitle.trim()) {
+                    setEditingProjectId(null);
+                    return;
+                  }
+
+                  const project = allProjects.find(p => p.id === projectId);
+                  if (project) {
+                    const updates = {
+                      name: editedProjectTitle.trim(),
+                      updatedAt: Date.now(),
+                    };
+                    await mindMapProjectStorage.update(projectId, updates);
+                    const updatedProject: MindMapProject = {
+                      ...project,
+                      ...updates,
+                    };
+                    setAllProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
+                  }
+                  setEditingProjectId(null);
+                };
+
+                const handleEditCancel = () => {
+                  setEditingProjectId(null);
+                };
+
+                const handleEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, projectId: string) => {
+                  if (e.key === 'Enter') {
+                    handleEditSave(projectId);
+                  } else if (e.key === 'Escape') {
+                    handleEditCancel();
+                  }
+                };
+
+                const handleToggleFavorite = async (projectId: string, e: React.MouseEvent) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  
+                  const project = allProjects.find(p => p.id === projectId);
+                  if (project) {
+                    const updates = {
+                      isFavorite: !project.isFavorite,
+                      updatedAt: Date.now(),
+                    };
+                    await mindMapProjectStorage.update(projectId, updates);
+                    const updatedProject: MindMapProject = {
+                      ...project,
+                      ...updates,
+                    };
+                    setAllProjects(prev => prev.map(p => p.id === projectId ? updatedProject : p));
+                  }
+                };
+
+                if (sortedProjects.length === 0) {
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6 }}
+                      className="text-center py-20"
+                    >
+                      <div className="w-20 h-20 bg-gray-100 dark:bg-[#1a1a1a] rounded-full flex items-center justify-center mx-auto mb-6">
+                        <FolderOpen className="w-10 h-10 text-gray-400 dark:text-[#606060]" />
+                      </div>
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-3">
+                        아직 마인드맵이 없어요
+                      </h2>
+                      <p className="text-gray-600 dark:text-[#a0a0a0] mb-8 text-lg">
+                        첫 번째 마인드맵을 만들어보세요
+                      </p>
+                      <Button
+                        onClick={() => router.push('/project-type-selection')}
+                        className="h-14 px-8 bg-[#5B6EFF] hover:bg-[#4B5EEF] text-white font-semibold text-base rounded-[16px] shadow-sm hover:shadow-md transition-all duration-200"
+                      >
+                        <Plus className="h-5 w-5 mr-2" />
+                        마인드맵 만들기
+                      </Button>
+                    </motion.div>
+                  );
                 }
 
-                const layoutType: LayoutType = 'radial';
-                const layoutConfig: LayoutConfig = { autoLayout: true, spacing: { horizontal: 150, vertical: 120, radial: 160 } };
-                const layoutedNodes = applyLayout(initialNodes, layoutType, layoutConfig);
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {sortedProjects.map((project, index) => (
+                      <motion.div
+                        key={project.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: index * 0.05 }}
+                        className="h-full"
+                      >
+                        <Card
+                          className="h-full p-6 hover:shadow-lg dark:hover:shadow-gray-700/20 transition-all duration-200 cursor-pointer border rounded-[20px] group bg-white dark:bg-[#1a1a1a] flex flex-col card-hover border-gray-200 dark:border-[#2a2a2a]"
+                          onClick={() => handleOpenProject(project.id)}
+                        >
+                          <div className="mb-5 flex-1">
+                            {editingProjectId === project.id ? (
+                              <div className="flex items-center gap-2 mb-3" onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="text"
+                                  value={editedProjectTitle}
+                                  onChange={(e) => setEditedProjectTitle(e.target.value)}
+                                  onKeyDown={(e) => handleEditKeyDown(e, project.id)}
+                                  onBlur={() => handleEditSave(project.id)}
+                                  autoFocus
+                                  className="flex-1 text-xl font-bold text-gray-900 dark:text-[#e5e5e5] border-b-2 border-[#5B6EFF] bg-transparent focus:outline-none px-1"
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditSave(project.id)}
+                                  className="h-8 w-8 p-0 hover:bg-green-50"
+                                >
+                                  <Check className="h-4 w-4 text-green-600" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleEditCancel}
+                                  className="h-8 w-8 p-0 hover:bg-red-50"
+                                >
+                                  <X className="h-4 w-4 text-red-600" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-3 mb-3" onDoubleClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleEditStart(project, e);
+                              }}>
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <button
+                                    onClick={(e) => handleToggleFavorite(project.id, e)}
+                                    className={`flex-shrink-0 p-1 rounded-lg transition-all duration-200 ${
+                                      project.isFavorite
+                                        ? 'text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                                        : 'text-gray-300 dark:text-[#606060] hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                                    }`}
+                                    title={project.isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                                  >
+                                    <Star 
+                                      className={`h-5 w-5 transition-all duration-200 ${
+                                        project.isFavorite ? 'fill-current' : ''
+                                      }`}
+                                    />
+                                  </button>
+                                  <h3 className="flex-1 text-xl font-bold line-clamp-2 text-gray-900 dark:text-[#e5e5e5] leading-tight">
+                                    {project.name}
+                                  </h3>
+                                </div>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                      }}
+                                      className="flex-shrink-0 p-1.5 rounded-lg transition-all duration-200 text-gray-400 dark:text-[#606060] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
+                                    >
+                                      <MoreVertical className="h-5 w-5" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-40">
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleEditStart(project, e);
+                                      }}
+                                      className="cursor-pointer"
+                                    >
+                                      <Edit2 className="h-4 w-4 mr-2" />
+                                      이름 변경하기
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      variant="destructive"
+                                      onClick={(e) => handleDelete(project.id, e)}
+                                      className="cursor-pointer"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      삭제하기
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            )}
+                          </div>
 
-                const newProject: MindMapProject & { userId?: string } = {
-                  id: projectId,
-                  name: projectType === 'collaborative' ? '새 공동 마인드맵' : '새 개인 마인드맵',
-                  description: '경험을 관리합니다',
-                  badges: [],
-                  nodes: layoutedNodes,
-                  layoutType,
-                  layoutConfig,
-                  createdAt: now,
-                  updatedAt: now,
-                  isDefault: true,
-                  projectType,
-                  isShared: projectType === 'collaborative',
-                  userId: user.id,
-                };
+                          {/* 배지 */}
+                          <div className="flex items-center gap-2 mb-5 flex-wrap">
+                            {project.badges.slice(0, 3).map(badge => {
+                              const badgeLabels: Record<string, string> = {
+                                'intern': '인턴',
+                                'academic': '학업',
+                                'club': '동아리',
+                                'project': '프로젝트',
+                                'parttime': '아르바이트',
+                                'volunteer': '봉사활동',
+                                'competition': '공모전',
+                                'other': '기타',
+                              };
+                              return (
+                                <span
+                                  key={badge}
+                                  className="text-xs font-medium px-3 py-1.5 bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/30 text-[#4B5EEF] dark:text-[#7B8FFF] rounded-full"
+                                >
+                                  {badgeLabels[badge] || badge}
+                                </span>
+                              );
+                            })}
+                            {project.badges.length > 3 && (
+                              <span className="text-xs font-medium px-3 py-1.5 bg-gray-100 dark:bg-[#2a2a2a] text-gray-600 dark:text-[#e5e5e5] rounded-full">
+                                +{project.badges.length - 3}
+                              </span>
+                            )}
+                          </div>
 
-                await mindMapProjectStorage.add(newProject);
-                currentProjectStorage.save(projectId);
-
-                // 워크스페이스 상태 업데이트
-                setActiveProjectId(projectId);
-                setProject(newProject);
-                // 색상 할당
-                const nodesWithColors = assignColorsToAllExperiences(layoutedNodes);
-                setNodes(nodesWithColors);
-                setSelectedNodeId(null);
-                setFocusNodeId(null);
-
-                // 'new' 탭을 프로젝트 탭으로 변환
-                const newTabId = `project_${projectId}`;
-                setTabs(prev =>
-                  prev.map(t =>
-                    t.id === 'new'
-                      ? {
-                          id: newTabId,
-                          label: newProject.name,
-                          nodeId: null,
-                          href: `/mindmap?projectId=${projectId}`,
-                          type: 'project' as const,
-                          projectId,
-                        }
-                      : t,
-                  ),
+                          {/* 메타 정보 */}
+                          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-[#a0a0a0] mt-auto">
+                            <span>{formatRelativeTime(project.updatedAt)}</span>
+                            <div className="flex items-center gap-2">
+                              {project.isShared && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
+                                  <Users className="h-3 w-3" />
+                                  공동 작업
+                                </span>
+                              )}
+                              <span className="font-medium">
+                                {project.nodeCount !== undefined ? project.nodeCount : project.nodes.length}개 노드
+                              </span>
+                            </div>
+                          </div>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
                 );
-                setActiveTabId(newTabId);
-
-                // 탭 상태 저장
-                setTabStates(prev => {
-                  const newMap = new Map(prev);
-                  newMap.set(newTabId, {
-                    project: newProject,
-                    nodes: layoutedNodes,
-                    selectedNodeId: null,
-                    focusNodeId: null,
-                  });
-                  return newMap;
-                });
-              } catch (error) {
-                console.error('Failed to create project from NewTabPanel:', error);
-                toast.error('새 마인드맵을 생성하지 못했습니다.');
-              }
-            }}
-          />
+              })()}
+            </div>
+          </div>
         ) : (
           <>
             {/* 마인드맵 캔버스 영역 */}
@@ -2473,7 +2707,7 @@ export default function MindMapWorkspace() {
               isAddNodeMode={isAddNodeMode}
               cursorMode={cursorMode}
               onCursorModeChange={setCursorMode}
-              topOffset={tabs.length > 0 ? 120 : 104}
+              topOffset={tabs.length > 0 ? 160 : 120}
               onExport={async (type: 'image' | 'pdf') => {
                 if (!project) return;
 
@@ -2648,7 +2882,8 @@ export default function MindMapWorkspace() {
                 selectedNodeLevel={selectedNode?.level}
                 nodes={nodes}
                 onSTARComplete={handleSTARComplete}
-                topOffset={tabs.length > 0 ? 120 : 104}
+                topOffset={tabs.length > 0 ? 160 : 120}
+                projectType={project?.projectType}
                 onNodeAdd={(parentId, label, nodeType) => {
                   // 새 노드 생성 (인덱스 맵 사용)
                   const parent = nodeMap.get(parentId);
@@ -2882,7 +3117,7 @@ export default function MindMapWorkspace() {
                 ) : (
                   <>
                     {onboardingStep === 0 && '계층 구조로 경험 정리하기'}
-                    {onboardingStep === 1 && '공백 진단으로 부족한 경험 찾기'}
+                    {onboardingStep === 1 && '기출문항 셀프진단으로 부족한 경험 찾기'}
                     {onboardingStep === 2 && '어시스턴트로 노드 확장하기'}
                     {onboardingStep === 3 && '캔버스 조작과 노드 편집'}
                   </>
@@ -2892,7 +3127,7 @@ export default function MindMapWorkspace() {
                 {project?.projectType === 'collaborative' ? (
                   <>
                     {onboardingStep === 0 &&
-                      '공동 마인드맵은 경험을 중심에 바로 추가합니다. 중앙 노드에서 경험을 추가하고, 각 경험 아래에 에피소드를 작성하세요. 팀원들과 함께 실시간으로 편집할 수 있어요.'}
+                      '팀 마인드맵은 경험을 중심에 바로 추가합니다. 중앙 노드에서 경험을 추가하고, 각 경험 아래에 에피소드를 작성하세요. 팀원들과 함께 실시간으로 편집할 수 있어요.'}
                     {onboardingStep === 1 &&
                       '중앙 노드를 우클릭하거나 더블클릭하여 경험을 추가하세요. 경험은 구체적인 프로젝트나 활동을 의미합니다. 예: "웹 개발 프로젝트", "디자인 시스템 구축" 등'}
                     {onboardingStep === 2 &&
@@ -2905,7 +3140,7 @@ export default function MindMapWorkspace() {
                     {onboardingStep === 0 &&
                       'episode의 마인드맵은 중심-범주-경험-에피소드 구조로 경험을 정리합니다. 먼저 중심 노드를 기준으로 범주(인턴, 동아리 등)를 만들고, 그 안에 구체적인 경험과 에피소드를 쌓아가세요.'}
                     {onboardingStep === 1 &&
-                      '상단의 공백 진단하기 버튼을 눌러 5개년 기출 자소서 문항을 기준으로 부족한 역량을 찾을 수 있어요. 진단 결과는 추천 인벤토리로 들어가 드래그앤드롭으로 마인드맵에 바로 추가할 수 있습니다.'}
+                      '상단의 기출문항 셀프진단 버튼을 눌러 5개년 기출 자소서 문항을 기준으로 부족한 역량을 찾을 수 있어요. 진단 결과는 추천 인벤토리로 들어가 드래그앤드롭으로 마인드맵에 바로 추가할 수 있습니다.'}
                     {onboardingStep === 2 &&
                       '오른쪽 어시스턴트를 열고 범주/경험/에피소드 노드를 선택하면, STAR 기법에 맞춰 질문을 던지며 자동으로 노드를 확장하고 STAR 내용을 채워줍니다.'}
                     {onboardingStep === 3 &&
@@ -2975,7 +3210,7 @@ export default function MindMapWorkspace() {
         </div>
       )}
 
-      {/* 공유 다이얼로그 (공동 마인드맵만 표시) */}
+      {/* 공유 다이얼로그 (팀 마인드맵만 표시) */}
       {project?.projectType === 'collaborative' && (
         <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
         <DialogContent className="w-full max-w-[520px] sm:max-w-[640px] p-0 overflow-hidden">
@@ -3068,7 +3303,7 @@ export default function MindMapWorkspace() {
       )}
 
 
-      {/* 공유 다이얼로그 (공동 마인드맵만 표시) */}
+      {/* 공유 다이얼로그 (팀 마인드맵만 표시) */}
       {project?.projectType === 'collaborative' && (
         <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
         <DialogContent className="w-full max-w-[520px] sm:max-w-[640px]">
@@ -3081,7 +3316,7 @@ export default function MindMapWorkspace() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#111]">
               <div>
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100">프로젝트 공유</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">토글을 켜면 /mindmaps의 ‘공동 마인드맵’에 표시됩니다.</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">토글을 켜면 /mindmaps의 '팀 마인드맵'에 표시됩니다.</p>
               </div>
               <input
                 type="checkbox"
@@ -3101,10 +3336,10 @@ export default function MindMapWorkspace() {
                       updatedAt: Date.now(),
                     };
                     if (activeProjectId) {
-                      await updateProject(activeProjectId, updated);
-                      setProject(updated);
-                      if (typeof window !== 'undefined') {
-                        setShareLink(checked ? `${window.location.origin}/mindmap/${activeProjectId}` : '');
+                    await updateProject(activeProjectId, updated);
+                    setProject(updated);
+                    if (typeof window !== 'undefined') {
+                      setShareLink(checked ? `${window.location.origin}/mindmap/${activeProjectId}` : '');
                       }
                     }
                   } catch (error) {

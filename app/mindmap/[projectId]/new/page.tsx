@@ -142,10 +142,10 @@ export default function NewTabPage() {
                 <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <BarChart3 className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-sm font-medium text-gray-900 dark:text-[#e5e5e5]">공백 진단</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-[#e5e5e5]">기출문항 셀프진단</span>
               </button>
 
-              {/* 에피소드 아카이브 */}
+              {/* 에피소드 보관함 */}
               <button
                 onClick={() => handleQuickAccess('/archive')}
                 className="flex flex-col items-center gap-3 p-6 rounded-xl bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] hover:border-green-500 dark:hover:border-green-500 hover:shadow-lg transition-all group"
@@ -153,7 +153,7 @@ export default function NewTabPage() {
                 <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <FileText className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-sm font-medium text-gray-900 dark:text-[#e5e5e5]">아카이브</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-[#e5e5e5]">에피소드 보관함</span>
               </button>
 
               {/* 빈 공간 (추후 확장용) */}

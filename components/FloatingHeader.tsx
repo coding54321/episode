@@ -57,7 +57,7 @@ export default function FloatingHeader() {
                   }`}
                 >
                   마인드맵
-                </Link>
+                        </Link>
                 <Link
                   href="/archive"
                   className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -66,8 +66,8 @@ export default function FloatingHeader() {
                       : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
                   }`}
                 >
-                  아카이브
-                </Link>
+                  에피소드 보관함
+                        </Link>
                 <Link
                   href="/gap-diagnosis-standalone"
                   className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -76,10 +76,10 @@ export default function FloatingHeader() {
                       : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
                   }`}
                 >
-                  공백 진단하기
-                </Link>
+                  기출문항 셀프진단
+                        </Link>
               </nav>
-            )}
+                  )}
           </div>
 
           {/* 오른쪽: 테마 토글 + 로그인/가입 버튼 또는 사용자 정보 */}

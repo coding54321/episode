@@ -243,7 +243,7 @@ export default function GapDiagnosisStandalonePage() {
 
           {/* 제목 영역 */}
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">공백 진단</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">기출문항 셀프진단</h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 mt-2">
               {step === 'company' && '기업을 선택해주세요'}
               {step === 'job' && `${selectedCompany?.name} - 직무를 선택해주세요`}

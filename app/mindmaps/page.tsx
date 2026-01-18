@@ -7,11 +7,17 @@ import { mindMapProjectStorage, currentProjectStorage } from '@/lib/storage';
 import { useUnifiedAuth } from '@/lib/auth/unified-auth-context';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Plus, Trash2, Edit2, ChevronRight, Check, X, FolderOpen, Star, Square, CheckSquare2, Users } from 'lucide-react';
+import { Plus, Trash2, Edit2, ChevronRight, Check, X, FolderOpen, Star, Square, CheckSquare2, Users, MoreVertical } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import FloatingHeader from '@/components/FloatingHeader';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function MindMapsPage() {
   const router = useRouter();
@@ -211,12 +217,33 @@ export default function MindMapsPage() {
     }
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+  const formatRelativeTime = (timestamp: number) => {
+    const now = Date.now();
+    const diff = now - timestamp;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const weeks = Math.floor(days / 7);
+
+    if (seconds < 60) {
+      return '방금 수정됨';
+    } else if (minutes < 60) {
+      return `${minutes}분 전 수정됨`;
+    } else if (hours < 24) {
+      return `${hours}시간 전 수정됨`;
+    } else if (days < 7) {
+      return `${days}일 전 수정됨`;
+    } else if (weeks < 4) {
+      return `${weeks}주 전 수정됨`;
+    } else {
+      // 4주 이상이면 절대 날짜 표시
+      return new Date(timestamp).toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    }
   };
 
   if (isLoading) {
@@ -262,7 +289,7 @@ export default function MindMapsPage() {
                   value="shared"
                   className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
                 >
-                  공동 마인드맵
+                  팀 마인드맵
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -401,25 +428,45 @@ export default function MindMapsPage() {
                                 {project.name}
                               </h3>
                             </div>
-                            {/* 체크박스 - 이름과 같은 줄 오른쪽 끝 */}
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleToggleSelect(project.id);
-                              }}
-                              className={`flex-shrink-0 p-1.5 rounded-lg transition-all duration-200 ${
-                                selectedProjects.has(project.id)
-                                  ? 'bg-[#5B6EFF] text-white'
-                                  : 'bg-transparent text-gray-400 dark:text-[#606060] border border-gray-300 dark:border-[#404040] hover:border-[#5B6EFF]'
-                              }`}
-                            >
-                              {selectedProjects.has(project.id) ? (
-                                <CheckSquare2 className="h-5 w-5" />
-                              ) : (
-                                <Square className="h-5 w-5" />
-                              )}
-                            </button>
+                            {/* 메뉴 아이콘 - 이름과 같은 줄 오른쪽 끝 */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                  }}
+                                  className="flex-shrink-0 p-1.5 rounded-lg transition-all duration-200 text-gray-400 dark:text-[#606060] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
+                                >
+                                  <MoreVertical className="h-5 w-5" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleEditStart(project, e);
+                                  }}
+                                  className="cursor-pointer"
+                                >
+                                  <Edit2 className="h-4 w-4 mr-2" />
+                                  이름 변경하기
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleDelete(project.id);
+                                  }}
+                                  className="cursor-pointer"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  삭제하기
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         )}
                       </div>
@@ -454,8 +501,8 @@ export default function MindMapsPage() {
                       </div>
 
                       {/* 메타 정보 */}
-                      <div className="flex items-center justify-between text-sm text-gray-500 dark:text-[#a0a0a0] pb-5 border-b border-gray-100 dark:border-[#2a2a2a] mt-auto">
-                        <span>{formatDate(project.updatedAt)}</span>
+                      <div className="flex items-center justify-between text-sm text-gray-500 dark:text-[#a0a0a0] mt-auto">
+                        <span>{formatRelativeTime(project.updatedAt)}</span>
                         <div className="flex items-center gap-2">
                           {project.isShared && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
@@ -469,32 +516,6 @@ export default function MindMapsPage() {
                         </div>
                       </div>
                     </Link>
-
-                    {/* 액션 버튼 */}
-                    <div className="flex items-center gap-2 pt-5 flex-shrink-0">
-                      <Link
-                        href={`/mindmap?projectId=${project.id}`}
-                        className="flex-1"
-                      >
-                        <Button
-                          className="w-full h-11 bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white font-semibold rounded-[12px] shadow-sm transition-all duration-200"
-                        >
-                          열기
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(project.id);
-                        }}
-                        className="h-11 w-11 p-0 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 dark:text-[#606060] hover:text-red-600 dark:hover:text-red-400 rounded-[12px] transition-all duration-200"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </Button>
-                    </div>
                   </Card>
                 </motion.div>
               ))}

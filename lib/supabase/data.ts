@@ -1,4 +1,4 @@
- import { supabase } from './client';
+import { supabase } from './client';
 import { MindMapProject, MindMapNode, STARAsset, GapTag, SharedNodeData, BadgeType } from '@/types';
 import type { Database } from './types';
 
@@ -293,7 +293,7 @@ export async function getSharedProject(projectId: string): Promise<MindMapProjec
       .select('*')
       .eq('id' as any, projectId as any)
       .eq('is_shared' as any, true as any)
-      .eq('project_type' as any, 'collaborative' as any) // 공동 마인드맵만 허용
+      .eq('project_type' as any, 'collaborative' as any) // 팀 마인드맵만 허용
       .maybeSingle();
 
     if (error) {
@@ -386,7 +386,7 @@ export async function createProject(
       layout_type: project.layoutType || 'radial',
       layout_config: project.layoutConfig || { autoLayout: true, spacing: { horizontal: 150, vertical: 120, radial: 160 } },
       project_type: projectType,
-      is_shared: projectType === 'collaborative' ? (project.isShared ?? true) : false, // 공동 마인드맵은 기본 공유 활성화
+      is_shared: projectType === 'collaborative' ? (project.isShared ?? true) : false, // 팀 마인드맵은 기본 공유 활성화
     };
 
     // id가 제공된 경우에만 포함 (그렇지 않으면 DB에서 자동 생성)

@@ -100,7 +100,7 @@ export default function NewTabPanel({ currentProjectId, onOpenProject, onCreateP
               <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Plus className="w-6 h-6 text-white" />
               </div>
-              <span className="text-sm font-medium text-gray-900 dark:text-[#e5e5e5]">공동 마인드맵</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-[#e5e5e5]">팀 마인드맵</span>
             </button>
           </div>
         </div>

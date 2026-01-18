@@ -26,7 +26,7 @@ import { gapTagStorage } from '@/lib/storage';
 interface GapDiagnosisProps {
   isOpen: boolean;
   onClose: () => void;
-  onComplete?: () => void; // 공백 진단 완료 후 콜백
+  onComplete?: () => void; // 기출문항 셀프진단 완료 후 콜백
   resultButtonText?: string; // 결과 단계 버튼 텍스트 (기본값: 'AI 어시스턴트에 추가')
   onResultButtonClick?: () => void; // 결과 단계 버튼 클릭 핸들러
 }
@@ -266,7 +266,7 @@ export default function GapDiagnosis({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl max-h-[90vh] p-0 flex flex-col" showCloseButton={false}>
-        <DialogTitle className="sr-only">공백 진단</DialogTitle>
+        <DialogTitle className="sr-only">기출문항 셀프진단</DialogTitle>
         {/* 헤더 */}
         <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -287,7 +287,7 @@ export default function GapDiagnosis({
             
             {/* 제목 영역 */}
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">공백 진단</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">기출문항 셀프진단</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 {step === 'company' && '기업을 선택해주세요'}
                 {step === 'job' && `${selectedCompany?.name} - 직무를 선택해주세요`}

@@ -125,7 +125,7 @@ export default function ProjectTypeSelectionPage() {
                 )}
               </motion.button>
 
-              {/* 공동 마인드맵 */}
+              {/* 팀 마인드맵 */}
               <motion.button
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -155,7 +155,7 @@ export default function ProjectTypeSelectionPage() {
                         ? 'text-blue-700 dark:text-[#60A5FA]'
                         : 'text-gray-700 dark:text-[#e5e5e5]'
                     }`}>
-                      공동 마인드맵
+                      팀 마인드맵
                     </h3>
                     <p className={`text-sm text-left ${
                       selectedType === 'collaborative'

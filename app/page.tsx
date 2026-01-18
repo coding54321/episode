@@ -84,8 +84,8 @@ function LandingContent() {
 
             {/* 메인 헤드라인 - 매우 크고 임팩트있게 */}
             <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.15 }}
               className="text-5xl md:text-7xl lg:text-8xl font-bold text-gray-900 dark:text-white tracking-tight leading-[1.1] px-4"
               style={{ letterSpacing: '-0.02em' }}
@@ -100,9 +100,9 @@ function LandingContent() {
               transition={{ duration: 0.5, delay: 0.25 }}
               className="text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-[#b0b0b0] max-w-3xl mx-auto leading-relaxed font-normal px-4"
             >
-              공백 진단부터 경험 공유까지,<br className="hidden md:block" /> 취업 준비의 모든 과정을 한 곳에서
+              기출문항 셀프진단부터 경험 공유까지,<br className="hidden md:block" /> 취업 준비의 모든 과정을 한 곳에서
             </motion.p>
-
+            
             {/* CTA 버튼들 - Primary + Secondary */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -122,7 +122,7 @@ function LandingContent() {
                   style={{
                     boxShadow: '0 4px 16px rgba(91, 110, 255, 0.25)'
                   }}
-                >
+                      >
                   무료로 시작하기
                 </motion.button>
               </Link>
@@ -261,7 +261,7 @@ function LandingContent() {
             </div>
           </motion.div>
 
-          {/* 공백 진단 섹션 */}
+          {/* 기출문항 셀프진단 섹션 */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -278,7 +278,7 @@ function LandingContent() {
                     <Sparkles className="w-8 h-8 text-white" />
                   </div>
                   <h3 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-[#e5e5e5]">
-                    공백 진단
+                    기출문항 셀프진단
                   </h3>
                 </div>
                 <p className="text-xl text-gray-600 dark:text-[#a0a0a0] leading-relaxed">
@@ -311,14 +311,14 @@ function LandingContent() {
                   </div>
                 </div>
                 <div className="pt-4">
-                  <motion.button
+              <motion.button
                     onClick={() => handleFeatureClick('gap-diagnosis')}
                     whileHover={{ scale: 1.05, boxShadow: '0 0 30px rgba(75, 94, 239, 0.4)' }}
                     whileTap={{ scale: 0.95 }}
                     className="px-6 py-3 bg-gradient-to-r from-[#4B5EEF] to-[#6B7EFF] text-white rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg"
                     style={{ boxShadow: '0 0 20px rgba(75, 94, 239, 0.3)' }}
                   >
-                    공백 진단 시작하기
+                    기출문항 셀프진단 시작하기
                     <ArrowRight className="w-5 h-5" />
                   </motion.button>
                 </div>
@@ -355,11 +355,11 @@ function LandingContent() {
             </div>
           </motion.div>
 
-          {/* 에피소드 아카이브 섹션 */}
+          {/* 에피소드 보관함 섹션 */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+                viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
             className="mb-32"
           >
@@ -372,7 +372,7 @@ function LandingContent() {
                     <FileText className="w-8 h-8 text-white" />
                   </div>
                   <h3 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-[#e5e5e5]">
-                    에피소드 아카이브
+                    에피소드 보관함
                   </h3>
                 </div>
                 <p className="text-xl text-gray-600 dark:text-[#a0a0a0] leading-relaxed">
@@ -412,9 +412,9 @@ function LandingContent() {
                     className="px-6 py-3 bg-gradient-to-r from-[#8B9FFF] to-[#ABAFFF] text-white rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg"
                     style={{ boxShadow: '0 0 20px rgba(139, 159, 255, 0.3)' }}
                   >
-                    아카이브 보기
+                    에피소드 보관함 보기
                     <ArrowRight className="w-5 h-5" />
-                  </motion.button>
+              </motion.button>
                 </div>
               </div>
               {/* 오른쪽: 시각적 요소 */}
@@ -444,7 +444,7 @@ function LandingContent() {
                   </div>
                 </div>
               </div>
-            </div>
+          </div>
           </motion.div>
         </div>
       </section>

@@ -222,7 +222,7 @@ export default function Header({
                   : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
               }`}
             >
-              아카이브
+              에피소드 보관함
             </Link>
             <Link
               href="/gap-diagnosis-standalone"
@@ -232,7 +232,7 @@ export default function Header({
                   : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
               }`}
             >
-              공백 진단하기
+              기출문항 셀프진단
             </Link>
           </nav>
         )}
@@ -286,7 +286,7 @@ export default function Header({
                     onClick={() => setShowMenu(false)}
                   >
                     <Archive className="w-4 h-4" />
-                    에피소드 아카이브
+                    에피소드 보관함
                   </Link>
                   <Link
                     href="/gap-diagnosis-standalone"
@@ -294,7 +294,7 @@ export default function Header({
                     onClick={() => setShowMenu(false)}
                   >
                     <Search className="w-4 h-4" />
-                    공백 진단하기
+                    기출문항 셀프진단
                   </Link>
                   <button
                     onClick={handleLogout}

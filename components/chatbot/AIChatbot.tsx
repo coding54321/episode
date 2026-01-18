@@ -561,13 +561,13 @@ export default function AIChatbot({
                       <Sparkles className="w-10 h-10 text-blue-600" />
                     </div>
                     <p className="font-bold text-lg text-gray-900 dark:text-gray-100 mb-2">추천 인벤토리가 비어있습니다</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">공백 진단을 통해 추천을 받아보세요</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">기출문항 셀프진단을 통해 추천을 받아보세요</p>
                     {onOpenGapDiagnosis && (
                       <Button
                         onClick={onOpenGapDiagnosis}
                         className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 h-12 px-6 rounded-[12px] font-semibold shadow-sm"
                       >
-                        공백 진단하기
+                        기출문항 셀프진단
                       </Button>
                     )}
                   </div>

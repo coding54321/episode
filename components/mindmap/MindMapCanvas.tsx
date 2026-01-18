@@ -311,10 +311,10 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
     } else if (e.button === 0) {
       // 커서 모드가 'move'이거나 스페이스바를 누른 경우 패닝 모드 활성화
       if (cursorMode === 'move' || spacePressed) {
-        setIsPanning(true);
-        setPanStart({ x: e.clientX, y: e.clientY });
-        e.preventDefault();
-      }
+      setIsPanning(true);
+      setPanStart({ x: e.clientX, y: e.clientY });
+      e.preventDefault();
+    }
     }
   }, [spacePressed, editingNodeId, isAddNodeMode, cursorMode, onCanvasAddNode, pan, zoom]);
 
@@ -942,15 +942,15 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
       <ContextMenuTrigger asChild>
     <div
       ref={canvasRef}
-          className={`w-full h-full overflow-hidden bg-gray-50 dark:bg-[#0a0a0a] relative transition-all duration-200 ${
+      className={`w-full h-full overflow-hidden bg-gray-50 dark:bg-[#0a0a0a] relative transition-all duration-200 ${
             cursorMode === 'move' || spacePressed || isPanning
-              ? 'cursor-grab active:cursor-grabbing'
+          ? 'cursor-grab active:cursor-grabbing'
               : isAddNodeMode
                 ? 'cursor-crosshair'
-                : draggedNodeId
-                  ? 'cursor-move'
-                  : 'cursor-default'
-          }`}
+          : draggedNodeId
+            ? 'cursor-move'
+            : 'cursor-default'
+      }`}
       onMouseDown={handleMouseDown}
       onWheel={handleWheel}
       onClick={handleCanvasClick}
@@ -1032,12 +1032,12 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
               const parent = nodeMap.get(parentId);
               if (!parent || children.length === 0) return;
 
-              // 드래그 중 임시 좌표 사용
-              const parentDragPos = dragPositions.get(parent.id);
-              const parentX = parentDragPos ? parentDragPos.x : parent.x;
-              const parentY = parentDragPos ? parentDragPos.y : parent.y;
+            // 드래그 중 임시 좌표 사용
+            const parentDragPos = dragPositions.get(parent.id);
+            const parentX = parentDragPos ? parentDragPos.x : parent.x;
+            const parentY = parentDragPos ? parentDragPos.y : parent.y;
 
-              const isSharedLine =
+            const isSharedLine =
                 sharedPathMap[parentId] || children.some(child => sharedPathMap[child.id]);
 
               // 부모 노드의 색상 가져오기
@@ -1111,8 +1111,8 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
                     stroke={lineColor}
                     strokeWidth={isSharedLine ? 2.6 : 2}
                     strokeLinecap="round"
-                  />
-                );
+                />
+              );
               });
             });
 

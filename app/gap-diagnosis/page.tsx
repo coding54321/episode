@@ -27,7 +27,7 @@ export default function GapDiagnosisPage() {
   }, [router]);
 
   const handleResultButtonClick = () => {
-    // 공백 진단 완료 후 새 마인드맵 생성 페이지로 이동
+    // 기출문항 셀프진단 완료 후 새 마인드맵 생성 페이지로 이동
     router.push('/project-type-selection');
   };
 

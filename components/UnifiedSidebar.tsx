@@ -47,6 +47,7 @@ interface UnifiedSidebarProps {
   initialWidth?: number; // 초기 너비 (기본값: 384px = w-96)
   minWidth?: number; // 최소 너비 (기본값: 320px)
   topOffset?: number; // 상단 오프셋 (프로젝트 정보 헤더 높이 고려)
+  projectType?: 'personal' | 'collaborative'; // 프로젝트 타입
 }
 
 type GapStep = 'company' | 'job' | 'questions' | 'result';
@@ -78,7 +79,7 @@ function GapTagCard({ tag, onRemove, onShowQuestions }: { tag: GapTag; onRemove:
           <div className="flex-1 min-w-0">
             <Badge className="mb-3 bg-blue-50 text-blue-700 hover:bg-blue-50 border-0 font-semibold px-3 py-1">
               {tag.category}
-            </Badge>
+              </Badge>
             {/* category와 label이 같으면 label은 표시하지 않음 */}
             {tag.category !== tag.label && (
               <h4 className="font-bold text-base text-gray-900 dark:text-gray-100 mb-2 leading-tight">{tag.label}</h4>
@@ -96,16 +97,16 @@ function GapTagCard({ tag, onRemove, onShowQuestions }: { tag: GapTag; onRemove:
               </button>
             )}
           </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove(tag.id);
-            }}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(tag.id);
+              }}
             className="w-8 h-8 flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all flex-shrink-0 opacity-0 group-hover:opacity-100"
-          >
+            >
             <X className="h-4 w-4 text-gray-400 hover:text-red-600 dark:hover:text-red-400" />
-          </button>
-        </div>
+            </button>
+          </div>
         <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
           <span className="text-xs text-gray-400 font-medium">드래그하여 추가</span>
         </div>
@@ -131,22 +132,31 @@ export default function UnifiedSidebar({
   initialWidth = 384, // w-96 = 384px
   minWidth = 320,
   topOffset = 120,
+  projectType = 'personal',
 }: UnifiedSidebarProps) {
-  // 메인 탭 상태 (공백진단하기 / 어시스턴트 / STAR 정리하기)
-  const [mainTab, setMainTab] = useState<'gap' | 'star'>(defaultMainTab);
+  // 메인 탭 상태 (기출문항 셀프진단 / STAR 정리하기)
+  // 팀 마인드맵일 때는 기출문항 셀프진단 탭을 사용할 수 없으므로 'star'로 고정
+  const [mainTab, setMainTab] = useState<'gap' | 'star'>(
+    projectType === 'collaborative' ? 'star' : defaultMainTab
+  );
   
   // 사이드바 너비 상태
   const [sidebarWidth, setSidebarWidth] = useState(initialWidth);
   const [isResizing, setIsResizing] = useState(false);
   
-  // 공백진단 서브탭 상태 (부족 역량확인 / 추천 인벤토리)
+  // 기출문항 셀프진단 서브탭 상태 (부족 역량확인 / 추천 인벤토리)
   const [gapSubTab, setGapSubTab] = useState<'analysis' | 'inventory'>(defaultGapTab);
 
-  // defaultMainTab이 변경되면 mainTab 업데이트
+  // defaultMainTab이 변경되면 mainTab 업데이트 (팀 마인드맵이 아닐 때만)
   useEffect(() => {
-    setMainTab(defaultMainTab);
-  }, [defaultMainTab]);
-
+    if (projectType !== 'collaborative') {
+      setMainTab(defaultMainTab);
+    } else {
+      // 팀 마인드맵일 때는 항상 'star'로 유지
+      setMainTab('star');
+    }
+  }, [defaultMainTab, projectType]);
+  
   // selectedNodeId가 에피소드 노드이고 STAR 탭이 활성화되어 있으면 자동으로 편집 화면 표시
   useEffect(() => {
     if (mainTab === 'star' && selectedNodeId) {
@@ -181,7 +191,7 @@ export default function UnifiedSidebar({
     }
   }, [mainTab, selectedNodeId, nodes]);
   
-  // 공백진단 상태
+  // 기출문항 셀프진단 상태
   const [gapStep, setGapStep] = useState<GapStep>('company');
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -196,7 +206,7 @@ export default function UnifiedSidebar({
   // 추천 인벤토리 상태
   const [gapTags, setGapTags] = useState<GapTag[]>([]);
   const [selectedTagForQuestions, setSelectedTagForQuestions] = useState<GapTag | null>(null);
-  
+
   // STAR 정리하기 상태
   const [selectedEpisodeNodeId, setSelectedEpisodeNodeId] = useState<string | null>(null);
   const [starEditorTitle, setStarEditorTitle] = useState('');
@@ -445,7 +455,7 @@ export default function UnifiedSidebar({
       className="absolute right-0 glass-card shadow-2xl z-[55] flex flex-col border-l border-gray-200 dark:border-[#2a2a2a]"
       style={{ 
         top: topOffset || 120,
-        bottom: 0,
+        height: `calc(100vh - ${topOffset || 120}px)`,
         width: `${sidebarWidth}px`,
       }}
     >
@@ -460,13 +470,13 @@ export default function UnifiedSidebar({
           cursor: isResizing ? 'col-resize' : 'col-resize',
         }}
       />
-      {/* 공백진단하기 탭 */}
-      {mainTab === 'gap' && (
+      {/* 기출문항 셀프진단 탭 (개인 마인드맵에서만 표시) */}
+      {mainTab === 'gap' && projectType !== 'collaborative' && (
         <Tabs value={gapSubTab} onValueChange={(value) => setGapSubTab(value as 'analysis' | 'inventory')} className="flex-1 flex flex-col overflow-hidden">
           {/* 서브탭 헤더 */}
           <div className="px-6 pt-4 pb-2 flex-shrink-0 border-b border-gray-100 dark:border-[#2a2a2a]">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5]">공백 진단하기</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5]">기출문항 셀프진단</h2>
               <button
                 onClick={onClose}
                 className="w-10 h-10 flex items-center justify-center hover:bg-gray-100/50 dark:hover:bg-[#2a2a2a]/50 rounded-full transition-colors flex-shrink-0"
@@ -750,12 +760,12 @@ export default function UnifiedSidebar({
                     <Sparkles className="w-10 h-10 text-blue-600" />
                   </div>
                   <p className="font-bold text-lg text-gray-900 dark:text-[#e5e5e5] mb-2">추천 인벤토리가 비어있습니다</p>
-                  <p className="text-sm text-gray-500 dark:text-[#a0a0a0] mb-6">공백 진단을 통해 추천을 받아보세요</p>
+                  <p className="text-sm text-gray-500 dark:text-[#a0a0a0] mb-6">기출문항 셀프진단을 통해 추천을 받아보세요</p>
                   <Button
                     onClick={() => setGapSubTab('analysis')}
                     className="bg-gradient-to-br from-[#5B6EFF]/100 to-[#6B7EFF] hover:from-[#4B5EEF] hover:to-[#5B6EFF] h-12 px-6 rounded-[12px] font-semibold shadow-sm"
                   >
-                    공백 진단하기
+                    기출문항 셀프진단
                   </Button>
                 </div>
               </div>

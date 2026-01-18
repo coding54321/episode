@@ -1,0 +1,47 @@
+화면 ID,Depth 1,Depth 2,Depth 3,Depth 4,Depth 5,화면 유형 구분
+HOME,홈,랜딩 페이지,-,-,-,Page
+LOGIN,인증,로그인,-,-,-,Page
+AUTH_CALLBACK,인증,OAuth 콜백,-,-,-,Page
+PROJECT_LIST,프로젝트 관리,프로젝트 목록,-,-,-,Page
+PROJECT_TYPE_SELECT,프로젝트 관리,프로젝트 생성,프로젝트 타입 선택,-,-,Page
+BADGE_SELECT,프로젝트 관리,프로젝트 생성,배지 선택,-,-,Page
+MINDMAP_WORKSPACE,마인드맵,마인드맵 워크스페이스,-,-,-,Page
+MINDMAP_CANVAS,마인드맵,마인드맵 워크스페이스,마인드맵 캔버스,-,-,layer
+MINDMAP_TABS,마인드맵,마인드맵 워크스페이스,탭 관리,-,-,layer
+NEW_TAB_PANEL,마인드맵,마인드맵 워크스페이스,탭 관리,새 탭 패널,-,layer modal
+MINDMAP_TOOLBAR,마인드맵,마인드맵 워크스페이스,툴바,-,-,layer
+MINDMAP_SIDEBAR,마인드맵,마인드맵 워크스페이스,사이드바,-,-,layer
+SIDEBAR_GAP,마인드맵,마인드맵 워크스페이스,사이드바,공백 진단,-,layer
+SIDEBAR_STAR,마인드맵,마인드맵 워크스페이스,사이드바,STAR 정리,-,layer
+GAP_INVENTORY,마인드맵,마인드맵 워크스페이스,사이드바,공백 진단,추천 인벤토리,layer
+GAP_ANALYSIS,마인드맵,마인드맵 워크스페이스,사이드바,공백 진단,분석 결과,layer
+NODE_CONTEXT_MENU,마인드맵,마인드맵 워크스페이스,마인드맵 캔버스,노드 컨텍스트 메뉴,-,layer modal
+CANVAS_CONTEXT_MENU,마인드맵,마인드맵 워크스페이스,마인드맵 캔버스,빈 공간 컨텍스트 메뉴,-,layer modal
+SEARCH_RESULTS,마인드맵,마인드맵 워크스페이스,검색 결과,-,-,layer modal
+COMPETENCY_FILTER,마인드맵,마인드맵 워크스페이스,역량 필터,-,-,layer modal
+SHARE_DIALOG,마인드맵,마인드맵 워크스페이스,공유 다이얼로그,-,-,system modal
+SETTINGS_DIALOG,마인드맵,마인드맵 워크스페이스,설정 다이얼로그,-,-,system modal
+ONBOARDING,마인드맵,마인드맵 워크스페이스,온보딩 튜토리얼,-,-,system modal
+GAP_DIAGNOSIS_STANDALONE,공백 진단,공백 진단 (독립),-,-,-,Page
+GAP_COMPANY,공백 진단,공백 진단 (독립),기업 선택,-,-,layer
+GAP_JOB,공백 진단,공백 진단 (독립),직무 선택,-,-,layer
+GAP_QUESTIONS,공백 진단,공백 진단 (독립),질문 답변,-,-,layer
+GAP_RESULT,공백 진단,공백 진단 (독립),진단 결과,-,-,layer
+ARCHIVE,아카이브,에피소드 보관함,-,-,-,Page
+ARCHIVE_LIST,아카이브,에피소드 보관함,목록 뷰,-,-,layer
+ARCHIVE_EDIT,아카이브,에피소드 보관함,편집 뷰,-,-,layer
+ARCHIVE_EPISODE_LIST,아카이브,에피소드 보관함,편집 뷰,에피소드 목록,-,layer
+ARCHIVE_STAR_EDITOR,아카이브,에피소드 보관함,편집 뷰,STAR 입력,-,layer
+ARCHIVE_TAG_MANAGER,아카이브,에피소드 보관함,편집 뷰,태그 관리,-,layer
+ARCHIVE_TAG_DIALOG,아카이브,에피소드 보관함,편집 뷰,태그 관리,태그 선택 다이얼로그,system modal
+ARCHIVE_DATE_PICKER,아카이브,에피소드 보관함,편집 뷰,기간 편집,날짜 선택,layer modal
+SHARE_VIEW,공유,공유 링크 뷰,-,-,-,Page
+SHARE_READONLY,공유,공유 링크 뷰,읽기 전용 모드,-,-,layer
+EXPORT_IMAGE,마인드맵,마인드맵 워크스페이스,내보내기,이미지 저장,-,system modal
+EXPORT_PDF,마인드맵,마인드맵 워크스페이스,내보내기,PDF 저장,-,system modal
+PROJECT_DELETE_CONFIRM,프로젝트 관리,프로젝트 목록,프로젝트 삭제 확인,-,-,system modal
+PROJECT_EDIT,프로젝트 관리,프로젝트 목록,프로젝트 제목 편집,-,-,layer
+NODE_INLINE_EDIT,마인드맵,마인드맵 워크스페이스,마인드맵 캔버스,노드 인라인 편집,-,layer
+TAG_SELECT_DIALOG,마인드맵,마인드맵 워크스페이스,사이드바,STAR 정리,역량 태그 선택,system modal
+ACTIVE_EDITORS,마인드맵,마인드맵 워크스페이스,실시간 편집자 표시,-,-,layer
+READONLY_BANNER,마인드맵,마인드맵 워크스페이스,읽기 전용 배너,-,-,layer

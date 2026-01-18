@@ -30,7 +30,7 @@ export default function MindMapTabs({
   onAddTab,
 }: MindMapTabsProps) {
   return (
-    <div className="bg-gray-100 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 flex items-center overflow-x-auto">
+    <div className="sticky top-[64px] z-30 bg-gray-100 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 flex items-center overflow-x-auto">
       {tabs.map(tab => (
         <div
           key={tab.id}

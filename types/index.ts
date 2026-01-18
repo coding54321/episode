@@ -214,7 +214,7 @@ export interface MindMapProject {
   isDefault?: boolean;
   isFavorite?: boolean;
   projectType?: 'personal' | 'collaborative'; // 프로젝트 타입 (개인/공동)
-  isShared?: boolean; // 공유된 마인드맵인지 여부 (공동 마인드맵에서만 사용)
+  isShared?: boolean; // 공유된 마인드맵인지 여부 (팀 마인드맵에서만 사용)
   sharedBy?: string; // 공유한 사용자 ID
   sharedByUser?: { id: string; name: string; email?: string }; // 공유한 사용자 정보
 }
@@ -233,7 +233,7 @@ export interface SharedNodeData {
   createdByUser?: { id: string; name: string; email?: string }; // 공유한 사용자 정보
 }
 
-// 에피소드 아카이브 아이템
+// 에피소드 보관함 아이템
 export interface ArchiveItem {
   id: string;
   projectId: string;
