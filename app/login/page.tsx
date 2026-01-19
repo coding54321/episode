@@ -30,31 +30,20 @@ function LoginContent() {
         return;
       }
       
-      // 온보딩 완료 여부 확인
-      const checkOnboarding = async () => {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('onboarding_completed')
-          .eq('id' as any, user.id as any)
-          .maybeSingle();
-        
-        const onboardingCompleted = userData?.onboarding_completed ?? false;
-        
-        if (!onboardingCompleted) {
-          // 온보딩 미완료 시 온보딩 시작
-          router.replace('/onboarding/intro');
-          return;
-        }
-        
-        // 온보딩 완료 시 프로젝트 목록 확인
-        const projects = await mindMapProjectStorage.load();
+      // 온보딩 완료 여부 확인 (user 객체에 이미 포함되어 있음)
+      if (!user.onboardingCompleted) {
+        router.replace('/onboarding/intro');
+        return;
+      }
+      
+      // 온보딩 완료 시 프로젝트 목록 확인
+      mindMapProjectStorage.load().then(projects => {
         if (projects.length > 0) {
           router.replace('/mindmaps');
         } else {
           router.replace('/badge-selection');
         }
-      };
-      checkOnboarding();
+      });
     }
 
     // URL에서 에러 파라미터 확인

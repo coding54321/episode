@@ -3,6 +3,8 @@ import { AuthError, User as SupabaseUser } from '@supabase/supabase-js';
 import { User } from '@/types';
 import { SessionManager } from './session-manager';
 import { AuthErrorHandler } from './auth-errors';
+import { ensureUserInPublicTable } from './user-sync';
+import { mapSupabaseUserToAppUser } from '@/lib/supabase/auth';
 
 export interface AuthService {
   signUp(email: string, password: string, name: string): Promise<{ user: User | null; error: AuthError | null }>;
@@ -10,117 +12,12 @@ export interface AuthService {
   signOut(): Promise<{ error: AuthError | null }>;
   getCurrentUser(): Promise<User | null>;
   signInWithKakao(): Promise<{ user: User | null; error: AuthError | null }>;
-  signInWithGoogle(): Promise<{ user: User | null; error: AuthError | null }>;
 }
 
 class SupabaseAuthService implements AuthService {
   // getCurrentUser 중복 호출 방지를 위한 플래그
   private getCurrentUserPromise: Promise<User | null> | null = null;
 
-  private async ensureUserInPublicTable(supabaseUser: SupabaseUser, name?: string): Promise<User> {
-    const provider = supabaseUser.app_metadata?.provider || 'email';
-
-    // 이름 추출 (소셜 로그인의 경우 user_metadata에서)
-    let userName = name ||
-                  supabaseUser.user_metadata?.name ||
-                  supabaseUser.user_metadata?.full_name ||
-                  supabaseUser.user_metadata?.nickname ||
-                  supabaseUser.email?.split('@')[0] ||
-                  'User';
-
-    // 이메일 추출
-    let userEmail = supabaseUser.email ||
-                    supabaseUser.user_metadata?.email ||
-                    '';
-
-    // public.users 테이블에 사용자가 존재하는지 확인
-    const { data: existingUser, error: selectError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id' as any, supabaseUser.id as any)
-      .maybeSingle();
-
-    if (selectError) {
-      console.error('[auth-service] ensureUserInPublicTable: 사용자 확인 에러', {
-        error: selectError,
-        errorCode: selectError.code,
-        errorMessage: selectError.message,
-        userId: supabaseUser.id,
-      });
-      // 에러가 발생해도 계속 진행 (새 사용자로 처리)
-    }
-
-    if (existingUser) {
-      // 이미 존재하는 경우 업데이트
-      const { data: updatedUser, error: updateError } = await supabase
-        .from('users')
-        .update({
-          name: userName,
-          email: userEmail,
-          updated_at: new Date().toISOString(),
-        } as any)
-        .eq('id' as any, supabaseUser.id as any)
-        .select()
-        .single();
-
-      if (updateError) {
-        console.error('[auth-service] ensureUserInPublicTable: 사용자 업데이트 에러', {
-          error: updateError,
-          errorCode: updateError.code,
-          errorMessage: updateError.message,
-          userId: supabaseUser.id,
-        });
-        // 업데이트 실패해도 기존 사용자 정보 반환
-      }
-
-      const result = (updatedUser || existingUser) as any;
-      return {
-        id: result.id,
-        name: result.name,
-        email: result.email || '',
-        provider: 'kakao' as const,
-        createdAt: new Date(result.created_at || Date.now()).getTime(),
-      };
-    } else {
-      // 새로운 사용자 생성
-      const { data: newUser, error: insertError } = await supabase
-        .from('users')
-        .insert({
-          id: supabaseUser.id,
-          provider: 'kakao',
-          provider_user_id: supabaseUser.id,
-          name: userName,
-          email: userEmail,
-        } as any)
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('[auth-service] ensureUserInPublicTable: 사용자 생성 에러', {
-          error: insertError,
-          errorCode: insertError.code,
-          errorMessage: insertError.message,
-          errorDetails: insertError.details,
-          errorHint: insertError.hint,
-          userId: supabaseUser.id,
-        });
-        throw new Error(`Failed to create user in public.users table: ${insertError.message} (code: ${insertError.code})`);
-      }
-
-      if (!newUser) {
-        throw new Error('Failed to create user in public.users table');
-      }
-
-      const newUserTyped = newUser as any;
-      return {
-        id: newUserTyped.id,
-        name: newUserTyped.name,
-        email: newUserTyped.email || '',
-        provider: 'kakao' as const,
-        createdAt: new Date(newUserTyped.created_at || Date.now()).getTime(),
-      };
-    }
-  }
 
   async signUp(email: string, password: string, name: string): Promise<{ user: User | null; error: AuthError | null }> {
     try {
@@ -139,7 +36,8 @@ class SupabaseAuthService implements AuthService {
       }
 
       if (data.user) {
-        const user = await this.ensureUserInPublicTable(data.user, name);
+        await ensureUserInPublicTable(data.user);
+        const user = await mapSupabaseUserToAppUser(data.user);
         return { user, error: null };
       }
 
@@ -168,7 +66,8 @@ class SupabaseAuthService implements AuthService {
       }
 
       if (data.user) {
-        const user = await this.ensureUserInPublicTable(data.user);
+        await ensureUserInPublicTable(data.user);
+        const user = await mapSupabaseUserToAppUser(data.user);
         return { user, error: null };
       }
 
@@ -268,18 +167,13 @@ class SupabaseAuthService implements AuthService {
       
       // 세션이 있으면 사용자 정보를 public.users 테이블에 등록/업데이트
       try {
-        return await this.ensureUserInPublicTable(session.user);
+        await ensureUserInPublicTable(session.user);
+        return await mapSupabaseUserToAppUser(session.user);
       } catch (ensureError) {
         // AbortError는 조용히 무시
         if (ensureError instanceof Error && ensureError.name === 'AbortError') {
           // 세션은 있으므로 기본 사용자 정보라도 반환
-          return {
-            id: session.user.id,
-            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-            email: session.user.email || '',
-            provider: (session.user.app_metadata?.provider as 'kakao' | 'google' | 'email') || 'email',
-            createdAt: new Date(session.user.created_at).getTime(),
-          };
+          return await mapSupabaseUserToAppUser(session.user);
         }
         // ensureUserInPublicTable에서 발생한 에러를 상세히 로깅
         console.error('[auth-service] getCurrentUser: ensureUserInPublicTable 에러', {
@@ -290,13 +184,7 @@ class SupabaseAuthService implements AuthService {
           userId: session.user?.id,
         });
         // 에러가 발생해도 세션은 유효하므로, 기본 사용자 정보라도 반환
-        return {
-          id: session.user.id,
-          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-          email: session.user.email || '',
-          provider: (session.user.app_metadata?.provider as 'kakao' | 'google' | 'email') || 'email',
-          createdAt: new Date(session.user.created_at).getTime(),
-        };
+        return await mapSupabaseUserToAppUser(session.user);
       }
     } catch (error) {
       // AbortError는 조용히 무시하되, 세션이 있으면 재시도
@@ -333,10 +221,21 @@ class SupabaseAuthService implements AuthService {
 
   async signInWithKakao(): Promise<{ user: User | null; error: AuthError | null }> {
     try {
+      const returnUrl = typeof window !== 'undefined' 
+        ? window.location.pathname + window.location.search
+        : '/mindmaps'
+      
+      const redirectTo = typeof window !== 'undefined'
+        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnUrl)}`
+        : `${process.env.NEXT_PUBLIC_SITE_URL || ''}/auth/callback`
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo,
+          queryParams: {
+            scope: 'profile_nickname',
+          },
         },
       });
 
@@ -351,32 +250,6 @@ class SupabaseAuthService implements AuthService {
         error: {
           message: err instanceof Error ? err.message : 'Unknown error',
           name: 'KakaoSignInError',
-          status: 500
-        } as AuthError
-      };
-    }
-  }
-
-  async signInWithGoogle(): Promise<{ user: User | null; error: AuthError | null }> {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (error) {
-        return { user: null, error };
-      }
-
-      return { user: null, error: null };
-    } catch (err) {
-      return {
-        user: null,
-        error: {
-          message: err instanceof Error ? err.message : 'Unknown error',
-          name: 'GoogleSignInError',
           status: 500
         } as AuthError
       };

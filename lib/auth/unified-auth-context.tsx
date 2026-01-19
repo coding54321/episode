@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { SessionManager } from './session-manager'
 import { AuthErrorHandler, type AuthError } from './auth-errors'
+import { mapSupabaseUserToAppUser, ensureUserInPublicTable } from './user-sync'
 
 // 앱에서 사용하는 User 타입
 export interface AppUser {
@@ -25,7 +26,6 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string) => Promise<{ error?: AuthError }>
   signIn: (email: string, password: string) => Promise<{ error?: AuthError }>
   signInWithKakao: () => Promise<{ error?: AuthError }>
-  signInWithGoogle: () => Promise<{ error?: AuthError }>
   signOut: () => Promise<void>
   clearError: () => void
   refreshSession: () => Promise<void>
@@ -47,98 +47,6 @@ export function UnifiedAuthProvider({ children }: { children: React.ReactNode })
   const mounted = useRef(true)
   const cleanupRef = useRef<(() => void) | null>(null)
 
-  // Supabase User를 AppUser로 변환
-  const mapSupabaseUserToAppUser = async (supabaseUser: SupabaseUser): Promise<AppUser> => {
-    const provider = (supabaseUser.app_metadata?.provider as 'kakao' | 'google' | 'email') || 'email'
-    
-    // 이름 추출
-    const name = 
-      supabaseUser.user_metadata?.name ||
-      supabaseUser.user_metadata?.full_name ||
-      supabaseUser.user_metadata?.kakao_account?.profile?.nickname ||
-      supabaseUser.user_metadata?.nickname ||
-      supabaseUser.email?.split('@')[0] ||
-      '사용자'
-
-    // 이메일 추출
-    const email = 
-      supabaseUser.email ||
-      supabaseUser.user_metadata?.kakao_account?.email ||
-      supabaseUser.user_metadata?.email ||
-      ''
-
-    // users 테이블에서 추가 정보 가져오기
-    let jobGroup: string | null = null;
-    let jobRole: string | null = null;
-    let onboardingCompleted: boolean | null = null;
-
-    try {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('job_group, job_role, onboarding_completed')
-        .eq('id' as any, supabaseUser.id as any)
-        .maybeSingle();
-
-      if (userData) {
-        jobGroup = userData.job_group as string | null;
-        jobRole = userData.job_role as string | null;
-        onboardingCompleted = userData.onboarding_completed as boolean | null;
-      }
-    } catch (error) {
-      console.warn('Failed to fetch additional user data:', error);
-    }
-
-    return {
-      id: supabaseUser.id,
-      name,
-      email,
-      provider,
-      createdAt: new Date(supabaseUser.created_at).getTime(),
-      jobGroup,
-      jobRole,
-      onboardingCompleted: onboardingCompleted ?? false,
-    }
-  }
-
-  // public.users 테이블에 사용자 동기화 (간소화된 버전)
-  const ensureUserInPublicTable = async (supabaseUser: SupabaseUser): Promise<void> => {
-    try {
-      const appUser = await mapSupabaseUserToAppUser(supabaseUser)
-      
-      // 사용자 존재 확인
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id' as any, supabaseUser.id as any)
-        .maybeSingle()
-
-      if (existingUser) {
-        // 존재하면 업데이트
-        await supabase
-          .from('users')
-          .update({
-            name: appUser.name,
-            email: appUser.email,
-            updated_at: new Date().toISOString(),
-          } as any)
-          .eq('id' as any, supabaseUser.id as any)
-      } else {
-        // 없으면 생성
-        await supabase
-          .from('users')
-          .insert({
-            id: supabaseUser.id,
-            provider: 'kakao',
-            provider_user_id: supabaseUser.id,
-            name: appUser.name,
-            email: appUser.email,
-          } as any)
-      }
-    } catch (err) {
-      // 에러는 로그만 남기고 계속 진행 (사용자 경험 우선)
-      console.warn('[UnifiedAuth] Failed to sync user to public.users:', err)
-    }
-  }
 
   useEffect(() => {
     mounted.current = true
@@ -334,38 +242,6 @@ export function UnifiedAuthProvider({ children }: { children: React.ReactNode })
     }
   }
 
-  const signInWithGoogle = async (): Promise<{ error?: AuthError }> => {
-    try {
-      setError(null)
-      
-      const returnUrl = typeof window !== 'undefined' 
-        ? window.location.pathname + window.location.search
-        : '/mindmaps'
-      
-      const redirectTo = typeof window !== 'undefined'
-        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnUrl)}`
-        : `${process.env.NEXT_PUBLIC_SITE_URL || ''}/auth/callback`
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-        },
-      })
-
-      if (error) {
-        const authError = AuthErrorHandler.fromSupabaseError(error)
-        setError(authError)
-        return { error: authError }
-      }
-
-      return {}
-    } catch (err) {
-      const authError = AuthErrorHandler.fromSupabaseError(err)
-      setError(authError)
-      return { error: authError }
-    }
-  }
 
   const signOut = async (): Promise<void> => {
     try {
@@ -409,7 +285,6 @@ export function UnifiedAuthProvider({ children }: { children: React.ReactNode })
     signUp,
     signIn,
     signInWithKakao,
-    signInWithGoogle,
     signOut,
     clearError,
     refreshSession,

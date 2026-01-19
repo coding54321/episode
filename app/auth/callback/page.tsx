@@ -19,47 +19,71 @@ function AuthCallbackContent() {
     let isMounted = true
     let timeoutId: NodeJS.Timeout
     let subscription: { unsubscribe: () => void } | null = null
-    let retryCount = 0
-    const MAX_RETRIES = 3
-    const RETRY_DELAY = 2000 // 2초
+    let pollingInterval: NodeJS.Timeout | null = null
+    let sessionFound = false
 
-    const handleCallback = async () => {
-      const next = searchParams.get('next') || '/mindmaps'
-      let sessionFound = false
+    const next = searchParams.get('next') || '/mindmaps'
+
+    // 세션을 찾았을 때 리다이렉트 처리
+    const handleSessionFound = async (session: any) => {
+      if (!isMounted || sessionFound) return
+      
+      sessionFound = true
+      clearTimeout(timeoutId)
+      if (pollingInterval) {
+        clearInterval(pollingInterval)
+      }
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+
+      console.log('[AuthCallback] Session found:', session.user.id)
 
       try {
-        // Supabase가 URL에서 자동으로 세션을 처리하도록 대기
-        // onAuthStateChange 이벤트를 활용하여 더 안정적으로 처리
+        // 온보딩 완료 여부 확인
+        const { data: userData } = await supabase
+          .from('users')
+          .select('onboarding_completed')
+          .eq('id' as any, session.user.id as any)
+          .maybeSingle()
+        
+        const onboardingCompleted = userData?.onboarding_completed ?? false
+        
+        if (isMounted) {
+          if (!onboardingCompleted) {
+            router.replace('/onboarding/intro')
+          } else {
+            router.replace(next)
+          }
+        }
+      } catch (error) {
+        console.error('[AuthCallback] Error checking onboarding status:', error)
+        // 온보딩 체크 실패해도 리다이렉트는 수행
+        if (isMounted) {
+          router.replace(next)
+        }
+      }
+    }
+
+    const handleCallback = async () => {
+      try {
+        // 1. 즉시 세션 확인 (Supabase가 URL에서 자동으로 처리했을 수 있음)
+        const { data: { session: initialSession }, error: initialError } = await supabase.auth.getSession()
+        
+        if (initialSession?.user) {
+          console.log('[AuthCallback] Initial session found immediately')
+          await handleSessionFound(initialSession)
+          return
+        }
+
+        // 2. onAuthStateChange 이벤트 리스너 등록 (백업)
         const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
             if (!isMounted || sessionFound) return
 
             if (event === 'SIGNED_IN' && session?.user) {
-              console.log('[AuthCallback] Login successful:', session.user.id)
-              sessionFound = true
-              clearTimeout(timeoutId)
-              
-              // 세션이 localStorage에 저장될 때까지 충분히 대기 (배포 환경 대응)
-              setTimeout(async () => {
-                if (isMounted) {
-                  // 온보딩 완료 여부 확인
-                  const { data: userData } = await supabase
-                    .from('users')
-                    .select('onboarding_completed')
-                    .eq('id' as any, session.user.id as any)
-                    .maybeSingle()
-                  
-                  const onboardingCompleted = userData?.onboarding_completed ?? false
-                  
-                  if (!onboardingCompleted) {
-                    // 온보딩 미완료 시 온보딩 시작
-                    router.replace('/onboarding/intro')
-                  } else {
-                    // 온보딩 완료 시 기존 로직대로 이동
-                    router.replace(next)
-                  }
-                }
-              }, 500) // 100ms → 500ms로 증가
+              console.log('[AuthCallback] SIGNED_IN event received')
+              await handleSessionFound(session)
             } else if (event === 'SIGNED_OUT') {
               console.log('[AuthCallback] User signed out')
               if (isMounted) {
@@ -70,134 +94,97 @@ function AuthCallbackContent() {
         )
         subscription = authSubscription
 
-        // 최대 30초 대기 후 타임아웃 (10초 → 30초로 증가)
-        timeoutId = setTimeout(() => {
-          if (isMounted && !sessionFound) {
-            console.error('[AuthCallback] Timeout waiting for session')
-            // 재시도 로직
-            if (retryCount < MAX_RETRIES) {
-              retryCount++
-              console.log(`[AuthCallback] Retrying session check (${retryCount}/${MAX_RETRIES})`)
-              setTimeout(() => {
-                if (isMounted) {
-                  checkSessionWithRetry()
-                }
-              }, RETRY_DELAY)
-            } else {
-              router.replace('/login?error=session_timeout')
+        // 3. 폴링 방식으로 세션 확인 (1초마다)
+        let pollCount = 0
+        const MAX_POLLS = 15 // 최대 15초 대기
+        
+        pollingInterval = setInterval(async () => {
+          if (!isMounted || sessionFound) {
+            if (pollingInterval) {
+              clearInterval(pollingInterval)
             }
+            return
           }
-        }, 30000) // 10초 → 30초로 증가
 
-        // 세션 확인 함수 (재시도 로직 포함)
-        const checkSessionWithRetry = async () => {
+          pollCount++
+          console.log(`[AuthCallback] Polling session check (${pollCount}/${MAX_POLLS})`)
+
           try {
-            // 세션 확인 (즉시 체크)
             const { data: { session }, error } = await supabase.auth.getSession()
 
             if (error) {
               console.error('[AuthCallback] Session check error:', error)
-              // 재시도 가능한 에러인 경우 재시도
-              if (retryCount < MAX_RETRIES && !error.message?.includes('Invalid')) {
-                retryCount++
-                console.log(`[AuthCallback] Retrying after error (${retryCount}/${MAX_RETRIES})`)
-                setTimeout(() => {
-                  if (isMounted && !sessionFound) {
-                    checkSessionWithRetry()
-                  }
-                }, RETRY_DELAY)
-                return
-              }
-              
-              if (isMounted && !sessionFound) {
-                router.replace('/login?error=callback_failed')
-              }
-              if (subscription) {
-                subscription.unsubscribe()
+              if (pollCount >= MAX_POLLS) {
+                if (pollingInterval) {
+                  clearInterval(pollingInterval)
+                }
+                if (isMounted) {
+                  router.replace('/login?error=callback_failed')
+                }
               }
               return
             }
 
             if (session?.user) {
-              console.log('[AuthCallback] Session found:', session.user.id)
-              sessionFound = true
-              clearTimeout(timeoutId)
-              if (subscription) {
-                subscription.unsubscribe()
+              console.log('[AuthCallback] Session found via polling')
+              await handleSessionFound(session)
+            } else if (pollCount >= MAX_POLLS) {
+              // 최대 폴링 횟수 도달
+              if (pollingInterval) {
+                clearInterval(pollingInterval)
               }
-              
-              // 세션이 localStorage에 저장될 때까지 충분히 대기
-              setTimeout(async () => {
-                if (isMounted) {
-                  // 온보딩 완료 여부 확인
-                  const { data: userData } = await supabase
-                    .from('users')
-                    .select('onboarding_completed')
-                    .eq('id' as any, session.user.id as any)
-                    .maybeSingle()
-                  
-                  const onboardingCompleted = userData?.onboarding_completed ?? false
-                  
-                  if (!onboardingCompleted) {
-                    // 온보딩 미완료 시 온보딩 시작
-                    router.replace('/onboarding/intro')
-                  } else {
-                    // 온보딩 완료 시 기존 로직대로 이동
-                    router.replace(next)
-                  }
-                }
-              }, 500) // 100ms → 500ms로 증가
-            } else {
-              // 세션이 없으면 onAuthStateChange 이벤트를 기다림
-              // 이벤트가 발생하지 않으면 타임아웃으로 처리됨
-              console.log('[AuthCallback] No session found, waiting for onAuthStateChange event...')
+              if (isMounted) {
+                router.replace('/login?error=session_timeout')
+              }
             }
           } catch (error) {
-            console.error('[AuthCallback] Session check exception:', error)
-            // 재시도 가능한 경우 재시도
-            if (retryCount < MAX_RETRIES && isMounted && !sessionFound) {
-              retryCount++
-              console.log(`[AuthCallback] Retrying after exception (${retryCount}/${MAX_RETRIES})`)
-              setTimeout(() => {
-                if (isMounted && !sessionFound) {
-                  checkSessionWithRetry()
-                }
-              }, RETRY_DELAY)
-            } else if (isMounted && !sessionFound) {
-              router.replace('/login?error=processing_failed')
+            console.error('[AuthCallback] Polling exception:', error)
+            if (pollCount >= MAX_POLLS) {
+              if (pollingInterval) {
+                clearInterval(pollingInterval)
+              }
+              if (isMounted) {
+                router.replace('/login?error=processing_failed')
+              }
             }
           }
-        }
+        }, 1000) // 1초마다 체크
 
-        // 초기 세션 확인
-        await checkSessionWithRetry()
+        // 4. 최대 15초 타임아웃 (안전장치)
+        timeoutId = setTimeout(() => {
+          if (isMounted && !sessionFound) {
+            console.error('[AuthCallback] Timeout waiting for session')
+            if (pollingInterval) {
+              clearInterval(pollingInterval)
+            }
+            router.replace('/login?error=session_timeout')
+          }
+        }, 15000)
 
       } catch (error) {
         console.error('[AuthCallback] Callback processing error:', error)
-        if (isMounted && !sessionFound) {
-          // 재시도 가능한 경우 재시도
-          if (retryCount < MAX_RETRIES) {
-            retryCount++
-            console.log(`[AuthCallback] Retrying after processing error (${retryCount}/${MAX_RETRIES})`)
-            setTimeout(() => {
-              if (isMounted && !sessionFound) {
-                handleCallback()
-              }
-            }, RETRY_DELAY)
-          } else {
-            router.replace('/login?error=processing_failed')
+        if (isMounted) {
+          if (subscription) {
+            subscription.unsubscribe()
           }
+          if (pollingInterval) {
+            clearInterval(pollingInterval)
+          }
+          router.replace('/login?error=processing_failed')
         }
       }
     }
 
     // 약간의 지연 후 콜백 처리 시작 (Supabase 자동 처리 대기)
-    const initTimeout = setTimeout(handleCallback, 300)
+    const initTimeout = setTimeout(handleCallback, 100)
 
     return () => {
       isMounted = false
       clearTimeout(initTimeout)
       clearTimeout(timeoutId)
+      if (pollingInterval) {
+        clearInterval(pollingInterval)
+      }
       if (subscription) {
         subscription.unsubscribe()
       }

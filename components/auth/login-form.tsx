@@ -15,7 +15,7 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signInWithKakao, signInWithGoogle } = useUnifiedAuth();
+  const { signIn, signInWithKakao } = useUnifiedAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,16 +47,6 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      const { error } = await signInWithGoogle();
-      if (error) {
-        toast.error(error.userMessage || error.message || '구글 로그인에 실패했습니다.');
-      }
-    } catch (error) {
-      toast.error('구글 로그인 중 오류가 발생했습니다.');
-    }
-  };
 
   return (
     <Card className="w-full max-w-md mx-auto p-6">
@@ -115,14 +105,6 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
             카카오로 로그인
           </Button>
 
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleGoogleLogin}
-          >
-            구글로 로그인
-          </Button>
         </div>
 
         <div className="text-center text-sm">

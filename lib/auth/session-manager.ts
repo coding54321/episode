@@ -127,6 +127,9 @@ export class SessionManager {
   }
 
   static setupAutoRefresh(): () => void {
+    let consecutiveFailures = 0
+    const MAX_CONSECUTIVE_FAILURES = 3
+
     const interval = setInterval(async () => {
       const sessionInfo = await this.checkSession()
 
@@ -134,13 +137,43 @@ export class SessionManager {
         const refreshResult = await this.refreshSession()
 
         if (!refreshResult.success) {
-          console.warn('Auto refresh failed:', refreshResult.error)
+          consecutiveFailures++
+          console.warn(`Auto refresh failed (${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}):`, refreshResult.error)
 
-          // 토큰 갱신 실패 시 로그아웃 처리
-          if (refreshResult.error?.code === 'TOKEN_REFRESH_FAILED') {
-            await this.handleSessionExpiry()
-            window.location.href = '/login?error=session_expired'
+          // 네트워크 오류인 경우 재시도
+          if (refreshResult.error?.code === 'NETWORK_ERROR' && consecutiveFailures < MAX_CONSECUTIVE_FAILURES) {
+            return // 재시도 대기
           }
+
+          // 연속 실패 또는 토큰 갱신 실패 시 사용자에게 경고 후 로그아웃
+          if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES || 
+              refreshResult.error?.code === 'TOKEN_REFRESH_FAILED' ||
+              refreshResult.error?.code === 'SESSION_EXPIRED') {
+            
+            // 사용자에게 경고 표시 (토스트 메시지)
+            if (typeof window !== 'undefined') {
+              // 토스트 라이브러리가 있다면 사용, 없으면 alert
+              const showWarning = () => {
+                const event = new CustomEvent('session-expiring', {
+                  detail: { message: '세션이 만료되어 로그아웃됩니다.' }
+                })
+                window.dispatchEvent(event)
+              }
+              
+              showWarning()
+              
+              // 2초 후 로그아웃
+              setTimeout(async () => {
+                await this.handleSessionExpiry()
+                window.location.href = '/login?error=session_expired'
+              }, 2000)
+            } else {
+              await this.handleSessionExpiry()
+            }
+          }
+        } else {
+          // 성공 시 실패 카운터 리셋
+          consecutiveFailures = 0
         }
       }
     }, 60 * 1000) // 1분마다 체크

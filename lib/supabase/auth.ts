@@ -1,122 +1,32 @@
 import { supabase } from './client';
 import { User } from '@/types';
 import type { Database } from './types';
+import { mapSupabaseUserToAppUser as mapToAppUser, ensureUserInPublicTable } from '@/lib/auth/user-sync';
 
-// users 테이블에 사용자 등록 보장
+// users 테이블에 사용자 등록 보장 (하위 호환성을 위한 래퍼)
 async function ensureUserRegistered(supabaseUser: any): Promise<void> {
   if (!supabaseUser) return;
-
-  try {
-    // users 테이블에 사용자가 이미 존재하는지 확인
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', supabaseUser.id)
-      .maybeSingle();
-
-    if (existingUser) return; // 이미 존재하면 종료
-
-    // 사용자 정보 추출
-    const provider = supabaseUser.app_metadata?.provider ||
-                     supabaseUser.identities?.[0]?.provider ||
-                     'email';
-
-    let providerUserId = supabaseUser.id;
-    if (supabaseUser.identities && supabaseUser.identities.length > 0) {
-      providerUserId = supabaseUser.identities[0].id || supabaseUser.id;
-    }
-
-    let name = supabaseUser.user_metadata?.full_name ||
-               supabaseUser.user_metadata?.name ||
-               supabaseUser.user_metadata?.kakao_account?.profile?.nickname ||
-               supabaseUser.user_metadata?.nickname ||
-               supabaseUser.email?.split('@')[0] ||
-               '사용자';
-
-    let email = supabaseUser.email ||
-                supabaseUser.user_metadata?.kakao_account?.email ||
-                supabaseUser.user_metadata?.email ||
-                '';
-
-    // users 테이블에 사용자 등록 (upsert 사용으로 중복 처리)
-    const { error } = await supabase
-      .from('users')
-      .upsert({
-        id: supabaseUser.id,
-        provider: provider,
-        provider_user_id: providerUserId,
-        name: name,
-        email: email,
-      } as any, {
-        onConflict: 'id'
-      });
-
-    if (error) {
-      console.error('Failed to register user:', error);
-    }
-  } catch (error) {
-    console.error('Error ensuring user registration:', error);
-  }
+  await ensureUserInPublicTable(supabaseUser);
 }
 
 /**
  * Supabase Auth를 사용한 인증 유틸리티
  */
 
-// Supabase Auth User를 앱의 User 타입으로 변환
+// Supabase Auth User를 앱의 User 타입으로 변환 (하위 호환성을 위한 래퍼)
 export async function mapSupabaseUserToAppUser(supabaseUser: any): Promise<User | null> {
   if (!supabaseUser) return null;
-
-  // provider 정보 추출 (kakao, google 등)
-  const provider = supabaseUser.app_metadata?.provider || 
-                   supabaseUser.identities?.[0]?.provider || 
-                   'email';
-
-  // 이름 추출 (Kakao의 경우 user_metadata.kakao_account.profile.nickname)
-  let name = supabaseUser.user_metadata?.full_name || 
-             supabaseUser.user_metadata?.name ||
-             supabaseUser.user_metadata?.kakao_account?.profile?.nickname ||
-             supabaseUser.user_metadata?.nickname ||
-             supabaseUser.email?.split('@')[0] || 
-             '사용자';
-
-  // 이메일 추출 (Kakao의 경우 user_metadata.kakao_account.email)
-  let email = supabaseUser.email || 
-              supabaseUser.user_metadata?.kakao_account?.email || 
-              supabaseUser.user_metadata?.email || 
-              '';
-
-  // users 테이블에서 추가 정보 가져오기
-  let jobGroup: string | null = null;
-  let jobRole: string | null = null;
-  let onboardingCompleted: boolean | null = null;
-
-  try {
-    const { data: userData } = await supabase
-      .from('users')
-      .select('job_group, job_role, onboarding_completed')
-      .eq('id' as any, supabaseUser.id as any)
-      .maybeSingle();
-
-    if (userData) {
-      jobGroup = userData.job_group as string | null;
-      jobRole = userData.job_role as string | null;
-      onboardingCompleted = userData.onboarding_completed as boolean | null;
-    }
-  } catch (error) {
-    console.warn('Failed to fetch additional user data:', error);
-    // 에러가 있어도 기본 정보는 반환
-  }
-
+  const appUser = await mapToAppUser(supabaseUser);
+  // AppUser를 User 타입으로 변환 (null을 undefined로 변환)
   return {
-    id: supabaseUser.id,
-    name,
-    email,
-    provider: provider as 'kakao' | 'google' | 'email',
-    createdAt: new Date(supabaseUser.created_at).getTime(),
-    jobGroup,
-    jobRole,
-    onboardingCompleted: onboardingCompleted ?? false,
+    id: appUser.id,
+    name: appUser.name,
+    email: appUser.email,
+    provider: appUser.provider,
+    createdAt: appUser.createdAt,
+    jobGroup: appUser.jobGroup ?? undefined,
+    jobRole: appUser.jobRole ?? undefined,
+    onboardingCompleted: appUser.onboardingCompleted ?? false,
   };
 }
 
