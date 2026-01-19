@@ -1,5 +1,5 @@
 import { supabase } from './client';
-import { MindMapProject, MindMapNode, STARAsset, GapTag, SharedNodeData, BadgeType } from '@/types';
+import { MindMapProject, MindMapNode, STARAsset, GapTag, SharedNodeData, BadgeType, GapDiagnosisResult, PostIt } from '@/types';
 import type { Database } from './types';
 
 /**
@@ -110,6 +110,7 @@ export async function getProjects(userId: string): Promise<MindMapProject[]> {
         isShared: p.is_shared || false,
         sharedBy: p.shared_by || undefined,
         sharedByUser: p.shared_by_user || undefined,
+        postIts: (p.post_its as PostIt[]) || [],
       };
     });
   } catch (error) {
@@ -218,6 +219,7 @@ export async function getProjectsWithNodes(userId: string): Promise<MindMapProje
         isShared: p.is_shared || false,
         sharedBy: p.shared_by || undefined,
         sharedByUser: p.shared_by_user || undefined,
+        postIts: (p.post_its as PostIt[]) || [],
       };
     });
   } catch (error) {
@@ -271,6 +273,7 @@ export async function getProject(projectId: string, userId: string): Promise<Min
       isShared: projectData.is_shared || false,
       sharedBy: projectData.shared_by || undefined,
       sharedByUser: projectData.shared_by_user || undefined,
+      postIts: (projectData.post_its as PostIt[]) || [],
     };
   } catch (error) {
     // AbortError는 조용히 무시 (컴포넌트 언마운트 등으로 인한 정상적인 중단)
@@ -332,6 +335,7 @@ export async function getSharedProject(projectId: string): Promise<MindMapProjec
       isShared: projectData.is_shared || false,
       sharedBy: projectData.shared_by || undefined,
       sharedByUser: projectData.shared_by_user || undefined,
+      postIts: (projectData.post_its as PostIt[]) || [],
     };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
@@ -387,6 +391,7 @@ export async function createProject(
       layout_config: project.layoutConfig || { autoLayout: true, spacing: { horizontal: 150, vertical: 120, radial: 160 } },
       project_type: projectType,
       is_shared: projectType === 'collaborative' ? (project.isShared ?? true) : false, // 팀 마인드맵은 기본 공유 활성화
+      post_its: project.postIts || [],
     };
 
     // id가 제공된 경우에만 포함 (그렇지 않으면 DB에서 자동 생성)
@@ -471,6 +476,7 @@ export async function updateProject(
     if (updates.layoutType !== undefined) updateData.layout_type = updates.layoutType;
     if (updates.layoutConfig !== undefined) updateData.layout_config = updates.layoutConfig;
     if (updates.projectType !== undefined) updateData.project_type = updates.projectType;
+    if (updates.postIts !== undefined) updateData.post_its = updates.postIts;
     
     // 개인 마인드맵은 is_shared 변경 불가 (강제로 false)
     if (updates.projectType === 'personal') {
@@ -1757,6 +1763,9 @@ export async function getGapTags(userId: string): Promise<GapTag[]> {
       company_id: t.company_id || undefined,
       job_id: t.job_id || undefined,
       question_id: t.question_id || undefined,
+      job_group: t.job_group || undefined,
+      job_role: t.job_role || undefined,
+      diagnosis_result_id: t.diagnosis_result_id || undefined,
     }));
   } catch (error) {
     console.error('Failed to get gap tags:', error);
@@ -1784,6 +1793,9 @@ export async function saveGapTag(tag: GapTag & { userId?: string }): Promise<boo
       company_id: tag.company_id || null,
       job_id: tag.job_id || null,
       question_id: tag.question_id || null,
+      job_group: tag.job_group || null,
+      job_role: tag.job_role || null,
+      diagnosis_result_id: tag.diagnosis_result_id || null,
     };
 
     const { error } = await supabase
@@ -1806,6 +1818,164 @@ export async function deleteGapTag(tagId: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Failed to delete gap tag:', error);
+    return false;
+  }
+}
+
+// ==================== Gap Diagnosis Results ====================
+
+export async function getGapDiagnosisResults(userId: string): Promise<GapDiagnosisResult[]> {
+  try {
+    // gap_tags에서 진단 결과별로 그룹화
+    const { data, error } = await supabase
+      .from('gap_tags')
+      .select('*')
+      .eq('user_id' as any, userId as any)
+      .not('diagnosis_result_id' as any, 'is', null)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // diagnosis_result_id별로 그룹화
+    const resultsMap = new Map<string, GapDiagnosisResult>();
+    
+    (data as any[] || []).forEach((tag: any) => {
+      const resultId = tag.diagnosis_result_id;
+      if (!resultId) return;
+
+      if (!resultsMap.has(resultId)) {
+        // 첫 번째 태그에서 진단 결과 메타 정보 추출
+        resultsMap.set(resultId, {
+          id: resultId,
+          userId: userId,
+          jobGroup: tag.job_group || '',
+          jobRole: tag.job_role || '',
+          tags: [],
+          createdAt: tag.created_at,
+        });
+      }
+
+      const result = resultsMap.get(resultId)!;
+      result.tags.push({
+        id: tag.id,
+        label: tag.label,
+        category: tag.category,
+        source: tag.source,
+        questions: tag.questions || [],
+        createdAt: tag.created_at,
+        company_id: tag.company_id || undefined,
+        job_id: tag.job_id || undefined,
+        question_id: tag.question_id || undefined,
+        job_group: tag.job_group || undefined,
+        job_role: tag.job_role || undefined,
+        diagnosis_result_id: tag.diagnosis_result_id || undefined,
+      });
+    });
+
+    return Array.from(resultsMap.values());
+  } catch (error) {
+    console.error('Failed to get gap diagnosis results:', error);
+    return [];
+  }
+}
+
+export async function getGapDiagnosisResultById(resultId: string, userId: string): Promise<GapDiagnosisResult | null> {
+  try {
+    const { data, error } = await supabase
+      .from('gap_tags')
+      .select('*')
+      .eq('user_id' as any, userId as any)
+      .eq('diagnosis_result_id' as any, resultId as any)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
+
+    const firstTag = data[0] as any;
+    const tags = (data as any[]).map((tag: any) => ({
+      id: tag.id,
+      label: tag.label,
+      category: tag.category,
+      source: tag.source,
+      questions: tag.questions || [],
+      createdAt: tag.created_at,
+      company_id: tag.company_id || undefined,
+      job_id: tag.job_id || undefined,
+      question_id: tag.question_id || undefined,
+      job_group: tag.job_group || undefined,
+      job_role: tag.job_role || undefined,
+      diagnosis_result_id: tag.diagnosis_result_id || undefined,
+    }));
+
+    return {
+      id: resultId,
+      userId: userId,
+      jobGroup: firstTag.job_group || '',
+      jobRole: firstTag.job_role || '',
+      tags: tags,
+      createdAt: firstTag.created_at,
+    };
+  } catch (error) {
+    console.error('Failed to get gap diagnosis result:', error);
+    return null;
+  }
+}
+
+export async function saveGapDiagnosisResult(result: GapDiagnosisResult): Promise<boolean> {
+  try {
+    const userId = result.userId || (await ensureUserExists());
+    if (!userId) {
+      console.error('Cannot save gap diagnosis result: No valid user ID');
+      return false;
+    }
+
+    // 각 태그에 diagnosis_result_id 추가하여 저장
+    for (const tag of result.tags) {
+      const tagData: any = {
+        id: tag.id,
+        user_id: userId,
+        label: tag.label,
+        category: tag.category,
+        source: tag.source,
+        questions: tag.questions || [],
+        created_at: tag.createdAt,
+        company_id: tag.company_id || null,
+        job_id: tag.job_id || null,
+        question_id: tag.question_id || null,
+        job_group: result.jobGroup || null,
+        job_role: result.jobRole || null,
+        diagnosis_result_id: result.id,
+      };
+
+      const { error } = await supabase
+        .from('gap_tags')
+        .upsert(tagData, { onConflict: 'id' });
+
+      if (error) {
+        console.error('Failed to save gap tag:', error);
+        return false;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Failed to save gap diagnosis result:', error);
+    return false;
+  }
+}
+
+export async function deleteGapDiagnosisResult(resultId: string, userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('gap_tags')
+      .delete()
+      .eq('user_id' as any, userId as any)
+      .eq('diagnosis_result_id' as any, resultId as any);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Failed to delete gap diagnosis result:', error);
     return false;
   }
 }

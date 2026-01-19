@@ -18,7 +18,6 @@ interface TabState {
 import NewTabPanel from '@/components/mindmap/NewTabPanel';
 import UnifiedSidebar from '@/components/UnifiedSidebar';
 import STAREditor from '@/components/star/STAREditor';
-import LayoutSelector from '@/components/mindmap/LayoutSelector';
 import MindMapToolbar from '@/components/mindmap/MindMapToolbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,10 +64,10 @@ export default function MindMapProjectPage() {
 
   // 리다이렉트 중 로딩 표시
     return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-        <div className="w-12 h-12 border-4 border-blue-600 dark:border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">로딩 중...</p>
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">로딩 중...</p>
         </div>
       </div>
   );

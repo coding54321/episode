@@ -10,7 +10,6 @@ import { mindMapProjectStorage } from '@/lib/storage';
 import { MindMapNode, MindMapProject } from '@/types';
 import { supabase } from '@/lib/supabase/client';
 import { useUnifiedAuth } from '@/lib/auth/unified-auth-context';
-import { ThemeToggle } from '@/components/theme-toggle';
 
 interface SearchResult {
   nodeId: string;
@@ -168,7 +167,7 @@ export default function Header({
       <>
         {parts.map((part, index) => 
           part.toLowerCase() === query.toLowerCase() ? (
-            <mark key={index} className="bg-yellow-200 dark:bg-yellow-600 text-gray-900 dark:text-gray-100">
+            <mark key={index} className="bg-yellow-200 text-gray-900">
               {part}
             </mark>
           ) : (
@@ -190,12 +189,12 @@ export default function Header({
   const isMindMapProjectPage = /^\/mindmap\/[^/]+$/.test(pathname); // 개별 마인드맵 페이지인지 확인
 
   return (
-    <header className={`bg-white dark:bg-[#0a0a0a] border-b border-gray-200 dark:border-[#2a2a2a] px-5 py-4 flex items-center justify-between z-[60] transition-colors ${isHomePage ? '' : 'sticky top-0'}`}>
+    <header className={`bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between z-[60] transition-colors ${isHomePage ? '' : 'sticky top-0'}`}>
       <div className="flex items-center gap-6">
         {/* 로고 */}
         <Link href="/">
           <button className="flex items-center hover:opacity-80 transition-opacity">
-            <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+            <span className="text-xl font-bold text-gray-900 tracking-tight">
               episode
             </span>
           </button>
@@ -209,7 +208,7 @@ export default function Header({
               className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                 isActive('/mindmaps')
                   ? 'text-[#5B6EFF] bg-[#5B6EFF]/10'
-                  : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
               마인드맵
@@ -219,7 +218,7 @@ export default function Header({
               className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                 isActive('/archive')
                   ? 'text-[#5B6EFF] bg-[#5B6EFF]/10'
-                  : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
               에피소드 보관함
@@ -229,7 +228,7 @@ export default function Header({
               className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                 isActive('/gap-diagnosis-standalone')
                   ? 'text-[#5B6EFF] bg-[#5B6EFF]/10'
-                  : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
               기출문항 셀프진단
@@ -240,13 +239,10 @@ export default function Header({
       </div>
 
       <div className="flex items-center gap-3">
-        {/* 테마 토글 버튼 */}
-        <ThemeToggle />
-
         {/* 로그인 버튼 또는 사용자 메뉴 */}
         {!user ? (
           <Link href="/login">
-            <Button variant="ghost" className="text-gray-700 dark:text-[#e5e5e5] hover:text-gray-900 dark:hover:text-white">
+            <Button variant="ghost" className="text-gray-700 hover:text-gray-900">
               로그인/회원가입
             </Button>
           </Link>
@@ -256,25 +252,25 @@ export default function Header({
               variant="ghost"
               size="sm"
               onClick={() => setShowMenu(!showMenu)}
-              className="flex items-center gap-2 h-9 px-3 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg transition-colors"
+              className="flex items-center gap-2 h-9 px-3 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <div className="w-6 h-6 bg-gradient-to-br from-[#5B6EFF] to-[#7B8FFF] rounded-full flex items-center justify-center shadow-lg" style={{ boxShadow: '0 0 10px rgba(91, 110, 255, 0.3)' }}>
                 <UserIcon className="w-4 h-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-gray-700 dark:text-[#e5e5e5]">{user.name}님</span>
+              <span className="text-sm font-medium text-gray-700">{user.name}님</span>
             </Button>
             {showMenu && (
               <div className="absolute right-0 mt-2 w-48 glass-card rounded-lg shadow-lg z-[80]">
                 {/* 사용자 정보 */}
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-[#2a2a2a]">
-                  <p className="text-sm font-medium text-gray-900 dark:text-[#e5e5e5]">{user.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-[#a0a0a0] mt-1">{user.email}</p>
+                <div className="px-4 py-3 border-b border-gray-200">
+                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                  <p className="text-xs text-gray-500 mt-1">{user.email}</p>
                 </div>
                 {/* 메뉴 항목 */}
                 <div className="py-1">
                   <Link
                     href="/mindmaps"
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 flex items-center gap-2 transition-colors"
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50/50 flex items-center gap-2 transition-colors"
                     onClick={() => setShowMenu(false)}
                   >
                     <Map className="w-4 h-4" />
@@ -282,7 +278,7 @@ export default function Header({
                   </Link>
                   <Link
                     href="/archive"
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 flex items-center gap-2 transition-colors"
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50/50 flex items-center gap-2 transition-colors"
                     onClick={() => setShowMenu(false)}
                   >
                     <Archive className="w-4 h-4" />
@@ -290,7 +286,7 @@ export default function Header({
                   </Link>
                   <Link
                     href="/gap-diagnosis-standalone"
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 flex items-center gap-2 transition-colors"
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50/50 flex items-center gap-2 transition-colors"
                     onClick={() => setShowMenu(false)}
                   >
                     <Search className="w-4 h-4" />
@@ -298,7 +294,7 @@ export default function Header({
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 flex items-center gap-2 transition-colors"
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50/50 flex items-center gap-2 transition-colors"
                   >
                     <LogOut className="w-4 h-4" />
                     로그아웃

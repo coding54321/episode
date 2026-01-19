@@ -271,10 +271,10 @@ export default function BadgeSelectionClient() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] flex flex-col">
-      <div className="safe-area-top bg-white dark:bg-[#0a0a0a]" />
-      <div className="flex-1 bg-white dark:bg-[#0a0a0a] px-5 py-6">
-        <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-600 dark:text-[#a0a0a0] mb-8">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="safe-area-top bg-white" />
+      <div className="flex-1 bg-white px-5 py-6">
+        <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-600 mb-8">
           <ChevronLeft className="w-6 h-6" />
         </button>
 
@@ -283,21 +283,21 @@ export default function BadgeSelectionClient() {
             <div className="mb-12">
               {projectType === 'collaborative' ? (
                 <>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-3">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-3">
                     팀 마인드맵을
                     <br />
                     시작해볼까요?
                   </h1>
-                  <p className="text-gray-600 dark:text-[#a0a0a0] text-base">프로젝트 이름과 경험을 입력하세요</p>
+                  <p className="text-gray-600 text-base">프로젝트 이름과 경험을 입력하세요</p>
                 </>
               ) : (
                 <>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-3">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-3">
                     어떤 경험을
                     <br />
                     관리하고 싶으신가요?
                   </h1>
-                  <p className="text-gray-600 dark:text-[#a0a0a0] text-base">여러 개를 선택할 수 있어요</p>
+                  <p className="text-gray-600 text-base">여러 개를 선택할 수 있어요</p>
                 </>
               )}
             </div>
@@ -305,18 +305,18 @@ export default function BadgeSelectionClient() {
             {projectType === 'collaborative' ? (
               <div className="space-y-4 mb-12">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-[#e5e5e5] mb-2">프로젝트 이름</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">프로젝트 이름</label>
                   <Input
                     type="text"
                     placeholder="예: 팀 프로젝트, 스터디 그룹 등"
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
-                    className="h-12 rounded-[12px] border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-[#e5e5e5] placeholder-gray-500 dark:placeholder-[#606060] focus:border-blue-500 dark:focus:border-[#60A5FA]"
+                    className="h-12 rounded-[12px] border-gray-200 bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-[#e5e5e5] mb-2">경험 추가</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">경험 추가</label>
                   <div className="space-y-3">
                     {experiences.map((experience, index) => (
                       <div key={index} className="flex items-center gap-2">
@@ -325,7 +325,7 @@ export default function BadgeSelectionClient() {
                           placeholder={`경험 ${index + 1} (예: 웹 개발 프로젝트, 디자인 시스템 구축 등)`}
                           value={experience}
                           onChange={(e) => handleExperienceChange(index, e.target.value)}
-                          className="flex-1 h-12 rounded-[12px] border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-[#e5e5e5] placeholder-gray-500 dark:placeholder-[#606060] focus:border-blue-500 dark:focus:border-[#60A5FA]"
+                          className="flex-1 h-12 rounded-[12px] border-gray-200 bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500"
                         />
                         {experiences.length > 1 && (
                           <Button
@@ -333,7 +333,7 @@ export default function BadgeSelectionClient() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveExperience(index)}
-                            className="h-12 w-12 p-0 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 dark:text-[#606060] hover:text-red-600 dark:hover:text-red-400"
+                            className="h-12 w-12 p-0 hover:bg-red-50 text-gray-400 hover:text-red-600"
                           >
                             <X className="h-5 w-5" />
                           </Button>
@@ -344,13 +344,13 @@ export default function BadgeSelectionClient() {
                       type="button"
                       variant="outline"
                       onClick={handleAddExperience}
-                      className="w-full h-12 border-dashed border-2 border-gray-300 dark:border-[#404040] hover:border-blue-500 dark:hover:border-[#60A5FA] text-gray-600 dark:text-[#a0a0a0] hover:text-blue-600 dark:hover:text-[#60A5FA] bg-transparent"
+                      className="w-full h-12 border-dashed border-2 border-gray-300 hover:border-blue-500 text-gray-600 hover:text-blue-600 bg-transparent"
                     >
                       <Plus className="h-5 w-5 mr-2" />
                       경험 추가하기
                     </Button>
                   </div>
-                  <p className="mt-2 text-xs text-gray-500 dark:text-[#a0a0a0]">중앙 노드에서 바로 경험을 추가할 수 있어요. 나중에 더 추가할 수 있습니다.</p>
+                  <p className="mt-2 text-xs text-gray-500">중앙 노드에서 바로 경험을 추가할 수 있어요. 나중에 더 추가할 수 있습니다.</p>
                 </div>
               </div>
             ) : (
@@ -367,13 +367,13 @@ export default function BadgeSelectionClient() {
                         onClick={() => toggleBadge(badge.id)}
                         className={`relative h-[72px] rounded-[16px] border-[1.5px] transition-all duration-200 ease-out ${
                           isSelected
-                            ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-[#60A5FA] shadow-sm'
-                            : 'bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] hover:border-gray-300 dark:hover:border-[#3a3a3a] card-hover'
+                            ? 'bg-blue-50 border-blue-500 shadow-sm'
+                            : 'bg-white border-gray-200 hover:border-gray-300 card-hover'
                         }`}
                       >
                         <div className="flex items-center gap-3 px-4">
                           <span className="text-2xl">{badge.emoji}</span>
-                          <span className={`font-semibold text-sm ${isSelected ? 'text-blue-700 dark:text-[#60A5FA]' : 'text-gray-700 dark:text-[#e5e5e5]'}`}>
+                          <span className={`font-semibold text-sm ${isSelected ? 'text-blue-700' : 'text-gray-700'}`}>
                             {badge.label}
                           </span>
                         </div>
@@ -408,7 +408,7 @@ export default function BadgeSelectionClient() {
                           placeholder="기타 경험 유형을 입력하세요 (예: 어학연수, 창업 등)"
                           value={customLabels[idx] || ''}
                           onChange={(e) => setCustomLabels((prev) => ({ ...prev, [idx]: e.target.value }))}
-                          className="w-full h-[48px] px-4 rounded-[12px] border-[1.5px] border-gray-200 dark:border-[#2a2a2a] focus:border-blue-500 dark:focus:border-[#60A5FA] focus:outline-none text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-[#e5e5e5] placeholder-gray-500 dark:placeholder-[#606060]"
+                          className="w-full h-[48px] px-4 rounded-[12px] border-[1.5px] border-gray-200 focus:border-blue-500 focus:outline-none text-sm bg-white text-gray-900 placeholder-gray-500"
                         />
                       </motion.div>
                     );
@@ -435,7 +435,7 @@ export default function BadgeSelectionClient() {
                 <Button
                   onClick={handleSkip}
                   variant="outline"
-                  className="w-full h-[56px] bg-white dark:bg-[#1a1a1a] border-[1.5px] border-gray-200 dark:border-[#2a2a2a] hover:border-gray-300 dark:hover:border-[#3a3a3a] text-gray-600 dark:text-[#a0a0a0] font-semibold text-base rounded-[12px] shadow-sm transition-all duration-200 ease-out"
+                  className="w-full h-[56px] bg-white border-[1.5px] border-gray-200 hover:border-gray-300 text-gray-600 font-semibold text-base rounded-[12px] shadow-sm transition-all duration-200 ease-out"
                 >
                   건너뛰기
                 </Button>
@@ -443,11 +443,11 @@ export default function BadgeSelectionClient() {
             </div>
 
             {projectType === 'personal' && selectedBadges.length === 0 && (
-              <p className="text-sm text-gray-500 dark:text-[#a0a0a0] text-center mt-4">최소 1개 이상 선택해주세요</p>
+              <p className="text-sm text-gray-500 text-center mt-4">최소 1개 이상 선택해주세요</p>
             )}
 
             {projectType === 'collaborative' && (
-              <p className="text-sm text-gray-500 dark:text-[#a0a0a0] text-center mt-4">프로젝트 이름과 최소 1개 이상의 경험을 입력해주세요</p>
+              <p className="text-sm text-gray-500 text-center mt-4">프로젝트 이름과 최소 1개 이상의 경험을 입력해주세요</p>
             )}
           </motion.div>
         </div>

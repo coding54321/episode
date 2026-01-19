@@ -13,6 +13,9 @@ export interface AppUser {
   email: string
   provider: 'kakao' | 'google' | 'email'
   createdAt: number
+  jobGroup?: string | null
+  jobRole?: string | null
+  onboardingCompleted?: boolean | null
 }
 
 interface AuthContextType {
@@ -45,7 +48,7 @@ export function UnifiedAuthProvider({ children }: { children: React.ReactNode })
   const cleanupRef = useRef<(() => void) | null>(null)
 
   // Supabase User를 AppUser로 변환
-  const mapSupabaseUserToAppUser = (supabaseUser: SupabaseUser): AppUser => {
+  const mapSupabaseUserToAppUser = async (supabaseUser: SupabaseUser): Promise<AppUser> => {
     const provider = (supabaseUser.app_metadata?.provider as 'kakao' | 'google' | 'email') || 'email'
     
     // 이름 추출
@@ -64,19 +67,43 @@ export function UnifiedAuthProvider({ children }: { children: React.ReactNode })
       supabaseUser.user_metadata?.email ||
       ''
 
+    // users 테이블에서 추가 정보 가져오기
+    let jobGroup: string | null = null;
+    let jobRole: string | null = null;
+    let onboardingCompleted: boolean | null = null;
+
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('job_group, job_role, onboarding_completed')
+        .eq('id' as any, supabaseUser.id as any)
+        .maybeSingle();
+
+      if (userData) {
+        jobGroup = userData.job_group as string | null;
+        jobRole = userData.job_role as string | null;
+        onboardingCompleted = userData.onboarding_completed as boolean | null;
+      }
+    } catch (error) {
+      console.warn('Failed to fetch additional user data:', error);
+    }
+
     return {
       id: supabaseUser.id,
       name,
       email,
       provider,
       createdAt: new Date(supabaseUser.created_at).getTime(),
+      jobGroup,
+      jobRole,
+      onboardingCompleted: onboardingCompleted ?? false,
     }
   }
 
   // public.users 테이블에 사용자 동기화 (간소화된 버전)
   const ensureUserInPublicTable = async (supabaseUser: SupabaseUser): Promise<void> => {
     try {
-      const appUser = mapSupabaseUserToAppUser(supabaseUser)
+      const appUser = await mapSupabaseUserToAppUser(supabaseUser)
       
       // 사용자 존재 확인
       const { data: existingUser } = await supabase
@@ -131,7 +158,7 @@ export function UnifiedAuthProvider({ children }: { children: React.ReactNode })
         }
 
         if (session?.user && mounted.current) {
-          const appUser = mapSupabaseUserToAppUser(session.user)
+          const appUser = await mapSupabaseUserToAppUser(session.user)
           setUser(appUser)
           
           // 백그라운드에서 users 테이블 동기화
@@ -162,7 +189,7 @@ export function UnifiedAuthProvider({ children }: { children: React.ReactNode })
 
         try {
           if (event === 'SIGNED_IN' && session?.user) {
-            const appUser = mapSupabaseUserToAppUser(session.user)
+            const appUser = await mapSupabaseUserToAppUser(session.user)
             setUser(appUser)
             setError(null)
             
@@ -171,7 +198,7 @@ export function UnifiedAuthProvider({ children }: { children: React.ReactNode })
           } else if (event === 'TOKEN_REFRESHED' && session?.user) {
             // 토큰 갱신 시 사용자 정보 유지
             if (!user) {
-              const appUser = mapSupabaseUserToAppUser(session.user)
+              const appUser = await mapSupabaseUserToAppUser(session.user)
               setUser(appUser)
             }
           } else if (event === 'SIGNED_OUT') {
@@ -225,7 +252,7 @@ export function UnifiedAuthProvider({ children }: { children: React.ReactNode })
       }
 
       if (data.user) {
-        const appUser = mapSupabaseUserToAppUser(data.user)
+        const appUser = await mapSupabaseUserToAppUser(data.user)
         if (mounted.current) {
           setUser(appUser)
         }
@@ -256,7 +283,7 @@ export function UnifiedAuthProvider({ children }: { children: React.ReactNode })
       }
 
       if (data.user) {
-        const appUser = mapSupabaseUserToAppUser(data.user)
+        const appUser = await mapSupabaseUserToAppUser(data.user)
         if (mounted.current) {
           setUser(appUser)
         }

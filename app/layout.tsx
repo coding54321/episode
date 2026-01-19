@@ -3,7 +3,6 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { UnifiedAuthProvider } from "@/lib/auth/unified-auth-context";
-import { ThemeProvider } from "@/lib/contexts/theme-provider";
 
 const pretendard = localFont({
   src: [
@@ -43,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" suppressHydrationWarning>
+    <html lang="ko">
       <head>
         <link
           rel="stylesheet"
@@ -56,12 +55,10 @@ export default function RootLayout({
         className={`${pretendard.variable} antialiased`}
         style={{ fontFamily: 'var(--font-pretendard), -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif', letterSpacing: '-0.05em' }}
       >
-        <ThemeProvider>
-          <UnifiedAuthProvider>
-            {children}
-            <Toaster />
-          </UnifiedAuthProvider>
-        </ThemeProvider>
+        <UnifiedAuthProvider>
+          {children}
+          <Toaster />
+        </UnifiedAuthProvider>
         <script src="https://developers.kakao.com/sdk/js/kakao.js" async></script>
       </body>
     </html>

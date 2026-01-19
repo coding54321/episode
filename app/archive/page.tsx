@@ -43,14 +43,14 @@ const BADGE_LABELS: Record<BadgeType, string> = {
 };
 
 const BADGE_COLORS: Record<BadgeType, string> = {
-  intern: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-600',
-  academic: 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-600',
-  club: 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-600',
-  project: 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-600',
-  parttime: 'bg-pink-50 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 border-pink-200 dark:border-pink-600',
-  volunteer: 'bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-600',
-  competition: 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-600',
-  other: 'bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600',
+  intern: 'bg-blue-50 text-blue-700 border-blue-200',
+  academic: 'bg-purple-50 text-purple-700 border-purple-200',
+  club: 'bg-green-50 text-green-700 border-green-200',
+  project: 'bg-orange-50 text-orange-700 border-orange-200',
+  parttime: 'bg-pink-50 text-pink-700 border-pink-200',
+  volunteer: 'bg-teal-50 text-teal-700 border-teal-200',
+  competition: 'bg-red-50 text-red-700 border-red-200',
+  other: 'bg-gray-50 text-gray-700 border-gray-200',
 };
 
 export default function ArchivePage() {
@@ -635,48 +635,48 @@ export default function ArchivePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-[#0a0a0a] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-[#a0a0a0]">로딩 중...</p>
+          <p className="text-gray-600">로딩 중...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0a0a0a] flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       {/* 플로팅 헤더 */}
       <FloatingHeader />
 
       {/* 메인 컨텐츠 */}
       <div className="flex-1 px-5 pt-32 pb-12 max-w-7xl mx-auto w-full">
         {/* Sticky 헤더 영역 */}
-        <div className="sticky top-[64px] z-40 bg-white dark:bg-[#0a0a0a] -mx-5 px-5 pt-4 pb-4 mb-6 border-b border-gray-200 dark:border-[#2a2a2a]">
+        <div className="sticky top-[64px] z-40 bg-white -mx-5 px-5 pt-4 pb-4 mb-6 border-b border-gray-200">
           {/* 페이지 헤더 */}
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-2">에피소드 보관함</h1>
-            <p className="text-gray-600 dark:text-[#a0a0a0] mb-4">모든 경험을 STAR 기법으로 정리하여 확인하세요</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">에피소드 보관함</h1>
+            <p className="text-gray-600 mb-4">모든 경험을 STAR 기법으로 정리하여 확인하세요</p>
             
             {/* 탭 */}
-            <div className="border-b border-gray-200 dark:border-[#2a2a2a] -mx-5 px-5">
+            <div className="border-b border-gray-200 -mx-5 px-5">
               <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'all' | 'personal' | 'collaborative')}>
                 <TabsList className="bg-transparent rounded-none p-0 h-auto w-auto justify-start">
                   <TabsTrigger 
                     value="all" 
-                    className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                    className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 hover:text-gray-900"
                   >
                     전체
                   </TabsTrigger>
                   <TabsTrigger 
                     value="personal"
-                    className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                    className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 hover:text-gray-900"
                   >
                     개인 마인드맵
                   </TabsTrigger>
                   <TabsTrigger 
                     value="collaborative"
-                    className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] dark:data-[state=active]:text-[#7B8FFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                    className="px-4 py-3 text-base font-medium data-[state=active]:border-b-2 data-[state=active]:border-[#5B6EFF] data-[state=active]:text-[#5B6EFF] data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none border-0 border-b-2 border-transparent shadow-none text-gray-600 hover:text-gray-900"
                   >
                     팀 마인드맵
                   </TabsTrigger>
@@ -689,13 +689,13 @@ export default function ArchivePage() {
           <div className="space-y-4 mb-4">
             {/* 검색바 */}
             <div className="relative">
-              <Search className="w-5 h-5 text-gray-400 dark:text-[#606060] absolute left-4 top-1/2 -translate-y-1/2" />
+              <Search className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
               <Input
                 type="text"
                 placeholder="에피소드, 경험, STAR 내용 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12 h-12 rounded-[12px] border-gray-200 dark:border-[#2a2a2a] bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-[#e5e5e5] placeholder-gray-500 dark:placeholder-[#606060] focus:border-blue-500 dark:focus:border-[#60A5FA] focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/50"
+                className="pl-12 h-12 rounded-[12px] border-gray-200 bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
 
@@ -708,8 +708,8 @@ export default function ArchivePage() {
                     variant="outline"
                     className={`h-9 px-4 rounded-full border-2 justify-between ${
                       selectedProjectId !== 'all'
-                        ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-500 dark:border-[#60A5FA] text-blue-700 dark:text-[#60A5FA]'
-                        : 'bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-900 dark:text-[#e5e5e5] hover:bg-gray-50 dark:hover:bg-[#2a2a2a]'
+                        ? 'bg-blue-50 border-blue-500 text-blue-700'
+                        : 'bg-white border-gray-200 text-gray-900 hover:bg-gray-50'
                     }`}
                   >
                     <span className="font-semibold text-sm">
@@ -727,14 +727,14 @@ export default function ArchivePage() {
                       setSelectedProjectId('all');
                     }}
                     className={`cursor-pointer ${
-                      selectedProjectId === 'all' ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                      selectedProjectId === 'all' ? 'bg-blue-50' : ''
                     }`}
                   >
                     <span className="font-semibold">전체 마인드맵</span>
                   </DropdownMenuItem>
                   {projects.length > 0 ? (
                     <>
-                      <div className="h-px bg-gray-200 dark:bg-[#2a2a2a] my-1" />
+                      <div className="h-px bg-gray-200 my-1" />
                       {projects.map((project) => {
                         console.log('[archive/page] 드롭다운 프로젝트 렌더링', { projectId: project.id, projectName: project.name });
                         return (
@@ -745,7 +745,7 @@ export default function ArchivePage() {
                               setSelectedProjectId(project.id);
                             }}
                             className={`cursor-pointer ${
-                              selectedProjectId === project.id ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                              selectedProjectId === project.id ? 'bg-blue-50' : ''
                             }`}
                           >
                             <span className={selectedProjectId === project.id ? 'font-semibold' : ''}>
@@ -756,7 +756,7 @@ export default function ArchivePage() {
                       })}
                     </>
                   ) : (
-                    <DropdownMenuItem disabled className="text-gray-400 dark:text-[#606060]">
+                    <DropdownMenuItem disabled className="text-gray-400">
                       {isLoading ? '로딩 중...' : '프로젝트가 없습니다'}
                     </DropdownMenuItem>
                   )}
@@ -764,8 +764,8 @@ export default function ArchivePage() {
               </DropdownMenu>
 
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-gray-500 dark:text-[#a0a0a0]" />
-                <span className="text-sm font-medium text-gray-700 dark:text-[#e5e5e5]">필터:</span>
+                <Filter className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">필터:</span>
               </div>
 
               {/* 카테고리 필터 */}
@@ -798,7 +798,7 @@ export default function ArchivePage() {
                   <select
                     value={selectedTag}
                     onChange={(e) => setSelectedTag(e.target.value)}
-                    className="h-9 px-4 rounded-full border border-gray-200 dark:border-[#2a2a2a] text-sm font-medium text-gray-700 dark:text-[#e5e5e5] bg-white dark:bg-[#1a1a1a] hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors"
+                    className="h-9 px-4 rounded-full border border-gray-200 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                   >
                     <option value="all">모든 역량</option>
                     {allTags.map((tag) => (
@@ -815,8 +815,8 @@ export default function ArchivePage() {
 
           {/* 결과 카운트 */}
           <div>
-            <p className="text-sm text-gray-600 dark:text-[#a0a0a0]">
-              총 <span className="font-semibold text-gray-900 dark:text-[#e5e5e5]">{filteredItems.length}</span>개의 에피소드
+            <p className="text-sm text-gray-600">
+              총 <span className="font-semibold text-gray-900">{filteredItems.length}</span>개의 에피소드
             </p>
           </div>
         </div>
@@ -825,27 +825,27 @@ export default function ArchivePage() {
         {filteredItems.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-6">📝</div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-3">
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
               에피소드가 없습니다
             </h2>
-            <p className="text-gray-600 dark:text-[#a0a0a0] mb-8">
+            <p className="text-gray-600 mb-8">
               마인드맵에서 경험과 에피소드를 추가하고 STAR 기법으로 정리해보세요
             </p>
             <Button
               onClick={() => router.push('/badge-selection')}
-              className="bg-gray-900 dark:bg-[#1e3a8a] hover:bg-gray-800 dark:hover:bg-[#1e40af] text-white font-semibold h-12 px-6 rounded-[12px] shadow-sm"
+              className="bg-gray-900 hover:bg-gray-800 text-white font-semibold h-12 px-6 rounded-[12px] shadow-sm"
             >
               마인드맵 작성하기
             </Button>
           </div>
         ) : editingItemId && editFormData ? (
           // 편집 뷰: 왼쪽 에피소드 목록, 중앙 STAR 입력, 오른쪽 강점/역량 + 저장/취소
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-[16px] border border-gray-200 dark:border-[#2a2a2a] overflow-hidden">
+          <div className="bg-white rounded-[16px] border border-gray-200 overflow-hidden">
             <div className="flex h-[600px]">
               {/* 왼쪽: 에피소드 목록 (프로젝트별 그룹화) */}
-              <div className="w-64 border-r border-gray-200 dark:border-[#2a2a2a] overflow-y-auto bg-gray-50 dark:bg-[#0a0a0a]">
-                <div className="p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">에피소드</h3>
+              <div className="w-64 border-r border-gray-200 overflow-y-auto bg-gray-50">
+                <div className="p-4 border-b border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-900">에피소드</h3>
                 </div>
                 <div className="p-2">
                   {(() => {
@@ -863,7 +863,7 @@ export default function ArchivePage() {
                       return (
                         <div key={projectId} className="mb-4">
                           <div className="px-2 py-2 mb-2">
-                            <h4 className="text-xs font-semibold text-gray-700 dark:text-[#a0a0a0] uppercase">
+                            <h4 className="text-xs font-semibold text-gray-700 uppercase">
                               {project?.name || '알 수 없음'}
                             </h4>
                           </div>
@@ -881,20 +881,20 @@ export default function ArchivePage() {
                                   className={`p-3 rounded-lg cursor-pointer transition-colors ${
                                     isSelected
                                       ? 'bg-[#5B6EFF] text-white border-2 border-white'
-                                      : 'bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+                                      : 'bg-white border border-gray-200 hover:bg-gray-100'
                                   } ${item.episodeName === '-' || !item.episodeName || item.episodeName.trim() === '' ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                                  <div className={`text-xs font-medium mb-1 ${isSelected ? 'text-white/80' : 'text-gray-500 dark:text-[#a0a0a0]'}`}>
+                                  <div className={`text-xs font-medium mb-1 ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
                                     {item.categoryLabel !== '-' ? (
                                       <Badge className={`${BADGE_COLORS[item.category]} border text-xs`}>
                                 {item.categoryLabel}
                               </Badge>
                                     ) : null}
                                   </div>
-                                  <div className={`text-sm font-semibold mb-1 ${isSelected ? 'text-white' : 'text-gray-900 dark:text-[#e5e5e5]'}`}>
+                                  <div className={`text-sm font-semibold mb-1 ${isSelected ? 'text-white' : 'text-gray-900'}`}>
                                     {item.experienceName !== '-' ? item.experienceName : item.projectName}
                                   </div>
-                                  <div className={`text-xs line-clamp-2 ${isSelected ? 'text-white/90' : 'text-gray-600 dark:text-[#a0a0a0]'}`}>
+                                  <div className={`text-xs line-clamp-2 ${isSelected ? 'text-white/90' : 'text-gray-600'}`}>
                                     {item.episodeName !== '-' ? item.episodeName : '에피소드 없음'}
                                   </div>
                                 </div>
@@ -913,7 +913,7 @@ export default function ArchivePage() {
                 <div className="space-y-4">
                   {/* 기간 입력 */}
                                   <div>
-                    <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">기간</label>
+                    <label className="text-sm font-semibold text-gray-900 mb-2 block">기간</label>
                     <DateRangePicker
                       startDate={editFormData.startDate}
                       endDate={editFormData.endDate}
@@ -923,38 +923,38 @@ export default function ArchivePage() {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">SITUATION</label>
+                    <label className="text-sm font-semibold text-gray-900 mb-2 block">SITUATION</label>
                                     <Textarea
                                       value={editFormData.situation}
                                       onChange={(e) => setEditFormData({ ...editFormData, situation: e.target.value })}
-                      className="min-h-[120px] text-sm bg-gray-50 dark:bg-[#0a0a0a] border-gray-300 dark:border-[#404040] text-gray-900 dark:text-[#e5e5e5] resize-none"
+                      className="min-h-[120px] text-sm bg-gray-50 border-gray-300 text-gray-900 resize-none"
                                       placeholder="상황을 입력하세요"
                                     />
                                   </div>
                                   <div>
-                    <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">TASK</label>
+                    <label className="text-sm font-semibold text-gray-900 mb-2 block">TASK</label>
                                     <Textarea
                                       value={editFormData.task}
                                       onChange={(e) => setEditFormData({ ...editFormData, task: e.target.value })}
-                      className="min-h-[120px] text-sm bg-gray-50 dark:bg-[#0a0a0a] border-gray-300 dark:border-[#404040] text-gray-900 dark:text-[#e5e5e5] resize-none"
+                      className="min-h-[120px] text-sm bg-gray-50 border-gray-300 text-gray-900 resize-none"
                                       placeholder="과제를 입력하세요"
                                     />
                                   </div>
                                   <div>
-                    <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">ACTION</label>
+                    <label className="text-sm font-semibold text-gray-900 mb-2 block">ACTION</label>
                                     <Textarea
                                       value={editFormData.action}
                                       onChange={(e) => setEditFormData({ ...editFormData, action: e.target.value })}
-                      className="min-h-[120px] text-sm bg-gray-50 dark:bg-[#0a0a0a] border-gray-300 dark:border-[#404040] text-gray-900 dark:text-[#e5e5e5] resize-none"
+                      className="min-h-[120px] text-sm bg-gray-50 border-gray-300 text-gray-900 resize-none"
                                       placeholder="행동을 입력하세요"
                                     />
                                   </div>
                                   <div>
-                    <label className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-2 block">RESULT</label>
+                    <label className="text-sm font-semibold text-gray-900 mb-2 block">RESULT</label>
                                     <Textarea
                                       value={editFormData.result}
                                       onChange={(e) => setEditFormData({ ...editFormData, result: e.target.value })}
-                      className="min-h-[120px] text-sm bg-gray-50 dark:bg-[#0a0a0a] border-gray-300 dark:border-[#404040] text-gray-900 dark:text-[#e5e5e5] resize-none"
+                      className="min-h-[120px] text-sm bg-gray-50 border-gray-300 text-gray-900 resize-none"
                                       placeholder="결과를 입력하세요"
                                     />
                                   </div>
@@ -962,9 +962,9 @@ export default function ArchivePage() {
               </div>
 
               {/* 오른쪽: 강점/역량 + 저장/취소 */}
-              <div className="w-64 border-l border-gray-200 dark:border-[#2a2a2a] flex flex-col bg-gray-50 dark:bg-[#0a0a0a]">
-                <div className="p-4 border-b border-gray-200 dark:border-[#2a2a2a]">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">강점/역량</h3>
+              <div className="w-64 border-l border-gray-200 flex flex-col bg-gray-50">
+                <div className="p-4 border-b border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-900">강점/역량</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
                   <div className="space-y-2 mb-4">
@@ -974,7 +974,7 @@ export default function ArchivePage() {
                                       <Badge
                             key={tag}
                             variant="outline"
-                            className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-[#60A5FA] border-blue-200 dark:border-blue-600 text-xs cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                            className="bg-blue-50 text-blue-700 border-blue-200 text-xs cursor-pointer hover:bg-blue-100"
                             onClick={() => handleToggleTag(tag)}
                                       >
                             {tag}
@@ -986,14 +986,14 @@ export default function ArchivePage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setShowTagDialog(true)}
-                      className="w-full h-10 bg-gray-200 dark:bg-[#2a2a2a] hover:bg-gray-300 dark:hover:bg-[#404040] text-gray-700 dark:text-[#e5e5e5] border-gray-300 dark:border-[#404040]"
+                      className="w-full h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 border-gray-300"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       태그 추가
                     </Button>
                                 </div>
                 </div>
-                <div className="p-4 border-t border-gray-200 dark:border-[#2a2a2a] space-y-2">
+                <div className="p-4 border-t border-gray-200 space-y-2">
                                   <Button
                                     size="sm"
                     onClick={() => {
@@ -1037,58 +1037,58 @@ export default function ArchivePage() {
                   <div key={projectId} className="space-y-4">
                     {/* 프로젝트 제목 */}
                     <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-[#e5e5e5]">
+                      <h2 className="text-xl font-bold text-gray-900">
                         {project?.name || '알 수 없음'}
                       </h2>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => router.push(`/mindmap?projectId=${projectId}`)}
-                        className="text-sm text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5]"
+                        className="text-sm text-gray-600 hover:text-gray-900"
                       >
                         마인드맵 열기
                       </Button>
                     </div>
 
                     {/* 프로젝트별 테이블 */}
-                    <div className="bg-white dark:bg-[#1a1a1a] rounded-[16px] border border-gray-200 dark:border-[#2a2a2a] overflow-hidden">
+                    <div className="bg-white rounded-[16px] border border-gray-200 overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className="w-full">
-                          <thead className="bg-white dark:bg-[#0a0a0a] border-b border-gray-200 dark:border-[#2a2a2a]">
+                          <thead className="bg-white border-b border-gray-200">
                             <tr>
-                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] w-[200px]">
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 w-[200px]">
                                 에피소드
                               </th>
-                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] w-[140px]">
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 w-[140px]">
                                 기간
                               </th>
-                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900">
                                 SITUATION
                               </th>
-                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900">
                                 TASK
                               </th>
-                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900">
                                 ACTION
                               </th>
-                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900">
                                 RESULT
                               </th>
-                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] w-[150px]">
+                              <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 w-[150px]">
                                 강점/역량
                               </th>
-                              <th className="px-4 py-4 text-center text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] w-[80px]">
+                              <th className="px-4 py-4 text-center text-sm font-semibold text-gray-900 w-[80px]">
                                 작업
                               </th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-gray-200 dark:divide-[#2a2a2a]">
+                          <tbody className="divide-y divide-gray-200">
                             {items.map((item) => {
                               const isEditable = item.episodeName !== '-' && item.episodeName && item.episodeName.trim() !== '';
                               return (
                                 <tr
                                   key={item.id}
-                                  className={`hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors ${
+                                  className={`hover:bg-gray-50 transition-colors ${
                                     isEditable ? 'cursor-pointer' : ''
                                   }`}
                                   onClick={() => {
@@ -1107,10 +1107,10 @@ export default function ArchivePage() {
                                           </Badge>
                                         )}
                                       </div>
-                                      <div className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5] mb-1">
+                                      <div className="text-sm font-semibold text-gray-900 mb-1">
                                         {item.experienceName !== '-' ? item.experienceName : item.projectName}
                                       </div>
-                                      <div className="text-xs text-gray-600 dark:text-[#a0a0a0] line-clamp-2">
+                                      <div className="text-xs text-gray-600 line-clamp-2">
                                         {item.episodeName !== '-' ? item.episodeName : '에피소드 없음'}
                                       </div>
                                 </div>
@@ -1118,7 +1118,7 @@ export default function ArchivePage() {
 
                                   {/* 기간 */}
                                   <td className="px-4 py-4">
-                                    <div className="text-xs text-gray-600 dark:text-[#a0a0a0]">
+                                    <div className="text-xs text-gray-600">
                                       {item.experienceStartDate && item.experienceEndDate ? (
                                         `${format(new Date(item.experienceStartDate), 'yyyy.MM.dd', { locale: ko })} - ${format(new Date(item.experienceEndDate), 'yyyy.MM.dd', { locale: ko })}`
                                       ) : item.experienceStartDate ? (
@@ -1133,11 +1133,11 @@ export default function ArchivePage() {
                                   <td className="px-4 py-4">
                                     <div className="min-h-[40px] flex items-start">
                                 {item.star?.situation ? (
-                                        <div className="text-sm text-gray-700 dark:text-[#e5e5e5] line-clamp-3" title={item.star.situation}>
+                                        <div className="text-sm text-gray-700 line-clamp-3" title={item.star.situation}>
                                     {item.star.situation}
                                   </div>
                                 ) : (
-                                        <span className="text-xs text-gray-400 dark:text-[#606060]">s</span>
+                                        <span className="text-xs text-gray-400">s</span>
                                 )}
                                     </div>
                               </td>
@@ -1146,11 +1146,11 @@ export default function ArchivePage() {
                                   <td className="px-4 py-4">
                                     <div className="min-h-[40px] flex items-start">
                                 {item.star?.task ? (
-                                        <div className="text-sm text-gray-700 dark:text-[#e5e5e5] line-clamp-3" title={item.star.task}>
+                                        <div className="text-sm text-gray-700 line-clamp-3" title={item.star.task}>
                                     {item.star.task}
                                   </div>
                                 ) : (
-                                        <span className="text-xs text-gray-400 dark:text-[#606060]">t</span>
+                                        <span className="text-xs text-gray-400">t</span>
                                 )}
                                     </div>
                               </td>
@@ -1159,11 +1159,11 @@ export default function ArchivePage() {
                                   <td className="px-4 py-4">
                                     <div className="min-h-[40px] flex items-start">
                                 {item.star?.action ? (
-                                        <div className="text-sm text-gray-700 dark:text-[#e5e5e5] line-clamp-3" title={item.star.action}>
+                                        <div className="text-sm text-gray-700 line-clamp-3" title={item.star.action}>
                                     {item.star.action}
                                   </div>
                                 ) : (
-                                        <span className="text-xs text-gray-400 dark:text-[#606060]">a</span>
+                                        <span className="text-xs text-gray-400">a</span>
                                 )}
                                     </div>
                               </td>
@@ -1172,11 +1172,11 @@ export default function ArchivePage() {
                                   <td className="px-4 py-4">
                                     <div className="min-h-[40px] flex items-start">
                                 {item.star?.result ? (
-                                        <div className="text-sm text-gray-700 dark:text-[#e5e5e5] line-clamp-3" title={item.star.result}>
+                                        <div className="text-sm text-gray-700 line-clamp-3" title={item.star.result}>
                                     {item.star.result}
                                   </div>
                                 ) : (
-                                        <span className="text-xs text-gray-400 dark:text-[#606060]">r</span>
+                                        <span className="text-xs text-gray-400">r</span>
                                 )}
                                     </div>
                               </td>
@@ -1190,14 +1190,14 @@ export default function ArchivePage() {
                                       <Badge
                                         key={tag}
                                         variant="outline"
-                                        className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-[#60A5FA] border-blue-200 dark:border-blue-600 text-xs"
+                                        className="bg-blue-50 text-blue-700 border-blue-200 text-xs"
                                       >
                                         {tag}
                                       </Badge>
                                           ))}
                                         </div>
                                   ) : (
-                                        <span className="text-xs text-gray-400 dark:text-[#606060]">강점/역량</span>
+                                        <span className="text-xs text-gray-400">강점/역량</span>
                                   )}
                                 </div>
                               </td>
@@ -1212,12 +1212,12 @@ export default function ArchivePage() {
                                           e.stopPropagation();
                                           handleStartEdit(item);
                                         }}
-                                    className="h-8 w-8 p-0 hover:bg-blue-50 dark:hover:bg-[#2a2a2a]"
+                                    className="h-8 w-8 p-0 hover:bg-blue-50"
                                   >
-                                    <Edit className="h-4 w-4 text-gray-600 dark:text-[#a0a0a0]" />
+                                    <Edit className="h-4 w-4 text-gray-600" />
                                   </Button>
                                     ) : (
-                                      <span className="text-xs text-gray-400 dark:text-[#606060]">-</span>
+                                      <span className="text-xs text-gray-400">-</span>
                                 )}
                               </td>
                         </tr>
@@ -1252,7 +1252,7 @@ export default function ArchivePage() {
                   className={`p-3 rounded-lg border-2 transition-all text-sm font-medium ${
                     editFormData?.tags.includes(keyword)
                       ? 'bg-[#5B6EFF] text-white border-[#5B6EFF]'
-                      : 'bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-[#2a2a2a] text-gray-700 dark:text-[#e5e5e5] hover:border-[#5B6EFF] hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                      : 'bg-white border-gray-200 text-gray-700 hover:border-[#5B6EFF] hover:bg-blue-50'
                   }`}
                 >
                   {keyword}

@@ -64,7 +64,7 @@ async function ensureUserRegistered(supabaseUser: any): Promise<void> {
  */
 
 // Supabase Auth User를 앱의 User 타입으로 변환
-export function mapSupabaseUserToAppUser(supabaseUser: any): User | null {
+export async function mapSupabaseUserToAppUser(supabaseUser: any): Promise<User | null> {
   if (!supabaseUser) return null;
 
   // provider 정보 추출 (kakao, google 등)
@@ -86,12 +86,37 @@ export function mapSupabaseUserToAppUser(supabaseUser: any): User | null {
               supabaseUser.user_metadata?.email || 
               '';
 
+  // users 테이블에서 추가 정보 가져오기
+  let jobGroup: string | null = null;
+  let jobRole: string | null = null;
+  let onboardingCompleted: boolean | null = null;
+
+  try {
+    const { data: userData } = await supabase
+      .from('users')
+      .select('job_group, job_role, onboarding_completed')
+      .eq('id' as any, supabaseUser.id as any)
+      .maybeSingle();
+
+    if (userData) {
+      jobGroup = userData.job_group as string | null;
+      jobRole = userData.job_role as string | null;
+      onboardingCompleted = userData.onboarding_completed as boolean | null;
+    }
+  } catch (error) {
+    console.warn('Failed to fetch additional user data:', error);
+    // 에러가 있어도 기본 정보는 반환
+  }
+
   return {
     id: supabaseUser.id,
     name,
     email,
     provider: provider as 'kakao' | 'google' | 'email',
     createdAt: new Date(supabaseUser.created_at).getTime(),
+    jobGroup,
+    jobRole,
+    onboardingCompleted: onboardingCompleted ?? false,
   };
 }
 
@@ -105,7 +130,7 @@ export async function getCurrentUserWithRegistration(): Promise<User | null> {
     }
 
     // Supabase Auth 사용자를 앱 User 타입으로 변환만 함
-    return mapSupabaseUserToAppUser(user);
+    return await mapSupabaseUserToAppUser(user);
   } catch (error) {
     console.warn('Failed to get current user:', error);
     return null;
@@ -147,7 +172,7 @@ export async function getCurrentUser(): Promise<User | null> {
       return null;
     }
 
-    const result = mapSupabaseUserToAppUser(user);
+    const result = await mapSupabaseUserToAppUser(user);
     console.log('[supabase/auth] getCurrentUser: 완료', { userId: result?.id });
     return result;
   } catch (error) {
@@ -207,7 +232,7 @@ export function onAuthStateChange(callback: (user: User | null) => void) {
   return supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
       if (session?.user) {
-        const user = mapSupabaseUserToAppUser(session.user);
+        const user = await mapSupabaseUserToAppUser(session.user);
         callback(user);
       } else {
         callback(null);

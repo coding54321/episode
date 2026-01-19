@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MindMapNode, MindMapProject, GapTag, NodeType, LayoutType, LayoutConfig, MindMapSettings, STARAsset, COMPETENCY_KEYWORDS } from '@/types';
+import { MindMapNode, MindMapProject, GapTag, NodeType, LayoutType, LayoutConfig, MindMapSettings, STARAsset, COMPETENCY_KEYWORDS, PostIt } from '@/types';
 import { mindMapProjectStorage, currentProjectStorage, assetStorage, mindMapOnboardingStorage } from '@/lib/storage';
 import { useUnifiedAuth } from '@/lib/auth/unified-auth-context';
 import MindMapCanvas, { MindMapCanvasHandle } from '@/components/mindmap/MindMapCanvas';
@@ -17,8 +17,8 @@ interface TabState {
 }
 import UnifiedSidebar from '@/components/UnifiedSidebar';
 import STAREditor from '@/components/star/STAREditor';
-import LayoutSelector from '@/components/mindmap/LayoutSelector';
 import MindMapToolbar from '@/components/mindmap/MindMapToolbar';
+import PostItComponent from '@/components/mindmap/PostIt';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -113,6 +113,10 @@ export default function MindMapWorkspace() {
   const [activeEditors, setActiveEditors] = useState<ActiveEditor[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [isAddNodeMode, setIsAddNodeMode] = useState(false);
+  const [isAddPostItMode, setIsAddPostItMode] = useState(false);
+  const [postIts, setPostIts] = useState<PostIt[]>([]);
+  const [draggedPostItId, setDraggedPostItId] = useState<string | null>(null);
+  const [postItDragOffset, setPostItDragOffset] = useState({ x: 0, y: 0 });
   const [cursorMode, setCursorMode] = useState<'select' | 'move'>('select');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{ nodeId: string; nodeLabel: string; projectId: string; projectName: string; nodePath: string[] }>>([]);
@@ -132,6 +136,27 @@ export default function MindMapWorkspace() {
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editedProjectTitle, setEditedProjectTitle] = useState('');
   
+  // 프로젝트 정보 헤더의 실제 높이를 동적으로 계산
+  // Hook은 항상 같은 순서로 호출되어야 하므로 모든 Hook을 최상단에 선언
+  const [projectInfoHeaderHeight, setProjectInfoHeaderHeight] = useState(60); // PROJECT_INFO_HEADER_HEIGHT 기본값
+
+  // 프로젝트 정보 헤더 높이 측정 useEffect
+  useEffect(() => {
+    const updateHeaderHeight = () => {
+      const headerElement = document.getElementById('project-info-header');
+      if (headerElement) {
+        const height = headerElement.getBoundingClientRect().height;
+        setProjectInfoHeaderHeight(height);
+      }
+    };
+    
+    // 프로젝트 정보 헤더가 렌더링된 후 높이 측정
+    if (project && activeTabId !== 'new') {
+      // 약간의 지연을 두어 DOM이 완전히 렌더링된 후 측정
+      const timer = setTimeout(updateHeaderHeight, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [project, activeTabId, tabs.length]);
 
   // DB 업데이트 디바운싱을 위한 ref
   const supabaseUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -167,6 +192,7 @@ export default function MindMapWorkspace() {
     if (state) {
       setProject(state.project);
       setNodes(state.nodes);
+      setPostIts(state.project?.postIts || []);
       setSelectedNodeId(state.selectedNodeId);
       setFocusNodeId(state.focusNodeId);
       return true;
@@ -433,6 +459,7 @@ export default function MindMapWorkspace() {
         });
 
         setProject(loadedProject);
+        setPostIts(loadedProject.postIts || []);
 
         // 저장된 설정 불러오기
         if (loadedProject.settings) {
@@ -576,6 +603,7 @@ export default function MindMapWorkspace() {
           const targetProject = await mindMapProjectStorage.get(initialProjectId);
           if (targetProject) {
             setProject(targetProject);
+            setPostIts(targetProject.postIts || []);
             const layoutConfig = targetProject.layoutConfig || { autoLayout: true };
             const layouted =
               layoutConfig.autoLayout && targetProject.nodes.length > 0
@@ -603,6 +631,7 @@ export default function MindMapWorkspace() {
         setActiveProjectId(initialProjectId);
         setProject(targetProject);
         setNodes(layouted);
+        setPostIts(targetProject.postIts || []);
         setSelectedNodeId(null);
         setFocusNodeId(null);
 
@@ -1048,7 +1077,7 @@ export default function MindMapWorkspace() {
       <>
         {parts.map((part, index) => 
           part.toLowerCase() === query.toLowerCase() ? (
-            <mark key={index} className="bg-yellow-200 dark:bg-yellow-600 text-gray-900 dark:text-gray-100">
+            <mark key={index} className="bg-yellow-200 text-gray-900">
               {part}
             </mark>
           ) : (
@@ -1429,6 +1458,13 @@ export default function MindMapWorkspace() {
   // 캔버스 클릭으로 노드 추가
   const handleCanvasAddNode = (x: number, y: number) => {
     if (isReadOnly || !project) return;
+
+    // 포스트잇 추가 모드인 경우 포스트잇 추가
+    if (isAddPostItMode) {
+      handleAddPostIt(x, y);
+      setIsAddPostItMode(false);
+      return;
+    }
 
     // 독립 노드는 기본 색상 할당 (나중에 연결되면 부모 색상 상속)
     const newNode: MindMapNode = {
@@ -1824,12 +1860,212 @@ export default function MindMapWorkspace() {
 
   const displayNodes = getDisplayNodes();
 
-  // 태그 드롭 처리 핸들러
-  const handleTagDrop = (nodeId: string, tag: GapTag) => {
-    setDroppedTag({ tag, targetNodeId: nodeId });
-    setNewNodeName(''); // 빈 값으로 시작
-    setShowConfirmDialog(true);
+  // 태그 드롭 처리 핸들러 (노드에 드롭 또는 캔버스에 드롭)
+  const handleTagDrop = (nodeId: string | null, tag: GapTag, canvasX?: number, canvasY?: number) => {
+    // 캔버스에 드롭한 경우 포스트잇으로 추가
+    if (nodeId === null) {
+      const canvasElement = canvasRef.current?.getCanvasElement();
+      if (canvasElement) {
+        // 드롭 좌표가 제공되면 사용, 없으면 캔버스 중앙에 배치
+        const canvasRect = canvasElement.getBoundingClientRect();
+        const dropX = canvasX !== undefined ? canvasX - canvasRect.left : canvasRect.width / 2;
+        const dropY = canvasY !== undefined ? canvasY - canvasRect.top : canvasRect.height / 2;
+        handleAddPostItFromTag(tag, dropX, dropY);
+      }
+      return;
+    }
+    
+    // 노드에 드롭한 경우 기존 로직
+    if (nodeId) {
+      setDroppedTag({ tag, targetNodeId: nodeId });
+      setNewNodeName(''); // 빈 값으로 시작
+      setShowConfirmDialog(true);
+    }
   };
+
+  // 포스트잇 추가 (툴바 버튼 클릭 시)
+  const handleAddPostIt = useCallback((x?: number, y?: number) => {
+    if (!project || !activeProjectId) return;
+
+    const canvasElement = canvasRef.current?.getCanvasElement();
+    if (!canvasElement) return;
+
+    // 클릭 위치가 제공되지 않으면 캔버스 중앙에 배치
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const defaultX = x !== undefined ? x : canvasRect.width / 2;
+    const defaultY = y !== undefined ? y : canvasRect.height / 2;
+
+    // 캔버스 좌표를 월드 좌표로 변환 (줌과 팬 고려)
+    const zoom = canvasRef.current?.getZoom() || 1;
+    const pan = canvasRef.current?.getPan() || { x: 0, y: 0 };
+    const worldX = (defaultX - pan.x) / zoom;
+    const worldY = (defaultY - pan.y) / zoom;
+
+    const newPostIt: PostIt = {
+      id: `postit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      projectId: activeProjectId,
+      title: '새 포스트잇',
+      content: '',
+      x: worldX,
+      y: worldY,
+      width: 200,
+      height: 150,
+      color: 'yellow',
+      zIndex: 1000,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    const updatedPostIts = [...(postIts || []), newPostIt];
+    setPostIts(updatedPostIts);
+    
+    // 프로젝트에 포스트잇 저장
+    if (project) {
+      const updatedProject = {
+        ...project,
+        postIts: updatedPostIts,
+        updatedAt: Date.now(),
+      };
+      setProject(updatedProject);
+      mindMapProjectStorage.update(updatedProject.id, updatedProject);
+    }
+  }, [project, activeProjectId, postIts]);
+
+  // 역량 카드에서 포스트잇 생성
+  const handleAddPostItFromTag = useCallback((tag: GapTag, canvasX: number, canvasY: number) => {
+    if (!project || !activeProjectId) return;
+
+    const canvasElement = canvasRef.current?.getCanvasElement();
+    if (!canvasElement) return;
+
+    // 캔버스 좌표를 월드 좌표로 변환
+    const zoom = canvasRef.current?.getZoom() || 1;
+    const pan = canvasRef.current?.getPan() || { x: 0, y: 0 };
+    const worldX = (canvasX - pan.x) / zoom;
+    const worldY = (canvasY - pan.y) / zoom;
+
+    const newPostIt: PostIt = {
+      id: `postit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      projectId: activeProjectId,
+      title: tag.label,
+      content: `${tag.category}에 대한 내용\n\n${tag.source}`,
+      x: worldX,
+      y: worldY,
+      width: 200,
+      height: 150,
+      color: 'yellow',
+      zIndex: 1000,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      sourceTagId: tag.id,
+    };
+
+    const updatedPostIts = [...(postIts || []), newPostIt];
+    setPostIts(updatedPostIts);
+    
+    // 프로젝트에 포스트잇 저장
+    if (project) {
+      const updatedProject = {
+        ...project,
+        postIts: updatedPostIts,
+        updatedAt: Date.now(),
+      };
+      setProject(updatedProject);
+      mindMapProjectStorage.update(updatedProject.id, updatedProject);
+    }
+
+    // 태그 제거 (사용됨)
+    const { gapTagStorage } = require('@/lib/storage');
+    gapTagStorage.remove(tag.id);
+    window.dispatchEvent(new Event('gap-tags-updated'));
+  }, [project, activeProjectId, postIts]);
+
+  // 포스트잇 업데이트
+  const handleUpdatePostIt = useCallback((id: string, updates: Partial<PostIt>) => {
+    if (!project) return;
+
+    const updatedPostIts = (postIts || []).map(p => 
+      p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
+    );
+    setPostIts(updatedPostIts);
+
+    const updatedProject = {
+      ...project,
+      postIts: updatedPostIts,
+      updatedAt: Date.now(),
+    };
+    setProject(updatedProject);
+    mindMapProjectStorage.update(updatedProject.id, updatedProject);
+  }, [project, postIts]);
+
+  // 포스트잇 삭제
+  const handleDeletePostIt = useCallback((id: string) => {
+    if (!project) return;
+
+    const updatedPostIts = (postIts || []).filter(p => p.id !== id);
+    setPostIts(updatedPostIts);
+
+    const updatedProject = {
+      ...project,
+      postIts: updatedPostIts,
+      updatedAt: Date.now(),
+    };
+    setProject(updatedProject);
+    mindMapProjectStorage.update(updatedProject.id, updatedProject);
+  }, [project, postIts]);
+
+  // 포스트잇 드래그 시작
+  const handlePostItDragStart = useCallback((id: string, e: React.MouseEvent) => {
+    if (isReadOnly) return;
+    
+    const postIt = postIts?.find(p => p.id === id);
+    if (!postIt) return;
+
+    const canvasElement = canvasRef.current?.getCanvasElement();
+    if (!canvasElement) return;
+
+    const zoom = canvasRef.current?.getZoom() || 1;
+    const pan = canvasRef.current?.getPan() || { x: 0, y: 0 };
+    
+    // 화면 좌표를 캔버스 좌표로 변환
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const screenX = e.clientX - canvasRect.left;
+    const screenY = e.clientY - canvasRect.top;
+    
+    // 월드 좌표로 변환
+    const worldX = (screenX - pan.x) / zoom;
+    const worldY = (screenY - pan.y) / zoom;
+    
+    setDraggedPostItId(id);
+    setPostItDragOffset({
+      x: worldX - postIt.x,
+      y: worldY - postIt.y,
+    });
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!draggedPostItId) return;
+
+      const moveScreenX = moveEvent.clientX - canvasRect.left;
+      const moveScreenY = moveEvent.clientY - canvasRect.top;
+      const moveWorldX = (moveScreenX - pan.x) / zoom;
+      const moveWorldY = (moveScreenY - pan.y) / zoom;
+
+      handleUpdatePostIt(id, {
+        x: moveWorldX - postItDragOffset.x,
+        y: moveWorldY - postItDragOffset.y,
+      });
+    };
+
+    const handleMouseUp = () => {
+      setDraggedPostItId(null);
+      setPostItDragOffset({ x: 0, y: 0 });
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [postIts, isReadOnly, draggedPostItId, postItDragOffset, handleUpdatePostIt]);
 
   // 노드 생성하기 클릭
   const handleConfirmAddTag = () => {
@@ -1913,12 +2149,27 @@ export default function MindMapWorkspace() {
     setNewNodeName('');
   };
 
+  // 높이 상수 정의
+  const HEADER_HEIGHT = 64; // FloatingHeader: py-4 (32px) + 내용 (~32px) = 64px
+  const TABS_HEIGHT = 40; // MindMapTabs: py-2 (16px) + 내용 (~24px) = 40px
+  const PROJECT_INFO_HEADER_HEIGHT = 60; // 프로젝트 정보 헤더: py-3 (24px) + 검색바 h-9 (36px) = 60px
+
+  // topOffset 계산
+  const projectInfoHeaderTop = tabs.length > 0 
+    ? HEADER_HEIGHT + TABS_HEIGHT // 64 + 40 = 104px
+    : HEADER_HEIGHT; // 64px
+  
+  // 사이드바는 프로젝트 정보 헤더 바로 아래에 위치
+  const toolbarSidebarTopOffset = project && activeTabId !== 'new'
+    ? projectInfoHeaderTop + projectInfoHeaderHeight
+    : projectInfoHeaderTop + PROJECT_INFO_HEADER_HEIGHT; // 프로젝트 정보 헤더가 없을 때는 기본값 사용
+
   if (!project) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">로딩 중...</p>
+          <p className="text-gray-600">로딩 중...</p>
         </div>
       </div>
     );
@@ -1926,7 +2177,7 @@ export default function MindMapWorkspace() {
 
   return (
     <DndProvider backend={HTML5Backend}>
-    <div className="h-screen flex flex-col bg-gray-50 dark:bg-[#0a0a0a]">
+    <div className="h-screen flex flex-col bg-gray-50">
       {/* 헤더 */}
       <FloatingHeader />
       
@@ -1944,12 +2195,12 @@ export default function MindMapWorkspace() {
       
       {/* 프로젝트 정보 */}
       {project && activeTabId !== 'new' && (
-      <div className={`bg-white dark:bg-[#0a0a0a] border-b border-gray-100 dark:border-[#2a2a2a] px-5 py-3 sticky ${tabs.length > 0 ? 'top-[104px]' : 'top-[64px]'} z-40`}>
+      <div className={`bg-white border-b border-gray-100 px-5 py-3 sticky z-40`} style={{ top: `${projectInfoHeaderTop}px` }} id="project-info-header">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link href="/mindmaps">
               <Button variant="ghost" size="sm" className="px-2">
-                <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                <ChevronLeft className="h-5 w-5 text-gray-600" />
               </Button>
             </Link>
             <div className="flex items-center gap-3 flex-1">
@@ -1963,7 +2214,7 @@ export default function MindMapWorkspace() {
                       onKeyDown={handleTitleKeyDown}
                       onBlur={handleTitleSave}
                       autoFocus
-                      className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5] border-b-2 border-[#5B6EFF] dark:border-[#7B8FFF] bg-transparent focus:outline-none px-1"
+                      className="text-lg font-bold text-gray-900 border-b-2 border-[#5B6EFF] bg-transparent focus:outline-none px-1"
                       style={{ width: `${Math.max(editedTitle.length * 10, 100)}px` }}
                     />
                     <Button
@@ -1986,14 +2237,14 @@ export default function MindMapWorkspace() {
                 ) : (
                   <div>
                     <h1 
-                      className={`text-lg font-bold text-gray-900 dark:text-[#e5e5e5] ${!isNodeView && !isReadOnly ? 'cursor-pointer hover:text-blue-600 dark:hover:text-[#60A5FA] transition-colors' : ''}`}
+                      className={`text-lg font-bold text-gray-900 ${!isNodeView && !isReadOnly ? 'cursor-pointer hover:text-blue-600 transition-colors' : ''}`}
                       onClick={!isNodeView && !isReadOnly ? handleTitleEdit : undefined}
                       title={!isNodeView && !isReadOnly ? '클릭하여 제목 수정' : isReadOnly ? '편집하려면 로그인이 필요합니다' : ''}
                     >
                       {isNodeView && activeTab ? activeTab.label : project.name}
                     </h1>
                     {isNodeView && (
-                      <p className="text-xs text-gray-500 dark:text-[#a0a0a0]">노드 중심 뷰</p>
+                      <p className="text-xs text-gray-500">노드 중심 뷰</p>
                     )}
                   </div>
                 )}
@@ -2015,7 +2266,7 @@ export default function MindMapWorkspace() {
                           setShowSearchResults(true);
                         }
                       }}
-                      className="h-9 pl-10 pr-4 bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg text-sm text-gray-900 dark:text-[#e5e5e5] placeholder-gray-500 dark:placeholder-[#606060] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64 transition-colors"
+                      className="h-9 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64 transition-colors"
                     />
                     
                     {/* 검색 결과 드롭다운 */}
@@ -2025,17 +2276,17 @@ export default function MindMapWorkspace() {
                           <button
                             key={`${result.projectId}-${result.nodeId}-${index}`}
                             onClick={() => handleSearchResultClick(result)}
-                            className="w-full px-4 py-3 text-left hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 transition-colors border-b border-gray-100 dark:border-[#2a2a2a] last:border-b-0"
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50/50 transition-colors border-b border-gray-100 last:border-b-0"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
                                 {/* 노드 이름 */}
-                                <div className="font-medium text-sm text-gray-900 dark:text-[#e5e5e5] truncate">
+                                <div className="font-medium text-sm text-gray-900 truncate">
                                   {highlightText(result.nodeLabel, searchQuery)}
                                 </div>
                                 
                                 {/* 경로 */}
-                                <div className="flex items-center gap-1 mt-1 text-xs text-gray-500 dark:text-[#a0a0a0]">
+                                <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
                                   <span className="truncate">
                                     {highlightText(result.projectName, searchQuery)}
                                   </span>
@@ -2058,7 +2309,7 @@ export default function MindMapWorkspace() {
                     {/* 검색 결과 없음 */}
                     {showSearchResults && searchQuery.trim() && searchResults.length === 0 && (
                       <div className="absolute top-full left-0 right-0 mt-2 glass-card rounded-lg shadow-lg p-4 z-50">
-                        <p className="text-sm text-gray-500 dark:text-[#a0a0a0] text-center">
+                        <p className="text-sm text-gray-500 text-center">
                           검색 결과가 없습니다
                         </p>
                       </div>
@@ -2069,14 +2320,14 @@ export default function MindMapWorkspace() {
                   <div className="relative hidden md:block" ref={competencyFilterRef}>
                     <button
                       onClick={() => setIsCompetencyFilterOpen(!isCompetencyFilterOpen)}
-                      className={`h-9 px-3 flex items-center gap-2 bg-gray-50 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-lg text-sm text-gray-900 dark:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors ${
-                        selectedCompetencies.length > 0 ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''
+                      className={`h-9 px-3 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 hover:bg-gray-100 transition-colors ${
+                        selectedCompetencies.length > 0 ? 'ring-2 ring-blue-500' : ''
                       }`}
                     >
                       <Filter className="w-4 h-4 text-gray-400" />
                       <span>역량 필터</span>
                       {selectedCompetencies.length > 0 && (
-                        <Badge className="ml-1 bg-blue-500 dark:bg-blue-400 text-white text-xs px-1.5 py-0.5">
+                        <Badge className="ml-1 bg-blue-500 text-white text-xs px-1.5 py-0.5">
                           {selectedCompetencies.length}
                         </Badge>
                       )}
@@ -2094,7 +2345,7 @@ export default function MindMapWorkspace() {
                                 setSelectedCompetencies([]);
                                 setIsCompetencyFilterOpen(false);
                               }}
-                              className="w-full px-3 py-2 text-left text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#2a2a2a] rounded-md transition-colors flex items-center gap-2 mb-1"
+                              className="w-full px-3 py-2 text-left text-sm text-gray-600 hover:bg-gray-50 rounded-md transition-colors flex items-center gap-2 mb-1"
                             >
                               <X className="w-4 h-4" />
                               <span>필터 초기화</span>
@@ -2116,19 +2367,19 @@ export default function MindMapWorkspace() {
                                         setSelectedCompetencies(prev => [...prev, stat.competency]);
                                       }
                                     }}
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-[#2a2a2a] rounded-md transition-colors flex items-center justify-between"
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 rounded-md transition-colors flex items-center justify-between"
                                   >
                                     <div className="flex items-center gap-2">
                                       <div className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
                                         isSelected 
-                                          ? 'bg-blue-500 dark:bg-blue-400 border-blue-500 dark:border-blue-400' 
-                                          : 'border-gray-300 dark:border-gray-600'
+                                          ? 'bg-blue-500 border-blue-500' 
+                                          : 'border-gray-300'
                                       }`}>
                                         {isSelected && <Check className="w-3 h-3 text-white" />}
                                       </div>
-                                      <span className="text-gray-900 dark:text-[#e5e5e5]">{stat.competency}</span>
+                                      <span className="text-gray-900">{stat.competency}</span>
                                     </div>
-                                    <span className="text-xs text-gray-500 dark:text-[#a0a0a0]">
+                                    <span className="text-xs text-gray-500">
                                       {stat.count}개
                                     </span>
                                   </button>
@@ -2136,7 +2387,7 @@ export default function MindMapWorkspace() {
                               })}
                             </div>
                           ) : (
-                            <div className="px-3 py-4 text-center text-sm text-gray-500 dark:text-[#a0a0a0]">
+                            <div className="px-3 py-4 text-center text-sm text-gray-500">
                               역량 태그가 있는 에피소드가 없습니다
                             </div>
                           )}
@@ -2156,20 +2407,20 @@ export default function MindMapWorkspace() {
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200">
                 {saveStatus === 'saving' && (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#5B6EFF] dark:text-[#7B8FFF]" />
-                    <span className="text-gray-600 dark:text-gray-400">저장 중...</span>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#5B6EFF]" />
+                    <span className="text-gray-600">저장 중...</span>
                   </>
                 )}
                 {saveStatus === 'saved' && (
                   <>
-                    <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-                    <span className="text-gray-600 dark:text-gray-400">저장 완료</span>
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                    <span className="text-gray-600">저장 완료</span>
                   </>
                 )}
                 {saveStatus === 'error' && (
                   <>
-                    <AlertCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
-                    <span className="text-red-600 dark:text-red-400">저장 실패</span>
+                    <AlertCircle className="h-3.5 w-3.5 text-red-600" />
+                    <span className="text-red-600">저장 실패</span>
                   </>
                 )}
               </div>
@@ -2200,7 +2451,7 @@ export default function MindMapWorkspace() {
                 className={`px-3 py-2 gap-2 transition-all duration-200 ${
                   isSidebarOpen && sidebarMainTab === 'gap'
                     ? 'bg-[#5B6EFF] text-white hover:bg-[#4B5EEF]' 
-                    : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] border border-gray-300 dark:border-[#2a2a2a]'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-300'
                 }`}
                 title={isSidebarOpen && sidebarMainTab === 'gap' ? '기출문항 셀프진단 닫기' : '기출문항 셀프진단 열기'}
               >
@@ -2231,7 +2482,7 @@ export default function MindMapWorkspace() {
               className={`px-3 py-2 gap-2 transition-all duration-200 ${
                 isSidebarOpen && sidebarMainTab === 'star'
                   ? 'bg-[#5B6EFF] text-white hover:bg-[#4B5EEF]' 
-                  : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
               title={isSidebarOpen && sidebarMainTab === 'star' ? 'STAR 정리하기 닫기' : 'STAR 정리하기 열기'}
             >
@@ -2245,17 +2496,17 @@ export default function MindMapWorkspace() {
 
       {/* 읽기 전용 모드 배너 */}
        {project && activeTabId !== 'new' && isReadOnly && (
-        <div className="bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/20 border-b border-[#5B6EFF]/20 dark:border-[#5B6EFF]/30 px-5 py-3">
+        <div className="bg-[#5B6EFF]/10 border-b border-[#5B6EFF]/20 px-5 py-3">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#5B6EFF]/20 dark:bg-[#5B6EFF]/30 flex items-center justify-center flex-shrink-0">
-                <Lock className="h-4 w-4 text-[#5B6EFF] dark:text-[#7B8FFF]" />
+              <div className="w-8 h-8 rounded-full bg-[#5B6EFF]/20 flex items-center justify-center flex-shrink-0">
+                <Lock className="h-4 w-4 text-[#5B6EFF]" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                <p className="text-sm font-semibold text-blue-900">
                   읽기 전용 모드
                 </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300">
+                <p className="text-xs text-blue-700">
                   마인드맵을 조회할 수 있습니다. 편집하려면 로그인이 필요합니다.
                 </p>
               </div>
@@ -2274,24 +2525,24 @@ export default function MindMapWorkspace() {
       <div className="flex-1 relative overflow-hidden flex">
         {/* '새 파일' 탭일 때 마인드맵 목록 표시 */}
         {activeTabId === 'new' ? (
-          <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-[#0a0a0a]">
+          <div className="flex-1 overflow-y-auto bg-gray-50">
             <div className="max-w-7xl mx-auto px-6 py-8">
               {/* 헤더 */}
               <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-2">마인드맵</h1>
-                <p className="text-gray-600 dark:text-[#a0a0a0]">모든 마인드맵을 관리하세요</p>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">마인드맵</h1>
+                <p className="text-gray-600">모든 마인드맵을 관리하세요</p>
               </div>
 
               {/* 탭 필터 */}
               <Tabs value={projectsTab} onValueChange={(value) => setProjectsTab(value as 'all' | 'personal' | 'shared')} className="mb-6">
-                <TabsList className="bg-gray-100 dark:bg-[#1a1a1a] p-1 rounded-[12px]">
-                  <TabsTrigger value="all" className="rounded-[8px] data-[state=active]:bg-white dark:data-[state=active]:bg-[#2a2a2a]">
+                <TabsList className="bg-gray-100 p-1 rounded-[12px]">
+                  <TabsTrigger value="all" className="rounded-[8px] data-[state=active]:bg-white">
                     전체
                   </TabsTrigger>
-                  <TabsTrigger value="personal" className="rounded-[8px] data-[state=active]:bg-white dark:data-[state=active]:bg-[#2a2a2a]">
+                  <TabsTrigger value="personal" className="rounded-[8px] data-[state=active]:bg-white">
                     개인 마인드맵
                   </TabsTrigger>
-                  <TabsTrigger value="shared" className="rounded-[8px] data-[state=active]:bg-white dark:data-[state=active]:bg-[#2a2a2a]">
+                  <TabsTrigger value="shared" className="rounded-[8px] data-[state=active]:bg-white">
                     팀 마인드맵
                   </TabsTrigger>
                 </TabsList>
@@ -2312,7 +2563,7 @@ export default function MindMapWorkspace() {
               {projectsLoading ? (
                 <div className="text-center py-20">
                   <Loader2 className="h-8 w-8 animate-spin text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 dark:text-[#a0a0a0]">로딩 중...</p>
+                  <p className="text-gray-600">로딩 중...</p>
                 </div>
               ) : (() => {
                 const getFilteredProjects = (): MindMapProject[] => {
@@ -2485,13 +2736,13 @@ export default function MindMapWorkspace() {
                       transition={{ duration: 0.6 }}
                       className="text-center py-20"
                     >
-                      <div className="w-20 h-20 bg-gray-100 dark:bg-[#1a1a1a] rounded-full flex items-center justify-center mx-auto mb-6">
-                        <FolderOpen className="w-10 h-10 text-gray-400 dark:text-[#606060]" />
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <FolderOpen className="w-10 h-10 text-gray-400" />
                       </div>
-                      <h2 className="text-2xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-3">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-3">
                         아직 마인드맵이 없어요
                       </h2>
-                      <p className="text-gray-600 dark:text-[#a0a0a0] mb-8 text-lg">
+                      <p className="text-gray-600 mb-8 text-lg">
                         첫 번째 마인드맵을 만들어보세요
                       </p>
                       <Button
@@ -2516,7 +2767,7 @@ export default function MindMapWorkspace() {
                         className="h-full"
                       >
                         <Card
-                          className="h-full p-6 hover:shadow-lg dark:hover:shadow-gray-700/20 transition-all duration-200 cursor-pointer border rounded-[20px] group bg-white dark:bg-[#1a1a1a] flex flex-col card-hover border-gray-200 dark:border-[#2a2a2a]"
+                          className="h-full p-6 hover:shadow-lg transition-all duration-200 cursor-pointer border rounded-[20px] group bg-white flex flex-col card-hover border-gray-200"
                           onClick={() => handleOpenProject(project.id)}
                         >
                           <div className="mb-5 flex-1">
@@ -2529,7 +2780,7 @@ export default function MindMapWorkspace() {
                                   onKeyDown={(e) => handleEditKeyDown(e, project.id)}
                                   onBlur={() => handleEditSave(project.id)}
                                   autoFocus
-                                  className="flex-1 text-xl font-bold text-gray-900 dark:text-[#e5e5e5] border-b-2 border-[#5B6EFF] bg-transparent focus:outline-none px-1"
+                                  className="flex-1 text-xl font-bold text-gray-900 border-b-2 border-[#5B6EFF] bg-transparent focus:outline-none px-1"
                                 />
                                 <Button
                                   variant="ghost"
@@ -2559,8 +2810,8 @@ export default function MindMapWorkspace() {
                                     onClick={(e) => handleToggleFavorite(project.id, e)}
                                     className={`flex-shrink-0 p-1 rounded-lg transition-all duration-200 ${
                                       project.isFavorite
-                                        ? 'text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
-                                        : 'text-gray-300 dark:text-[#606060] hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                                        ? 'text-yellow-500 hover:bg-yellow-50'
+                                        : 'text-gray-300 hover:text-yellow-400 hover:bg-yellow-50'
                                     }`}
                                     title={project.isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
                                   >
@@ -2570,7 +2821,7 @@ export default function MindMapWorkspace() {
                                       }`}
                                     />
                                   </button>
-                                  <h3 className="flex-1 text-xl font-bold line-clamp-2 text-gray-900 dark:text-[#e5e5e5] leading-tight">
+                                  <h3 className="flex-1 text-xl font-bold line-clamp-2 text-gray-900 leading-tight">
                                     {project.name}
                                   </h3>
                                 </div>
@@ -2581,7 +2832,7 @@ export default function MindMapWorkspace() {
                                         e.preventDefault();
                                         e.stopPropagation();
                                       }}
-                                      className="flex-shrink-0 p-1.5 rounded-lg transition-all duration-200 text-gray-400 dark:text-[#606060] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]"
+                                      className="flex-shrink-0 p-1.5 rounded-lg transition-all duration-200 text-gray-400 hover:text-gray-900 hover:bg-gray-100"
                                     >
                                       <MoreVertical className="h-5 w-5" />
                                     </button>
@@ -2628,25 +2879,25 @@ export default function MindMapWorkspace() {
                               return (
                                 <span
                                   key={badge}
-                                  className="text-xs font-medium px-3 py-1.5 bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/30 text-[#4B5EEF] dark:text-[#7B8FFF] rounded-full"
+                                  className="text-xs font-medium px-3 py-1.5 bg-[#5B6EFF]/10 text-[#4B5EEF] rounded-full"
                                 >
                                   {badgeLabels[badge] || badge}
                                 </span>
                               );
                             })}
                             {project.badges.length > 3 && (
-                              <span className="text-xs font-medium px-3 py-1.5 bg-gray-100 dark:bg-[#2a2a2a] text-gray-600 dark:text-[#e5e5e5] rounded-full">
+                              <span className="text-xs font-medium px-3 py-1.5 bg-gray-100 text-gray-600 rounded-full">
                                 +{project.badges.length - 3}
                               </span>
                             )}
                           </div>
 
                           {/* 메타 정보 */}
-                          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-[#a0a0a0] mt-auto">
+                          <div className="flex items-center justify-between text-sm text-gray-500 mt-auto">
                             <span>{formatRelativeTime(project.updatedAt)}</span>
                             <div className="flex items-center gap-2">
                               {project.isShared && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                                   <Users className="h-3 w-3" />
                                   공동 작업
                                 </span>
@@ -2671,24 +2922,24 @@ export default function MindMapWorkspace() {
 
           {/* 활성 편집자 표시 (피그마 스타일) */}
           {project?.isShared && activeEditors.length > 0 && (
-            <div className="absolute top-20 right-4 z-20 bg-white dark:bg-[#1a1a1a] rounded-[12px] border border-gray-200 dark:border-[#2a2a2a] shadow-lg p-3 min-w-[200px]">
+            <div className="absolute top-20 right-4 z-20 bg-white rounded-[12px] border border-gray-200 shadow-lg p-3 min-w-[200px]">
               <div className="flex items-center gap-2 mb-2">
                 <Users className="h-4 w-4 text-gray-500" />
-                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                <span className="text-xs font-semibold text-gray-700">
                   현재 편집 중 ({activeEditors.length})
                 </span>
               </div>
               <div className="space-y-2">
                 {activeEditors.map((editor) => (
                   <div key={editor.id} className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-full bg-[#5B6EFF]/20 dark:bg-[#5B6EFF]/30 text-[#4B5EEF] dark:text-[#7B8FFF] flex items-center justify-center text-xs font-semibold">
+                    <div className="h-6 w-6 rounded-full bg-[#5B6EFF]/20 text-[#4B5EEF] flex items-center justify-center text-xs font-semibold">
                       {(editor.userName || editor.userEmail || 'U').charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-xs text-gray-700 dark:text-gray-300 truncate flex-1">
+                    <span className="text-xs text-gray-700 truncate flex-1">
                       {editor.userName || editor.userEmail || '익명 사용자'}
                     </span>
                     {editor.userId === user?.id && (
-                      <span className="text-xs px-2 py-0.5 bg-[#5B6EFF]/20 dark:bg-[#5B6EFF]/30 text-[#4B5EEF] dark:text-[#7B8FFF] rounded-full">
+                      <span className="text-xs px-2 py-0.5 bg-[#5B6EFF]/20 text-[#4B5EEF] rounded-full">
                         나
                       </span>
                     )}
@@ -2707,7 +2958,7 @@ export default function MindMapWorkspace() {
               isAddNodeMode={isAddNodeMode}
               cursorMode={cursorMode}
               onCursorModeChange={setCursorMode}
-              topOffset={tabs.length > 0 ? 160 : 120}
+              topOffset={toolbarSidebarTopOffset}
               onExport={async (type: 'image' | 'pdf') => {
                 if (!project) return;
 
@@ -2726,6 +2977,11 @@ export default function MindMapWorkspace() {
                 }
               }}
               onShare={isReadOnly || project?.projectType === 'personal' ? undefined : handleOpenShareDialog}
+              onAddPostIt={() => {
+                setIsAddPostItMode(!isAddPostItMode);
+                setIsAddNodeMode(false);
+              }}
+              isAddPostItMode={isAddPostItMode}
             />
           )}
           
@@ -2852,11 +3108,53 @@ export default function MindMapWorkspace() {
           onStartEdit={setEditingNodeId}
           onEndEdit={() => setEditingNodeId(null)}
           projectId={activeProjectId || undefined}
-          onTagDrop={handleTagDrop}
+          onTagDrop={(nodeId, tag) => {
+            // 캔버스에 드롭한 경우 (nodeId가 null) - 포스트잇으로 추가
+            if (nodeId === null) {
+              handleTagDrop(null, tag);
+            } else {
+              // 노드에 드롭한 경우 - 기존 로직 (노드 추가)
+              handleTagDrop(nodeId, tag);
+            }
+          }}
           isAddNodeMode={isAddNodeMode}
           onCanvasAddNode={handleCanvasAddNode}
           onNodeConnect={handleNodeConnect}
         />
+
+        {/* 포스트잇 렌더링 */}
+        {postIts && postIts.length > 0 && canvasRef.current && (
+          <div 
+            className="absolute inset-0 pointer-events-none z-[60]"
+            style={{ 
+              pointerEvents: isAddPostItMode ? 'auto' : 'none',
+            }}
+          >
+            {postIts.map((postIt) => (
+              <div
+                key={postIt.id}
+                className="pointer-events-auto"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  transform: `translate(${postIt.x * (canvasRef.current?.getZoom() || 1) + (canvasRef.current?.getPan() || { x: 0 }).x}px, ${postIt.y * (canvasRef.current?.getZoom() || 1) + (canvasRef.current?.getPan() || { y: 0 }).y}px)`,
+                }}
+              >
+                <PostItComponent
+                  postIt={postIt}
+                  onUpdate={handleUpdatePostIt}
+                  onDelete={handleDeletePostIt}
+                  onDragStart={handlePostItDragStart}
+                  isDragging={draggedPostItId === postIt.id}
+                  zoom={canvasRef.current?.getZoom() || 1}
+                  pan={canvasRef.current?.getPan() || { x: 0, y: 0 }}
+                  isReadOnly={isReadOnly}
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
           {/* 배경 오버레이 (모바일용, 선택사항) */}
           <AnimatePresence>
@@ -2882,7 +3180,7 @@ export default function MindMapWorkspace() {
                 selectedNodeLevel={selectedNode?.level}
                 nodes={nodes}
                 onSTARComplete={handleSTARComplete}
-                topOffset={tabs.length > 0 ? 160 : 120}
+                topOffset={toolbarSidebarTopOffset}
                 projectType={project?.projectType}
                 onNodeAdd={(parentId, label, nodeType) => {
                   // 새 노드 생성 (인덱스 맵 사용)
@@ -2973,13 +3271,13 @@ export default function MindMapWorkspace() {
           <div className="glass-card rounded-[24px] p-8 max-w-md w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             {/* 헤더 */}
             <div className="flex items-center justify-between mb-8">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-[#e5e5e5]">노드 추가하기</h3>
+              <h3 className="text-2xl font-bold text-gray-900">노드 추가하기</h3>
               <button
                 onClick={handleCancelAddTag}
-                className="w-10 h-10 flex items-center justify-center hover:bg-gray-100/50 dark:hover:bg-[#2a2a2a]/50 rounded-full transition-colors"
+                className="w-10 h-10 flex items-center justify-center hover:bg-gray-100/50 rounded-full transition-colors"
                 title="닫기"
               >
-                <X className="h-5 w-5 text-gray-600 dark:text-[#a0a0a0]" />
+                <X className="h-5 w-5 text-gray-600" />
               </button>
             </div>
             
@@ -3014,12 +3312,12 @@ export default function MindMapWorkspace() {
                 
                 return (
                   <>
-                    <p className="text-sm text-gray-600 dark:text-[#a0a0a0] leading-relaxed">
+                    <p className="text-sm text-gray-600 leading-relaxed">
                       {guidanceText}
                     </p>
                     <div className="flex items-center gap-2 pt-2">
-                      <span className="text-sm text-gray-500 dark:text-[#a0a0a0]">관련 역량:</span>
-                      <Badge variant="outline" className="bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/30 text-[#4B5EEF] dark:text-[#7B8FFF] border-[#5B6EFF]/20 dark:border-[#5B6EFF] text-xs font-medium">
+                      <span className="text-sm text-gray-500">관련 역량:</span>
+                      <Badge variant="outline" className="bg-[#5B6EFF]/10 text-[#4B5EEF] border-[#5B6EFF]/20 text-xs font-medium">
                         {droppedTag.tag.category}
                       </Badge>
                     </div>
@@ -3055,7 +3353,7 @@ export default function MindMapWorkspace() {
                       }
                     }}
                     placeholder={placeholderText}
-                    className="h-14 rounded-[16px] border-gray-200 dark:border-[#2a2a2a] focus:border-gray-900 dark:focus:border-[#60A5FA] focus:ring-2 focus:ring-gray-100 dark:focus:ring-blue-900/50 text-base bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-[#e5e5e5]"
+                    className="h-14 rounded-[16px] border-gray-200 focus:border-gray-900 focus:ring-2 focus:ring-gray-100 text-base bg-white text-gray-900"
                     autoFocus
                   />
                 );
@@ -3067,13 +3365,13 @@ export default function MindMapWorkspace() {
               <Button 
                 onClick={handleCancelAddTag}
                 variant="outline"
-                className="flex-1 h-14 rounded-[16px] border-gray-200 dark:border-[#2a2a2a] text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50 dark:hover:bg-[#2a2a2a] font-semibold"
+                className="flex-1 h-14 rounded-[16px] border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold"
               >
                 취소
               </Button>
               <Button 
                 onClick={handleConfirmAddTag}
-                className="flex-1 h-14 bg-gray-900 dark:bg-[#1e3a8a] hover:bg-gray-800 dark:hover:bg-[#1e40af] rounded-[16px] text-white font-semibold"
+                className="flex-1 h-14 bg-gray-900 hover:bg-gray-800 rounded-[16px] text-white font-semibold"
               >
                 생성하기
               </Button>
@@ -3098,15 +3396,15 @@ export default function MindMapWorkspace() {
                 mindMapOnboardingStorage.saveShown();
                 setShowOnboarding(false);
               }}
-              className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100/50 dark:hover:bg-[#2a2a2a]/50 transition-colors"
+              className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100/50 transition-colors"
             >
-              <X className="h-5 w-5 text-gray-500 dark:text-[#a0a0a0]" />
+              <X className="h-5 w-5 text-gray-500" />
             </button>
 
             {/* 콘텐츠 */}
             <div className="mb-6">
-              <p className="text-xs font-semibold text-blue-600 dark:text-[#60A5FA] mb-2">마인드맵 튜토리얼</p>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-[#e5e5e5] mb-3">
+              <p className="text-xs font-semibold text-blue-600 mb-2">마인드맵 튜토리얼</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">
                 {project?.projectType === 'collaborative' ? (
                   <>
                     {onboardingStep === 0 && '공동 작업 구조 이해하기'}
@@ -3123,7 +3421,7 @@ export default function MindMapWorkspace() {
                   </>
                 )}
               </h2>
-              <p className="text-sm text-gray-600 dark:text-[#a0a0a0] leading-relaxed">
+              <p className="text-sm text-gray-600 leading-relaxed">
                 {project?.projectType === 'collaborative' ? (
                   <>
                     {onboardingStep === 0 &&
@@ -3157,7 +3455,7 @@ export default function MindMapWorkspace() {
                   mindMapOnboardingStorage.saveShown();
                   setShowOnboarding(false);
                 }}
-                className="text-xs text-gray-400 dark:text-[#606060] hover:text-gray-600 dark:hover:text-[#a0a0a0] transition-colors"
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
               >
                 건너뛰기
               </button>
@@ -3171,8 +3469,8 @@ export default function MindMapWorkspace() {
                       onClick={() => setOnboardingStep(step)}
                       className={`w-2.5 h-2.5 rounded-full transition-all ${
                         onboardingStep === step
-                          ? 'bg-[#5B6EFF] dark:bg-[#6B7EFF]'
-                          : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'
+                          ? 'bg-[#5B6EFF]'
+                          : 'bg-gray-200 hover:bg-gray-300'
                       }`}
                     />
                   ))}
@@ -3222,11 +3520,11 @@ export default function MindMapWorkspace() {
               </DialogTitle>
             </DialogHeader>
 
-            <div className="rounded-[16px] border border-gray-200 dark:border-[#2a2a2a] bg-gray-50/70 dark:bg-[#111111] p-4 space-y-3">
+            <div className="rounded-[16px] border border-gray-200 bg-gray-50/70 p-4 space-y-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">링크 액세스</p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                  <p className="text-sm font-semibold text-gray-900">링크 액세스</p>
+                  <p className="text-xs text-gray-600">
                     링크가 있는 누구나 내용을 볼 수 있고 로그인 시 편집할 수 있어요.
                   </p>
                 </div>
@@ -3241,7 +3539,7 @@ export default function MindMapWorkspace() {
 
               {project?.isShared ? (
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-[12px] bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] text-sm text-gray-800 dark:text-gray-100 max-w-full">
+                  <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-[12px] bg-white border border-gray-200 text-sm text-gray-800 max-w-full">
                     <Link2 className="h-4 w-4 text-gray-500 flex-shrink-0" />
                     <span className="block truncate text-xs max-w-[260px] sm:max-w-[320px]">
                       {shareLink || '링크를 불러오는 중...'}
@@ -3266,34 +3564,34 @@ export default function MindMapWorkspace() {
                   </Button>
                 </div>
               ) : (
-                <p className="text-xs text-gray-600 dark:text-gray-400">
+                <p className="text-xs text-gray-600">
                   공유를 켜면 링크가 생성되고 /mindmap/&lt;projectId&gt; 경로로 접근할 수 있어요.
                 </p>
               )}
             </div>
 
-            <div className="rounded-[16px] border border-gray-200 dark:border-[#2a2a2a] p-4 space-y-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <div className="rounded-[16px] border border-gray-200 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
                 <Users className="h-4 w-4 text-blue-600" />
                 공동 작업자
               </div>
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="h-9 w-9 rounded-full bg-[#5B6EFF]/20 text-[#4B5EEF] dark:bg-[#5B6EFF]/30 dark:text-[#7B8FFF] flex items-center justify-center font-semibold">
+                  <div className="h-9 w-9 rounded-full bg-[#5B6EFF]/20 text-[#4B5EEF] flex items-center justify-center font-semibold">
                     {(user?.name || user?.email || '나').slice(0, 1).toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-gray-100">{user?.name || '나'}</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                    <p className="font-semibold text-gray-900">{user?.name || '나'}</p>
+                    <p className="text-xs text-gray-600">
                       {project?.isShared ? '편집 가능 (로그인 시)' : '공유 비활성화'}
                     </p>
                   </div>
                 </div>
-                <span className="text-xs px-3 py-1 rounded-full bg-gray-100 dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] text-gray-600 dark:text-gray-300">
+                <span className="text-xs px-3 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-600">
                   소유자
                 </span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-gray-500">
                 링크가 있는 누구나 열람 가능하며, 로그인하면 편집이 허용됩니다.
               </p>
             </div>
@@ -3313,10 +3611,10 @@ export default function MindMapWorkspace() {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#111]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 rounded-lg border border-gray-200 bg-gray-50">
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">프로젝트 공유</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">토글을 켜면 /mindmaps의 '팀 마인드맵'에 표시됩니다.</p>
+                <p className="text-sm font-medium text-gray-900">프로젝트 공유</p>
+                <p className="text-xs text-gray-500">토글을 켜면 /mindmaps의 '팀 마인드맵'에 표시됩니다.</p>
               </div>
               <input
                 type="checkbox"
@@ -3353,9 +3651,9 @@ export default function MindMapWorkspace() {
             </div>
 
               <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">링크 복사</p>
+              <p className="text-sm font-medium text-gray-900">링크 복사</p>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-[12px] bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] text-sm text-gray-800 dark:text-gray-100 max-w-full">
+                  <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-[12px] bg-white border border-gray-200 text-sm text-gray-800 max-w-full">
                   <Link2 className="h-4 w-4 text-gray-500 flex-shrink-0" />
                   <span className="block truncate text-xs max-w-[260px] sm:max-w-[320px]">
                     {shareUrl || '링크를 불러오는 중...'}
@@ -3382,7 +3680,7 @@ export default function MindMapWorkspace() {
                   링크 복사
                 </Button>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">공유가 켜진 상태에서 접속한 사용자는 보기/편집이 가능합니다.</p>
+              <p className="text-xs text-gray-500">공유가 켜진 상태에서 접속한 사용자는 보기/편집이 가능합니다.</p>
             </div>
           </div>
         </DialogContent>

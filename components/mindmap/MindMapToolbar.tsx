@@ -12,6 +12,7 @@ import {
   Plus,
   Move,
   MousePointer2,
+  StickyNote,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -43,6 +44,8 @@ interface MindMapToolbarProps {
   isAddNodeMode?: boolean;
   cursorMode?: CursorMode;
   onCursorModeChange?: (mode: CursorMode) => void;
+  onAddPostIt?: () => void; // 포스트잇 추가
+  isAddPostItMode?: boolean; // 포스트잇 추가 모드
   topOffset?: number; // 상단 오프셋 (프로젝트 정보 헤더 높이 고려)
 }
 
@@ -60,6 +63,8 @@ export default function MindMapToolbar({
   isAddNodeMode = false,
   cursorMode = 'select',
   onCursorModeChange,
+  onAddPostIt,
+  isAddPostItMode = false,
   topOffset = 120,
 }: MindMapToolbarProps) {
 
@@ -75,8 +80,8 @@ export default function MindMapToolbar({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`h-9 w-9 p-0 bg-white dark:bg-[#1a1a1a] shadow-lg border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg ${
-                      cursorMode === 'move' ? 'bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/20 border-[#5B6EFF]' : ''
+                    className={`h-9 w-9 p-0 bg-white shadow-lg border border-gray-200 hover:bg-gray-100 rounded-lg ${
+                      cursorMode === 'move' ? 'bg-[#5B6EFF]/10 border-[#5B6EFF]' : ''
                     }`}
                   >
                     {cursorMode === 'select' ? (
@@ -89,7 +94,7 @@ export default function MindMapToolbar({
                 <DropdownMenuContent align="start" className="w-40">
                   <DropdownMenuItem
                     onClick={() => onCursorModeChange('select')}
-                    className={cursorMode === 'select' ? 'bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/20' : ''}
+                    className={cursorMode === 'select' ? 'bg-[#5B6EFF]/10' : ''}
                   >
                     <div className="flex items-center gap-2 w-full">
                       {cursorMode === 'select' && <span className="text-[#5B6EFF]">✓</span>}
@@ -100,7 +105,7 @@ export default function MindMapToolbar({
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => onCursorModeChange('move')}
-                    className={cursorMode === 'move' ? 'bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/20' : ''}
+                    className={cursorMode === 'move' ? 'bg-[#5B6EFF]/10' : ''}
                   >
                     <div className="flex items-center gap-2 w-full">
                       {cursorMode === 'move' && <span className="text-[#5B6EFF]">✓</span>}
@@ -119,7 +124,7 @@ export default function MindMapToolbar({
         )}
 
         {/* 구분선 */}
-        {onCursorModeChange && <div className="h-px bg-gray-200 dark:bg-[#2a2a2a] my-1" />}
+        {onCursorModeChange && <div className="h-px bg-gray-200 my-1" />}
 
         {/* 전체 보기 */}
         <Tooltip>
@@ -128,7 +133,7 @@ export default function MindMapToolbar({
               variant="ghost"
               size="sm"
               onClick={onFitToScreen}
-              className="h-9 w-9 p-0 bg-white dark:bg-[#1a1a1a] shadow-lg border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg"
+              className="h-9 w-9 p-0 bg-white shadow-lg border border-gray-200 hover:bg-gray-100 rounded-lg"
             >
               <Maximize2 className="h-4 w-4" />
             </Button>
@@ -146,9 +151,9 @@ export default function MindMapToolbar({
               variant="ghost"
               size="sm"
               onClick={onToggleAddNodeMode}
-              className={`h-9 w-9 p-0 bg-white dark:bg-[#1a1a1a] shadow-lg border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg transition-all ${
+              className={`h-9 w-9 p-0 bg-white shadow-lg border border-gray-200 hover:bg-gray-100 rounded-lg transition-all ${
                 isAddNodeMode 
-                  ? 'bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/20 border-[#5B6EFF] shadow-[0_0_10px_rgba(91,110,255,0.3)]' 
+                  ? 'bg-[#5B6EFF]/10 border-[#5B6EFF] shadow-[0_0_10px_rgba(91,110,255,0.3)]' 
                   : ''
               }`}
             >
@@ -161,8 +166,31 @@ export default function MindMapToolbar({
         </Tooltip>
       )}
 
+      {/* 포스트잇 추가 */}
+      {onAddPostIt && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onAddPostIt}
+              className={`h-9 w-9 p-0 bg-white shadow-lg border border-gray-200 hover:bg-gray-100 rounded-lg transition-all ${
+                isAddPostItMode 
+                  ? 'bg-[#5B6EFF]/10 border-[#5B6EFF] shadow-[0_0_10px_rgba(91,110,255,0.3)]' 
+                  : ''
+              }`}
+            >
+              <StickyNote className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>포스트잇 추가</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+
       {/* 구분선 */}
-      <div className="h-px bg-gray-200 dark:bg-[#2a2a2a] my-1" />
+      <div className="h-px bg-gray-200 my-1" />
 
       {/* 그리드 토글 */}
       <Tooltip>
@@ -171,8 +199,8 @@ export default function MindMapToolbar({
             variant="ghost"
             size="sm"
             onClick={onToggleGrid}
-            className={`h-9 w-9 p-0 bg-white dark:bg-[#1a1a1a] shadow-lg border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg ${
-              showGrid ? 'bg-[#5B6EFF]/10 dark:bg-[#5B6EFF]/20 border-[#5B6EFF]' : ''
+            className={`h-9 w-9 p-0 bg-white shadow-lg border border-gray-200 hover:bg-gray-100 rounded-lg ${
+              showGrid ? 'bg-[#5B6EFF]/10 border-[#5B6EFF]' : ''
             }`}
           >
             <Grid3x3 className="h-4 w-4" />
@@ -186,8 +214,8 @@ export default function MindMapToolbar({
       {/* 실행 취소/다시 실행 */}
       {(onUndo || onRedo) && (
         <>
-          <div className="h-px bg-gray-200 dark:bg-[#2a2a2a] my-1" />
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-lg border border-gray-200 dark:border-[#2a2a2a] p-1 flex flex-col gap-1">
+          <div className="h-px bg-gray-200 my-1" />
+          <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-1 flex flex-col gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -195,7 +223,7 @@ export default function MindMapToolbar({
                   size="sm"
                   onClick={onUndo}
                   disabled={!canUndo}
-                  className="h-9 w-9 p-0 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] disabled:opacity-50"
+                  className="h-9 w-9 p-0 hover:bg-gray-100 disabled:opacity-50"
                 >
                   <Undo2 className="h-4 w-4" />
                 </Button>
@@ -211,7 +239,7 @@ export default function MindMapToolbar({
                   size="sm"
                   onClick={onRedo}
                   disabled={!canRedo}
-                  className="h-9 w-9 p-0 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] disabled:opacity-50"
+                  className="h-9 w-9 p-0 hover:bg-gray-100 disabled:opacity-50"
                 >
                   <Redo2 className="h-4 w-4" />
                 </Button>
@@ -225,7 +253,7 @@ export default function MindMapToolbar({
       )}
 
       {/* 구분선 */}
-      <div className="h-px bg-gray-200 dark:bg-[#2a2a2a] my-1" />
+      <div className="h-px bg-gray-200 my-1" />
 
       {/* 내보내기 */}
       {onExport && (
@@ -236,7 +264,7 @@ export default function MindMapToolbar({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-9 w-9 p-0 bg-white dark:bg-[#1a1a1a] shadow-lg border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg"
+                  className="h-9 w-9 p-0 bg-white shadow-lg border border-gray-200 hover:bg-gray-100 rounded-lg"
                 >
                   <Download className="h-4 w-4" />
                 </Button>
@@ -265,7 +293,7 @@ export default function MindMapToolbar({
               variant="ghost"
               size="sm"
               onClick={onShare}
-              className="h-9 w-9 p-0 bg-white dark:bg-[#1a1a1a] shadow-lg border border-gray-200 dark:border-[#2a2a2a] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg"
+              className="h-9 w-9 p-0 bg-white shadow-lg border border-gray-200 hover:bg-gray-100 rounded-lg"
             >
               <Share2 className="h-4 w-4" />
             </Button>

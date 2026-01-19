@@ -1,6 +1,6 @@
 'use client';
 
-import { ColorTheme, MindMapSettings, LayoutType } from '@/types';
+import { ColorTheme, MindMapSettings } from '@/types';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { colorThemes as lightThemes } from '@/lib/mindmap-theme';
@@ -10,8 +10,6 @@ interface MindMapSettingsDialogProps {
   onClose: () => void;
   settings: MindMapSettings;
   onSettingsChange: (settings: MindMapSettings) => void;
-  currentLayout: LayoutType;
-  onLayoutChange: (layout: LayoutType) => void;
 }
 
 const colorThemes: { value: ColorTheme; label: string; description: string; preview: string[] }[] = [
@@ -61,40 +59,16 @@ const colorThemes: { value: ColorTheme; label: string; description: string; prev
   },
 ];
 
-const layoutOptions: { value: LayoutType; label: string; description: string }[] = [
-  {
-    value: 'radial',
-    label: '원형 레이아웃',
-    description: '중심 노드를 기준으로 원형 배치',
-  },
-  {
-    value: 'tree',
-    label: '트리형 레이아웃',
-    description: '좌우 대칭 트리 구조 배치',
-  },
-  {
-    value: 'branch',
-    label: '브랜치 레이아웃',
-    description: '중심 노드에서 좌우로 뻗어나가는 직각 브랜치 형태',
-  },
-];
-
 export default function MindMapSettingsDialog({
   isOpen,
   onClose,
   settings,
   onSettingsChange,
-  currentLayout,
-  onLayoutChange,
 }: MindMapSettingsDialogProps) {
   if (!isOpen) return null;
 
   const handleThemeChange = (theme: ColorTheme) => {
     onSettingsChange({ ...settings, colorTheme: theme });
-  };
-
-  const handleLayoutChange = (layout: LayoutType) => {
-    onLayoutChange(layout);
   };
 
   return (
@@ -103,29 +77,29 @@ export default function MindMapSettingsDialog({
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-[#1a1a1a] rounded-[24px] p-8 max-w-2xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto"
+        className="bg-white rounded-[24px] p-8 max-w-2xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-[#e5e5e5]">마인드맵 설정</h2>
-            <p className="text-sm text-gray-600 dark:text-[#a0a0a0] mt-1">
+            <h2 className="text-2xl font-bold text-gray-900">마인드맵 설정</h2>
+            <p className="text-sm text-gray-600 mt-1">
               마인드맵의 외관과 동작을 설정하세요
             </p>
           </div>
           <button
             onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-full transition-colors"
+            className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
             title="닫기"
           >
-            <X className="h-5 w-5 text-gray-600 dark:text-[#a0a0a0]" />
+            <X className="h-5 w-5 text-gray-600" />
           </button>
         </div>
 
         {/* 색상 테마 설정 */}
         <div className="mb-8">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5] mb-4">색상 테마</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-4">색상 테마</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {colorThemes.map((theme) => (
               <button
@@ -133,8 +107,8 @@ export default function MindMapSettingsDialog({
                 onClick={() => handleThemeChange(theme.value)}
                 className={`p-4 rounded-[16px] border-2 transition-all text-left ${
                   settings.colorTheme === theme.value
-                    ? 'border-blue-600 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-200 dark:border-[#2a2a2a] hover:border-gray-300 dark:hover:border-[#3a3a3a] bg-white dark:bg-[#0a0a0a]'
+                    ? 'border-blue-600 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -149,15 +123,15 @@ export default function MindMapSettingsDialog({
                     ))}
                   </div>
                   <div className="flex-1">
-                    <div className="font-semibold text-gray-900 dark:text-[#e5e5e5] mb-1">
+                    <div className="font-semibold text-gray-900 mb-1">
                       {theme.label}
                       {settings.colorTheme === theme.value && (
-                        <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
+                        <span className="ml-2 text-xs text-blue-600">
                           ✓ 적용됨
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-gray-600 dark:text-[#a0a0a0]">
+                    <div className="text-xs text-gray-600">
                       {theme.description}
                     </div>
                   </div>
@@ -167,45 +141,11 @@ export default function MindMapSettingsDialog({
           </div>
         </div>
 
-        {/* 레이아웃 설정 */}
-        <div className="mb-8">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-[#e5e5e5] mb-4">레이아웃</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {layoutOptions.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => handleLayoutChange(option.value)}
-                className={`p-4 rounded-[16px] border-2 transition-all text-left ${
-                  currentLayout === option.value
-                    ? 'border-blue-600 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-200 dark:border-[#2a2a2a] hover:border-gray-300 dark:hover:border-[#3a3a3a] bg-white dark:bg-[#0a0a0a]'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-900 dark:text-[#e5e5e5] mb-1">
-                      {option.label}
-                      {currentLayout === option.value && (
-                        <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
-                          ✓ 적용됨
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-600 dark:text-[#a0a0a0]">
-                      {option.description}
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* 하단 버튼 */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-[#2a2a2a]">
+        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
           <Button
             onClick={onClose}
-            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-[12px] h-10 px-6 font-semibold"
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-[12px] h-10 px-6 font-semibold"
           >
             완료
           </Button>

@@ -87,6 +87,9 @@ export type Database = {
           questions: Json | null
           source: string
           user_id: string
+          job_group: string | null
+          job_role: string | null
+          diagnosis_result_id: string | null
         }
         Insert: {
           category: string
@@ -99,6 +102,9 @@ export type Database = {
           questions?: Json | null
           source: string
           user_id: string
+          job_group?: string | null
+          job_role?: string | null
+          diagnosis_result_id?: string | null
         }
         Update: {
           category?: string
@@ -111,6 +117,9 @@ export type Database = {
           questions?: Json | null
           source?: string
           user_id?: string
+          job_group?: string | null
+          job_role?: string | null
+          diagnosis_result_id?: string | null
         }
         Relationships: [
           {
@@ -316,6 +325,7 @@ export type Database = {
           layout_config: Json | null
           layout_type: string | null
           name: string
+          post_its: Json | null
           shared_by: string | null
           shared_by_user: Json | null
           updated_at: string | null
@@ -332,6 +342,7 @@ export type Database = {
           layout_config?: Json | null
           layout_type?: string | null
           name: string
+          post_its?: Json | null
           shared_by?: string | null
           shared_by_user?: Json | null
           updated_at?: string | null
@@ -348,6 +359,7 @@ export type Database = {
           layout_config?: Json | null
           layout_type?: string | null
           name?: string
+          post_its?: Json | null
           shared_by?: string | null
           shared_by_user?: Json | null
           updated_at?: string | null
@@ -605,6 +617,9 @@ export type Database = {
           provider: string
           provider_user_id: string
           updated_at: string | null
+          job_group: string | null
+          job_role: string | null
+          onboarding_completed: boolean | null
         }
         Insert: {
           created_at?: string | null
@@ -614,6 +629,9 @@ export type Database = {
           provider: string
           provider_user_id: string
           updated_at?: string | null
+          job_group?: string | null
+          job_role?: string | null
+          onboarding_completed?: boolean | null
         }
         Update: {
           created_at?: string | null
@@ -623,6 +641,9 @@ export type Database = {
           provider?: string
           provider_user_id?: string
           updated_at?: string | null
+          job_group?: string | null
+          job_role?: string | null
+          onboarding_completed?: boolean | null
         }
         Relationships: []
       }

@@ -40,9 +40,24 @@ function AuthCallbackContent() {
               clearTimeout(timeoutId)
               
               // 세션이 localStorage에 저장될 때까지 충분히 대기 (배포 환경 대응)
-              setTimeout(() => {
+              setTimeout(async () => {
                 if (isMounted) {
-                  router.replace(next)
+                  // 온보딩 완료 여부 확인
+                  const { data: userData } = await supabase
+                    .from('users')
+                    .select('onboarding_completed')
+                    .eq('id' as any, session.user.id as any)
+                    .maybeSingle()
+                  
+                  const onboardingCompleted = userData?.onboarding_completed ?? false
+                  
+                  if (!onboardingCompleted) {
+                    // 온보딩 미완료 시 온보딩 시작
+                    router.replace('/onboarding/intro')
+                  } else {
+                    // 온보딩 완료 시 기존 로직대로 이동
+                    router.replace(next)
+                  }
                 }
               }, 500) // 100ms → 500ms로 증가
             } else if (event === 'SIGNED_OUT') {
@@ -112,9 +127,24 @@ function AuthCallbackContent() {
               }
               
               // 세션이 localStorage에 저장될 때까지 충분히 대기
-              setTimeout(() => {
+              setTimeout(async () => {
                 if (isMounted) {
-                  router.replace(next)
+                  // 온보딩 완료 여부 확인
+                  const { data: userData } = await supabase
+                    .from('users')
+                    .select('onboarding_completed')
+                    .eq('id' as any, session.user.id as any)
+                    .maybeSingle()
+                  
+                  const onboardingCompleted = userData?.onboarding_completed ?? false
+                  
+                  if (!onboardingCompleted) {
+                    // 온보딩 미완료 시 온보딩 시작
+                    router.replace('/onboarding/intro')
+                  } else {
+                    // 온보딩 완료 시 기존 로직대로 이동
+                    router.replace(next)
+                  }
                 }
               }, 500) // 100ms → 500ms로 증가
             } else {
@@ -175,11 +205,11 @@ function AuthCallbackContent() {
   }, [router, searchParams])
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
-        <LoadingSpinner size="lg" className="text-blue-600 dark:text-blue-400 mx-auto mb-4" />
-        <p className="text-gray-600 dark:text-gray-400">로그인 처리 중...</p>
-        <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">잠시만 기다려주세요</p>
+        <LoadingSpinner size="lg" className="text-blue-600 mx-auto mb-4" />
+        <p className="text-gray-600">로그인 처리 중...</p>
+        <p className="text-sm text-gray-500 mt-2">잠시만 기다려주세요</p>
       </div>
     </div>
   )
@@ -193,10 +223,10 @@ export default function AuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
-            <LoadingSpinner size="lg" className="text-blue-600 dark:text-blue-400 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">로딩 중...</p>
+            <LoadingSpinner size="lg" className="text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600">로딩 중...</p>
           </div>
         </div>
       }

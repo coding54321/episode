@@ -285,3 +285,121 @@ export async function getCompetencyTypeById(id: string): Promise<CompetencyType 
   };
 }
 
+// 직무명으로 모든 기업의 문항 조회 (직무 중심)
+// 최근 5개년 최빈출 문항 우선
+export async function getQuestionsByJobTitleOnly(jobTitle: string): Promise<Array<Question & { recruitment?: Recruitment }>> {
+  // 1. 해당 직무명을 가진 모든 job 찾기 (모든 기업)
+  const { data: jobs, error: jobsError } = await supabase
+    .from('jobs')
+    .select('id')
+    .eq('job_title', jobTitle)
+    .eq('is_active', true);
+
+  if (jobsError || !jobs || jobs.length === 0) {
+    return [];
+  }
+
+  const jobIds = jobs.map(j => j.id);
+
+  // 2. 해당 job들의 문항 가져오기 (recruitment 정보 포함, 최근 5년)
+  const fiveYearsAgo = new Date();
+  fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+  const currentYear = new Date().getFullYear();
+
+  const { data: questions, error: questionsError } = await supabase
+    .from('questions')
+    .select(`
+      *,
+      recruitments!inner(id, year, half, company_id, start_date, end_date)
+    `)
+    .in('job_id', jobIds)
+    .gte('recruitments.year', currentYear - 4) // 최근 5개년
+    .order('question_no', { ascending: true });
+
+  if (questionsError) {
+    console.error('문항 조회 실패:', questionsError);
+    return [];
+  }
+
+  // 3. 문항을 빈도수로 그룹화하고 최빈출 순으로 정렬
+  const questionFrequency = new Map<string, { count: number; questions: any[] }>();
+  
+  (questions || []).forEach((q: any) => {
+    const key = q.content.trim();
+    if (!questionFrequency.has(key)) {
+      questionFrequency.set(key, { count: 0, questions: [] });
+    }
+    const entry = questionFrequency.get(key)!;
+    entry.count++;
+    entry.questions.push(q);
+  });
+
+  // 4. 빈도수 순으로 정렬하고, 각 문항의 최신 버전 선택
+  const sortedQuestions = Array.from(questionFrequency.entries())
+    .sort((a, b) => b[1].count - a[1].count) // 빈도수 높은 순
+    .flatMap(([_, data]) => {
+      // 각 문항 그룹에서 가장 최신 버전 선택
+      const latest = data.questions.sort((a, b) => {
+        const aRec = a.recruitments;
+        const bRec = b.recruitments;
+        if (aRec.year !== bRec.year) {
+          return bRec.year - aRec.year;
+        }
+        return aRec.half === '하반기' ? -1 : 1;
+      })[0];
+      return [latest];
+    });
+
+  // 5. recruitment 정보 포함하여 반환
+  return sortedQuestions.map((q: any) => {
+    const recruitment = q.recruitments;
+    return {
+      id: q.id,
+      job_id: q.job_id,
+      recruitment_id: q.recruitment_id,
+      question_no: q.question_no,
+      content: q.content,
+      max_chars: q.max_chars || 0,
+      competency_type_id: q.competency_type_id || '',
+      recruitment: recruitment ? {
+        id: recruitment.id,
+        company_id: recruitment.company_id,
+        year: recruitment.year,
+        half: recruitment.half as '상반기' | '하반기',
+        start_date: recruitment.start_date,
+        end_date: recruitment.end_date,
+      } : undefined,
+    };
+  });
+}
+
+// 직무 카테고리(직군)로 직무 목록 조회
+export async function getJobsByCategoryOnly(category: string): Promise<Job[]> {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*')
+    .eq('category', category)
+    .eq('is_active', true)
+    .order('job_title', { ascending: true });
+
+  if (error) {
+    console.error('직무 조회 실패:', error);
+    return [];
+  }
+
+  // 중복 제거 (같은 직무명은 하나만)
+  const uniqueJobs = new Map<string, Job>();
+  (data || []).forEach((j: any) => {
+    if (!uniqueJobs.has(j.job_title)) {
+      uniqueJobs.set(j.job_title, {
+        id: j.id,
+        company_id: j.company_id,
+        job_title: j.job_title,
+        department: j.department || '',
+        category: j.category || undefined,
+      });
+    }
+  });
+
+  return Array.from(uniqueJobs.values());
+}

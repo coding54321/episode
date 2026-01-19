@@ -12,6 +12,9 @@ export interface User {
   updatedAt?: number;
   avatar?: string;
   isVerified?: boolean;
+  jobGroup?: string | null; // 직군
+  jobRole?: string | null; // 직무
+  onboardingCompleted?: boolean; // 온보딩 완료 여부
 }
 
 // 배지 타입
@@ -72,16 +75,30 @@ export interface GapTag {
   id: string;
   label: string;
   category: string; // 역량 범주
-  source: string; // 어떤 기업 문항에서 추출되었는지
+  source: string; // 어떤 직무 문항에서 추출되었는지 (직무 중심)
   questions?: Array<{
     content: string; // 질문 내용
     year?: number; // 년도
     half?: string; // 반기 (상반기/하반기)
   }>; // 답변하기 어려웠던 질문 리스트 (년도/반기 정보 포함)
   createdAt: number;
-  company_id?: string; // 관련 기업 ID
-  job_id?: string; // 관련 직무 ID
+  company_id?: string; // 관련 기업 ID (선택사항)
+  job_id?: string; // 관련 직무 ID (선택사항)
   question_id?: string; // 관련 문항 ID
+  job_group?: string; // 직군
+  job_role?: string; // 직무
+  diagnosis_result_id?: string; // 진단 결과 ID
+}
+
+// 기출문항 셀프진단 결과
+export interface GapDiagnosisResult {
+  id: string;
+  userId: string;
+  jobGroup: string; // 직군
+  jobRole: string; // 직무
+  tags: GapTag[]; // 역량 빈틈 태그들
+  createdAt: number; // 진단 시점
+  updatedAt?: number;
 }
 
 // 기업 정보
@@ -198,6 +215,23 @@ export interface MindMapSettings {
   showGrid?: boolean;
 }
 
+// 포스트잇
+export interface PostIt {
+  id: string;
+  projectId: string;
+  title: string;
+  content: string;
+  x: number; // 캔버스 상의 x 좌표
+  y: number; // 캔버스 상의 y 좌표
+  width?: number; // 포스트잇 너비 (기본값: 200)
+  height?: number; // 포스트잇 높이 (기본값: 150)
+  color?: string; // 포스트잇 색상 (기본값: 노란색 계열)
+  zIndex?: number; // z-index (노드보다 위에 표시)
+  createdAt: number;
+  updatedAt: number;
+  sourceTagId?: string; // 역량 카드에서 생성된 경우 태그 ID
+}
+
 // 마인드맵 프로젝트
 export interface MindMapProject {
   id: string;
@@ -205,6 +239,7 @@ export interface MindMapProject {
   description?: string;
   badges: BadgeType[];
   nodes: MindMapNode[];
+  postIts?: PostIt[]; // 포스트잇 목록
   nodeCount?: number; // 노드 개수 (목록 조회 시 사용, 상세 조회 시에는 nodes.length 사용)
   layoutType?: LayoutType; // 레이아웃 타입
   layoutConfig?: LayoutConfig; // 레이아웃 설정

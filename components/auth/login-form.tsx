@@ -62,8 +62,8 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
     <Card className="w-full max-w-md mx-auto p-6">
       <div className="space-y-6">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">로그인</h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">계정에 로그인하세요</p>
+          <h2 className="text-2xl font-bold text-gray-900">로그인</h2>
+          <p className="text-gray-600 mt-2">계정에 로그인하세요</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -98,10 +98,10 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300 dark:border-gray-700" />
+            <div className="w-full border-t border-gray-300" />
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="bg-white dark:bg-gray-900 px-2 text-gray-500 dark:text-gray-400">또는</span>
+            <span className="bg-white px-2 text-gray-500">또는</span>
           </div>
         </div>
 
@@ -126,11 +126,11 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
         </div>
 
         <div className="text-center text-sm">
-          <span className="text-gray-600 dark:text-gray-400">계정이 없으신가요? </span>
+          <span className="text-gray-600">계정이 없으신가요? </span>
           <button
             type="button"
             onClick={onToggleMode}
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
+            className="text-blue-600 hover:text-blue-800 underline"
           >
             회원가입
           </button>

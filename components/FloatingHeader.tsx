@@ -7,7 +7,6 @@ import { User, LogOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useState, useRef } from 'react';
 import { useUnifiedAuth } from '@/lib/auth/unified-auth-context';
-import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function FloatingHeader() {
   const router = useRouter();
@@ -33,14 +32,14 @@ export default function FloatingHeader() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-[#0a0a0a] border-b border-gray-200 dark:border-[#2a2a2a]">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-5 py-4">
         <div className="flex items-center justify-between">
           {/* 왼쪽: 로고 + 네비게이션 */}
           <div className="flex items-center gap-6">
             {/* 로고 */}
             <Link href="/" className="flex items-center gap-2">
-              <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+              <span className="text-xl font-bold text-gray-900 tracking-tight">
                 episode
               </span>
             </Link>
@@ -53,7 +52,7 @@ export default function FloatingHeader() {
                   className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                     isActive('/mindmaps')
                       ? 'text-[#5B6EFF] bg-[#5B6EFF]/10'
-                      : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                   }`}
                 >
                   마인드맵
@@ -63,7 +62,7 @@ export default function FloatingHeader() {
                   className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                     isActive('/archive')
                       ? 'text-[#5B6EFF] bg-[#5B6EFF]/10'
-                      : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                   }`}
                 >
                   에피소드 보관함
@@ -73,7 +72,7 @@ export default function FloatingHeader() {
                   className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                     isActive('/gap-diagnosis-standalone')
                       ? 'text-[#5B6EFF] bg-[#5B6EFF]/10'
-                      : 'text-gray-600 dark:text-[#a0a0a0] hover:text-gray-900 dark:hover:text-[#e5e5e5] hover:bg-gray-100 dark:hover:bg-[#2a2a2a]'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                   }`}
                 >
                   기출문항 셀프진단
@@ -82,12 +81,11 @@ export default function FloatingHeader() {
                   )}
           </div>
 
-          {/* 오른쪽: 테마 토글 + 로그인/가입 버튼 또는 사용자 정보 */}
+          {/* 오른쪽: 로그인/가입 버튼 또는 사용자 정보 */}
           <div className="flex items-center gap-3">
-            <ThemeToggle />
             {loading ? (
               // 로딩 중일 때 스켈레톤
-              <div className="w-24 h-9 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
+              <div className="w-24 h-9 bg-gray-200 rounded-full animate-pulse" />
             ) : user ? (
               // 로그인된 상태
               <div 
@@ -98,7 +96,7 @@ export default function FloatingHeader() {
               >
                 <Button
                   variant="ghost"
-                  className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-[#e5e5e5] hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-full h-9 px-4"
+                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-full h-9 px-4"
                 >
                   <div className="w-6 h-6 bg-gradient-to-br from-[#5B6EFF] to-[#7B8FFF] rounded-full flex items-center justify-center shadow-lg" style={{ boxShadow: '0 0 10px rgba(91, 110, 255, 0.3)' }}>
                     <User className="w-4 h-4 text-white" />
@@ -116,16 +114,16 @@ export default function FloatingHeader() {
                       className="absolute right-0 mt-4 w-48 glass-card rounded-[16px] shadow-2xl overflow-hidden"
                     >
                       {/* 사용자 정보 */}
-                      <div className="px-4 py-3 border-b border-gray-100 dark:border-[#2a2a2a]">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-[#e5e5e5]">{user.name || user.email?.split('@')[0] || 'User'}</p>
-                        <p className="text-xs text-gray-500 dark:text-[#a0a0a0] mt-1">{user.email || ''}</p>
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <p className="text-sm font-semibold text-gray-900">{user.name || user.email?.split('@')[0] || 'User'}</p>
+                        <p className="text-xs text-gray-500 mt-1">{user.email || ''}</p>
                       </div>
 
                       {/* 메뉴 항목 */}
                       <div className="py-1">
                         <button
                           onClick={handleLogout}
-                          className="w-full px-4 py-2.5 text-left text-sm text-gray-700 dark:text-[#e5e5e5] hover:bg-gray-50/50 dark:hover:bg-[#2a2a2a]/50 flex items-center gap-2 transition-colors"
+                          className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50/50 flex items-center gap-2 transition-colors"
                         >
                           <LogOut className="w-4 h-4" />
                           로그아웃
@@ -141,13 +139,13 @@ export default function FloatingHeader() {
                 <Link href="/login">
                   <Button
                     variant="ghost"
-                    className="text-sm font-medium text-gray-700 dark:text-[#e5e5e5] hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-full h-9 px-4"
+                    className="text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-full h-9 px-4"
                   >
                     로그인
                   </Button>
                 </Link>
                 <Link href="/login">
-                  <Button className="text-sm font-semibold bg-gray-900 dark:bg-[#1e3a8a] hover:bg-gray-800 dark:hover:bg-[#1e40af] text-white rounded-full h-9 px-5 shadow-sm">
+                  <Button className="text-sm font-semibold bg-gray-900 hover:bg-gray-800 text-white rounded-full h-9 px-5 shadow-sm">
                     가입하기
                   </Button>
                 </Link>

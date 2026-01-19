@@ -14,6 +14,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { Plus } from 'lucide-react';
+import CanvasDropZone from './CanvasDropZone';
 
 export interface MindMapCanvasHandle {
   zoomIn: () => void;
@@ -43,7 +44,7 @@ interface MindMapCanvasProps {
   centerNodeId?: string | null; // 화면 중앙에 표시할 노드 ID
   originalNodes?: NodeType[]; // 원본 노드 배열 (좌표 변환 전)
   focusNodeId?: string | null; // 포커스할 노드 ID (검색 등에서 사용)
-  onTagDrop?: (nodeId: string, tag: GapTag) => void; // 태그 드롭 핸들러
+  onTagDrop?: (nodeId: string | null, tag: GapTag, canvasX?: number, canvasY?: number) => void; // 태그 드롭 핸들러 (nodeId가 null이면 캔버스에 드롭)
   isReadOnly?: boolean; // 읽기 전용 모드
   disableAutoSave?: boolean; // 자동 저장 비활성화 (공유 페이지 등에서 사용)
   showGrid?: boolean; // 그리드 표시 여부
@@ -942,7 +943,7 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
       <ContextMenuTrigger asChild>
     <div
       ref={canvasRef}
-      className={`w-full h-full overflow-hidden bg-gray-50 dark:bg-[#0a0a0a] relative transition-all duration-200 ${
+      className={`w-full h-full overflow-hidden bg-gray-50 relative transition-all duration-200 ${
             cursorMode === 'move' || spacePressed || isPanning
           ? 'cursor-grab active:cursor-grabbing'
               : isAddNodeMode
@@ -955,10 +956,24 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
       onWheel={handleWheel}
       onClick={handleCanvasClick}
     >
+      {/* 캔버스 드롭 영역 (태그 드롭용) */}
+      {onTagDrop && (
+        <CanvasDropZone
+          onDrop={(tag, x, y) => {
+            // 캔버스 좌표를 월드 좌표로 변환
+            const worldX = (x - pan.x) / zoom;
+            const worldY = (y - pan.y) / zoom;
+            onTagDrop(null, tag, x, y);
+          }}
+          zoom={zoom}
+          pan={pan}
+        />
+      )}
+      
       {/* 그리드 배경 - 라이트 모드 */}
       {showGrid && (
         <div
-          className="absolute inset-0 pointer-events-none z-0 dark:hidden"
+          className="absolute inset-0 pointer-events-none z-0"
           style={{
             backgroundImage: `
               linear-gradient(to right, rgba(156, 163, 175, 0.08) 1px, transparent 1px),
@@ -975,7 +990,7 @@ const MindMapCanvas = forwardRef<MindMapCanvasHandle, MindMapCanvasProps>(functi
       {/* 그리드 배경 - 다크 모드 */}
       {showGrid && (
         <div
-          className="absolute inset-0 pointer-events-none z-0 hidden dark:block"
+          className="absolute inset-0 pointer-events-none z-0 hidden"
           style={{
             backgroundImage: `
               linear-gradient(to right, rgba(75, 85, 99, 0.1) 1px, transparent 1px),
